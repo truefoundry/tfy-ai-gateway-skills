@@ -50,7 +50,7 @@ Search terms: "gateway budget rules", "gateway budget alerts", "budget limits", 
 
 ### Phase 3: You must validate your budget config rule understanding
  1. Use `search_true_foundry_docs`, goal is to get the correct budget document link.
- 2. Use a web fetch tool as well tool get the document.
+ 2. Use a web fetch tool as well tool get the document. Fetch the whole page, all content.
  3. Understand critical rules. Structure is present in manifest. The doc will you semantic correctness.
 
 ### Phase 4: Generate Valid Budget Config Manifest
