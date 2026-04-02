@@ -43,7 +43,7 @@ result:
     grep -A 20 -h -E 'class Budget.+' scripts/manifest_schemas.py
     ```
 
-### Phase 3: Ensure you validate your understanding from docs.
+### Phase 3: You must validate your budget config rule understanding from docs.
 
 ### Phase 4: Generate Valid Budget Config Manifest
 
@@ -59,3 +59,4 @@ Search terms: "gateway budget rules", "gateway budget alerts", "budget limits", 
 ## Checklist
 
 - [ ] Did I ensure that the final manifest is a union of existing manifest and my recommendation.
+- [ ] Did I use the correct order of rules in the manifest.
