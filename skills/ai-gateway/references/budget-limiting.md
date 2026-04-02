@@ -31,7 +31,11 @@ result:
 
 ## Generating Valid Manifests for Budget Limiting
 
-### Phase 1: Research Budget Config Schema
+### Phase 1: Fetch existing budget config.
+
+1. Gateway has a single budget config manifest. The final manifest will be union of existing + your changes.
+
+### Phase 2: Research Budget Config Schema
 
 1. Use grep on `scripts/manifest_schemas.py` to understand schema of class `BudgetConfig` and related classes.
 
@@ -39,7 +43,9 @@ result:
     grep -A 20 -h -E 'class Budget.+' scripts/manifest_schemas.py
     ```
 
-### Phase 2: Generate Valid Budget Config Manifest
+### Phase 3: Ensure you validate your understanding from docs.
+
+### Phase 4: Generate Valid Budget Config Manifest
 
 1. Using the discovered schema write yaml manifest to a file.
 2. Use `python scripts/validate_schema.py --file-path <path-to-manifest>` to validate the manifest.
@@ -47,7 +53,9 @@ result:
 
 ## Searching Docs for Additional Information
 
-**Important**: This should be only used when other sources provide insufficient information.
-
 Use `search_true_foundry_docs` to search for additional information about Budget Limiting feature.
 Search terms: "gateway budget rules", "gateway budget alerts", "budget limits", "spend limits"
+
+## Checklist
+
+- [ ] Did I ensure that the final manifest is a union of existing manifest and my recommendation.
