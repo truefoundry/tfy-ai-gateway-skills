@@ -29,6 +29,11 @@ result:
       - # more rules
 ```
 
+## Searching Docs
+
+Use `search_true_foundry_docs` to get updated understanding about budget config.
+Search terms: "gateway budget rules", "gateway budget alerts", "budget limits", "spend limits"
+
 ## Generating Valid Manifests for Budget Limiting
 
 ### Phase 1: Fetch existing budget config.
@@ -50,11 +55,6 @@ result:
 1. Using the discovered schema write yaml manifest to a file.
 2. Use `python scripts/validate_schema.py --file-path <path-to-manifest>` to validate the manifest.
 3. Repeat the process until the manifest is valid.
-
-## Searching Docs for Additional Information
-
-Use `search_true_foundry_docs` to search for additional information about Budget Limiting feature.
-Search terms: "gateway budget rules", "gateway budget alerts", "budget limits", "spend limits"
 
 ## Checklist
 
