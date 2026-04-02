@@ -43,7 +43,7 @@ result:
     grep -A 20 -h -E 'class Budget.+' scripts/manifest_schemas.py
     ```
 
-### Phase 3: You must validate your budget config rule understanding from docs.
+### Phase 3: You must validate your budget config rule understanding from `search_true_foundry_docs`.
 
 ### Phase 4: Generate Valid Budget Config Manifest
 
