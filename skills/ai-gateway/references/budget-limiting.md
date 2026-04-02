@@ -58,5 +58,6 @@ Search terms: "gateway budget rules", "gateway budget alerts", "budget limits", 
 
 ## Checklist
 
-- [ ] Did I ensure that the final manifest is a union of existing manifest and my recommendation.
-- [ ] Did I use the correct order of rules in the manifest.
+- [ ] Did I ensure that the final manifest is a union of existing manifest and my recommendation?
+- [ ] Did I check docs to get updated understanding of budget?
+- [ ] Did I use the correct order of rules in the manifest?
