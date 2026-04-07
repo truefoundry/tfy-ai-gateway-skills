@@ -26,7 +26,7 @@ TrueFoundry AI Gateway is the proxy layer that sits between applications and the
 - Policies are Gateway level rules that activate while using the entities. E.g.
   - Rate Limiting Policy decides when requests to a set of models from a set of users should be rate limited
   - Budget Limiting Policy decides when requests to a set of models from a set of users should be budget limited
-  - Load Balancing Policy (Deprecated in favor of Virtual Models) decides when requests to a set of models should be load balanced
+  - Load Balancing Policy (aka Routing Config) decides when requests to a set of models should be load balanced. This feature has been deprecated in favor of Virtual Models.
 
 
 Following table lists the file path for each entity and policy which describes how to fetch existing data and how to write new valid  manifests

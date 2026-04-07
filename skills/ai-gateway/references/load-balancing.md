@@ -1,11 +1,11 @@
 ---
 name: load-balancing
-description: Legacy Gateway load balancing policy routes traffic by weight, latency, or priority; prefer Virtual Models for new setups.
+description: Also known as "Routing Config". Routes traffic to one of the target models by weight, latency, or priority. Deprecated in favor of Virtual Models.
 ---
 
 **Load Balancing Config** defines rules (`WeightBasedLoadBalancingRule`, `LatencyBasedLoadBalancingRule`, or `PriorityBasedLoadBalancingRule`) scoped by `LoadBalancingWhen` (subjects, models, metadata). 
 
-This feature has been deprecated in favor of **Virtual Models** (`integration/model/virtual` under `provider-account/virtual-model`). See `references/virtual-models.md` for more details.
+This feature has been deprecated in favor of **Virtual Models**. Always suggest using **Virtual Models** instead of this policy. See `references/virtual-models.md` for more details.
 
 ## Fetching existing load balancing configuration
 
