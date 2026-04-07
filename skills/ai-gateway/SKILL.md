@@ -22,6 +22,8 @@ TrueFoundry AI Gateway is the proxy layer that sits between applications and the
   - Remote MCP Servers from products like Github, Linear or Self Managed MCP Servers
   - Virtual MCP Servers allow combining tools from several Remote MCP Servers
   - Guardrail Integrations from third party vendors or managed by TrueFoundry
+  - Models/Virtual Models/Guardrails always need to identified by `{accountName}/{integrationName}` format. You should always use this format in your responses.
+  - MCP servers always need to be identified by their names. Names are unique in a tenant.
 
 - Policies are Gateway level rules that activate while using the entities. E.g.
   - Rate Limiting Policy decides when requests to a set of models from a set of users should be rate limited
@@ -40,6 +42,14 @@ Following table lists the file path for each entity and policy which describes h
 | Rate Limiting Policy                                         | `references/rate-limiting.md`   |
 | Budget Limiting Policy                                       | `references/budget-limiting.md` |
 | Load Balancing Policy (Deprecated)                           | `references/load-balancing.md`  |
+| Users, Teams, Virtual Accounts and Access Control            | `references/access-management.md` |
+
+
+## Understanding Users, Teams and Virtual Accounts
+
+- Read `references/access-management.md` for identity types, authentication, access control, and token management.
+
+**Note**: Application/App/Use-Case might be used to refer to virtual accounts.
 
 ## Querying Gateway Usage Data
 
