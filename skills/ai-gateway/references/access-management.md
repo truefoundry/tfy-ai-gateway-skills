@@ -12,6 +12,7 @@ description: Identity types, authentication tokens (PATs/VATs), access control, 
 - **Virtual Accounts**: Non-user identities for applications and services. Each virtual account has its own token (VAT) and can be scoped to minimum required permissions. One virtual account per application is recommended.
 - **External Identity**: Allows authentication via external identity providers (Okta, Azure AD) using JWT tokens, without requiring TrueFoundry user accounts. Useful for B2B applications.
 
+**Note**: There is an 'everyone' team which includes all users in the tenant. (not virtual accounts)
 
 ## Authentication
 
