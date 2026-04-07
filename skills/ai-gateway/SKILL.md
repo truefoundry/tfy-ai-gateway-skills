@@ -14,7 +14,7 @@ TrueFoundry AI Gateway is the proxy layer that sits between applications and the
 
 ## Understanding Manifests for Gateway Entities and Policies
 
-> **Note**: `policy` and `configuration` are used interchangeably
+> **Note**: `policy` and `configuration` are used interchangeably. 
 
 - Entities are integrations that can be used via the Gateway. E.g.
   - Models from vendors like OpenAI, Anthropic, etc
@@ -27,6 +27,7 @@ TrueFoundry AI Gateway is the proxy layer that sits between applications and the
   - Rate Limiting Policy decides when requests to a set of models from a set of users should be rate limited
   - Budget Limiting Policy decides when requests to a set of models from a set of users should be budget limited
   - Load Balancing Policy (Deprecated in favor of Virtual Models) decides when requests to a set of models should be load balanced
+
 
 Following table lists the file path for each entity and policy which describes how to fetch existing data and how to write new valid  manifests
 
@@ -43,6 +44,9 @@ Following table lists the file path for each entity and policy which describes h
 ## Querying Gateway Usage Data
 
 - Read `references/observability.md` file to understand how to query traces and metrics
+
+## Integration with Tools/Libraries/Frameworks
+- Read `references/integrations.md` file to understand how to use models already configured in the Gateway with different tools/libraries/frameworks.
 
 ## Using Docs
 
