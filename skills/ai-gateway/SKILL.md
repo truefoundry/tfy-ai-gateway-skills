@@ -22,7 +22,7 @@ TrueFoundry AI Gateway is the proxy layer that sits between applications and the
   - Remote MCP Servers from products like Github, Linear or Self Managed MCP Servers
   - Virtual MCP Servers allow combining tools from several Remote MCP Servers
   - Guardrail Integrations from third party vendors or managed by TrueFoundry
-  - Models/Virtual Models/Guardrails always need to identified by: `{accountName}/{integrationName}` format. This alone should be sufficient to identify the entity.
+  - Models/Virtual Models/Guardrails always need to identified by: model_id of the format `{accountName}/{integrationName}`. This alone should be sufficient to identify the entity.
   - MCP servers always need to be identified by their names. Names are unique in a tenant.
 
 - Policies are Gateway level rules that activate while using the entities. E.g.
