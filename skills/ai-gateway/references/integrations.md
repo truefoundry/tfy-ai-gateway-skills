@@ -29,6 +29,7 @@ Docs: https://www.truefoundry.com/docs/ai-gateway/native-sdk-support
 
 When trying to integrate with external tools:
  - Use search_true_foundry_docs tool directly (dont make more than 2 attempts).
+   - You can figure out if the returned results are relevant just by the excerpts. You should NOT try to extract the content if page does not seem relevant.
  - It is normal that a new integration guide is not available in the docs. In that case, agent should try to figure out integration using the OpenAI Compatibility or Native SDK Support. Note: Native SDK will work only for certain providers only
 
 Pre-built integration guides exist for coding assistants (Cursor, Claude Code, GitHub Copilot, Cline, etc.), agent frameworks (LangChain, CrewAI, Pydantic AI, OpenAI Agents SDK, etc.), applications (n8n, Dify, Open WebUI, etc.), and observability platforms (Langfuse, Arize, etc.).
