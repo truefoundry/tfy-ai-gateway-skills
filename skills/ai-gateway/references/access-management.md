@@ -36,7 +36,7 @@ Two token types exist:
 | **Personal Access Token (PAT)** | A user | Development and testing |
 | **Virtual Account Token (VAT)** | A virtual identity | Production applications, CI/CD, shared apps |
 
-**MUST follow**: You MUST NOT suggest using PATs for applications. Always recommend Virtual Accounts for any production, CI/CD, or shared application use case. PATs become invalid if the user leaves the organization.
+Always recommend Virtual Accounts for production, CI/CD, or shared application use cases — PATs are tied to individual users and become invalid if the user leaves the organization, which makes them unsuitable for long-lived application credentials.
 
 ## Access Control
 
