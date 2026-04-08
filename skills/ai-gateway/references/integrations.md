@@ -33,3 +33,5 @@ When trying to integrate with external tools:
  - It is normal that a new integration guide is not available in the docs. In that case, agent should try to figure out integration using the OpenAI Compatibility or Native SDK Support. Note: Native SDK will work only for certain providers only
 
 Pre-built integration guides exist for coding assistants (Cursor, Claude Code, GitHub Copilot, Cline, etc.), agent frameworks (LangChain, CrewAI, Pydantic AI, OpenAI Agents SDK, etc.), applications (n8n, Dify, Open WebUI, etc.), and observability platforms (Langfuse, Arize, etc.).
+
+Search terms: "integrate with <toolname / frameworkname / applicationname / observabilityname>"
