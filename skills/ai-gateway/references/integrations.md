@@ -25,10 +25,10 @@ For native SDKs (Google Gen AI, Anthropic, boto3 Bedrock etc), the Gateway provi
 
 Docs: https://www.truefoundry.com/docs/ai-gateway/native-sdk-support
 
-## Ready-Made Integrations (IDEs, Agent Frameworks, Apps, Observability)
+## External Integrations (IDEs, Agent Frameworks, Apps, Observability)
+
+When trying to integrate with external tools:
+ - Use search_true_foundry_docs tool directly (dont make more than 2 attempts).
+ - It is normal that a new integration guide is not available in the docs. In that case, agent should try to figure out integration using the OpenAI Compatibility or Native SDK Support. Note: Native SDK will work only for certain providers only
 
 Pre-built integration guides exist for coding assistants (Cursor, Claude Code, GitHub Copilot, Cline, etc.), agent frameworks (LangChain, CrewAI, Pydantic AI, OpenAI Agents SDK, etc.), applications (n8n, Dify, Open WebUI, etc.), and observability platforms (Langfuse, Arize, etc.).
-
-You will find the integration guides in 1-2 attempts of docs search tool if the integration exists. If not, agent should try to figure out integration using the OpenAI Compatibility or Native SDK Support. Note: Native SDK will work only for certain providers only.
-
-Full list: https://www.truefoundry.com/docs/ai-gateway/ecosystem
