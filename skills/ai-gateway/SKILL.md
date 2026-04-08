@@ -49,7 +49,7 @@ Following table lists the file path for each entity and policy which describes h
 
 - Read `references/access-management.md` for identity types, authentication, access control, and token management.
 
-**Note**: "Application/App/Use-Case" may mean a virtual account or an `x-tfy-metadata` key (surfaced as `TfyGatewayMetadata` in metrics/traces). You MUST Confirm which with the user what it means.
+**Note**: "Application/App/Use-Case" may mean a virtual account or an `x-tfy-metadata` key (surfaced as `TfyGatewayMetadata` in metrics/traces). You MUST confirm with the user what it means.
 
 ## Querying Gateway Usage Data
 
@@ -74,3 +74,4 @@ Following table lists the file path for each entity and policy which describes h
 - [ ] Does my answer contain observation and reasoning for any claims being made?
 - [ ] Does my answer contain actionable next steps in order of priority ?
 - [ ] Have I offered follow up next steps?
+- [ ] Did I confirm with the user what "Application/App/Use-Case" means?
