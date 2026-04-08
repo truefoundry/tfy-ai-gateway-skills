@@ -29,4 +29,6 @@ Docs: https://www.truefoundry.com/docs/ai-gateway/native-sdk-support
 
 Pre-built integration guides exist for coding assistants (Cursor, Claude Code, GitHub Copilot, Cline, etc.), agent frameworks (LangChain, CrewAI, Pydantic AI, OpenAI Agents SDK, etc.), applications (n8n, Dify, Open WebUI, etc.), and observability platforms (Langfuse, Arize, etc.).
 
+You will find the integration guides in 1-2 attempts of docs search tool if the integration exists. If not, agent should try to figure out integration using the OpenAI Compatibility or Native SDK Support. Note: Native SDK will work only for certain providers only.
+
 Full list: https://www.truefoundry.com/docs/ai-gateway/ecosystem
