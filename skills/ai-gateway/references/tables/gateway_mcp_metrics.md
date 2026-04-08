@@ -39,7 +39,7 @@ Metadata: Map(Text, Text), nullable
 CreatedBySubjectSlug: TEXT
     Slug of the subject that invoked the MCP path. User email or virtual account name
 CreatedBySubjectType: TEXT
-    Type of the calling subject. e.g. user, virtualaccount
+    Type of the calling subject. Possible values: user, virtualaccount.
 Teams: Array(Text), nullable
     Teams associated with the caller for attribution.
 CreatedBySubjectId: TEXT

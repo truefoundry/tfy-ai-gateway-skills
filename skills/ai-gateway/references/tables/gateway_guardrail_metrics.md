@@ -39,7 +39,7 @@ Metadata: Map(Text, Text), nullable
 CreatedBySubjectSlug: TEXT
     Slug of the subject on whose request the config was evaluated. User email or virtual account name
 CreatedBySubjectType: TEXT
-    Type of the requesting subject.
+    Type of the requesting subject. Possible values: user, virtualaccount.
 Teams: Array(Text), nullable
     Teams attributed to the caller.
 CreatedBySubjectId: TEXT

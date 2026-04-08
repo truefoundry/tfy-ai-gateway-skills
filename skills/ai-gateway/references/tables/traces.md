@@ -58,7 +58,7 @@ SpanAttributesBoolList: Map(Text, Array(BOOLEAN)), nullable
 TfyCreatedBySubjectSlug: TEXT, nullable
     URL-safe slug for the TrueFoundry subject that created the span. User email or virtual account name
 TfyCreatedBySubjectType: TEXT, nullable
-    Kind of subject (e.g. user, service account) in TrueFoundry.
+    Type of the requesting subject. Possible values: user, virtualaccount.
 TfyCreatedBySubjectId: TEXT, nullable
     Stable identifier of the TrueFoundry subject.
 TfyCreatedBySubject: TEXT
