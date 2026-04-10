@@ -51,6 +51,10 @@ Following table lists the file path for each entity and policy which describes h
 
 **Note**: "Application/App/Use-Case" may mean a virtual account or an `x-tfy-metadata` key (surfaced as `TfyGatewayMetadata` in metrics/traces). Confirm with the user which one they mean before proceeding — the answer changes which data to query.
 
+### Resolving "my" in queries
+
+"My" means the current user, not the tenant. Call `get_me` to resolve their identity and filter queries by `"CreatedBySubjectSlug"`.
+
 ## Querying Gateway Usage Data
 
 - Read `references/observability.md` file to understand how to query traces and metrics
@@ -60,13 +64,15 @@ Following table lists the file path for each entity and policy which describes h
 
 ## Using Docs
 
-**Important**: This should be only used when other sources provide insufficient information.
+The reference files in this skill provide structural overviews and manifest guidance, but they don't cover every detail. For conceptual questions (e.g. "how does authorization work?", "what is a virtual MCP server?"), setup guides, feature deep-dives, or anything not fully answered by the reference files — search the docs proactively.
 
 - Use `search_true_foundry_docs` tool to search and understand product features.
 - Use `extract` tool to extract specific information from the docs links.
 
 ## Checklist Before Responding
 
+- [ ] Did I search docs (`search_true_foundry_docs`) for conceptual or "how does X work" questions?
+- [ ] Did I resolve the user's identity with `get_me` when the query uses "my"/"I"/"mine"?
 - [ ] Did I explore the entities and configurations related to the question?
 - [ ] Did I analyze the queried data before arriving at conclusions?
 - [ ] Did I explore`scripts/manifest_schemas.py` BEFORE generating yaml manifests?

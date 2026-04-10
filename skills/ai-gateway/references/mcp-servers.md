@@ -53,7 +53,7 @@ Important: Ignore `MCPServerProviderAccount` and `MCPServerIntegration` classes.
 
 ## Searching Docs for Additional Information
 
-**Important**: This should be only used when other sources provide insufficient information.
+The content above covers common operations. For conceptual questions, setup guides, or anything not fully answered above, search the docs.
 
 Use `search_true_foundry_docs` to search for additional information about mcp servers.
 Search terms: "mcp gateway", "mcp oauth", "mcp server registry", "openapi to mcp server", "virtual mcp servers"

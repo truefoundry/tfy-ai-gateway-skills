@@ -57,7 +57,7 @@ The identifier `my-openai-account/gpt-4o` refers to the `gpt-4o` integration und
 
 ## Searching docs for additional information
 
-**Important**: This should be only used when other sources provide insufficient information.
+The content above covers common operations. For conceptual questions, setup guides, or anything not fully answered above, search the docs.
 
 Use `search_true_foundry_docs` to search for additional information about models.
 Search terms: "supported model providers", "model integrations"

@@ -32,7 +32,7 @@ When using the `gateway_execute_sql` tool, follow these guidelines:
 - The table has to be accessed as `"{dataRoutingDestination}"."{tableName}"` E.g.  `"default"."traces"`.
 - "*_metrics" tables always exists in "default" data routing destination.
 - When no destination is specified, use "default" as the destination.
-- Always add time range filters to the queries. Larger time ranges are okay for metrics aggregations. For any scan type queries, use small time ranges, especially for `traces` table.
+- Always add time range filters to the queries. Larger time ranges are okay for metrics aggregations. For any scan type queries, use small time ranges, especially for `traces` table. Default time range for metrics if no time is specified should be 7 days.
 
 #### Examples
 
