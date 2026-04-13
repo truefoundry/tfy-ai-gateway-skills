@@ -47,11 +47,9 @@ Access to models users/teams is managed at the **provider account** level. You c
 
 Permissions can be granted to users, teams from collaborator section in the provider account manifest.
 
-Virtual Account can have access to models, provider accounts, mcp servers. These permissions are present in the virtual account manifest and managed from the virtual account manifest.
-
-
-
 Tenant admins automatically have access to all models without needing explicit collaborator assignment.
+
+Virtual Account can have permissions to models, provider accounts, mcp servers. These permissions are present in the virtual account manifest and managed from the virtual account manifest.
 
 ## Virtual Account Token Management
 
