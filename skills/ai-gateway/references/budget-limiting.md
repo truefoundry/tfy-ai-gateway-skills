@@ -64,5 +64,5 @@ Search terms: "gateway budget rules", "gateway budget alerts", "budget limits", 
 - [ ] Did I ensure that the final manifest is a union of existing manifest and my recommendation?
 - [ ] Did I check docs to get updated understanding of budget?
 - [ ] Did I use the correct order of budget limiting rules in the manifest?
-- [ ] Did I verify that subjects in the new rule are not already matched by earlier rules?
+- [ ] Did I verify that subjects in the new rule are not already matched by earlier rules (verify team members are not already matched by two rules)?
 
