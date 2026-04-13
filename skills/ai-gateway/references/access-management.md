@@ -40,12 +40,16 @@ Always recommend Virtual Accounts for production, CI/CD, or shared application u
 
 ## Access Control
 
-Access to models is managed at the **provider account** level. Two permission levels:
+Access to models users/teams is managed at the **provider account** level. You can find collaborators in the provider account manifest. Two permission levels:
 
 - **Provider Account Manager**: Can modify settings, add/remove models, manage permissions for others.
 - **Provider Account User**: Can use all models in the account. Cannot change settings or permissions.
 
-Permissions can be granted to users, teams, or virtual accounts.
+Permissions can be granted to users, teams from collaborator section in the provider account manifest.
+
+Virtual Account can have access to models, provider accounts, mcp servers. These permissions are present in the virtual account manifest and managed from the virtual account manifest.
+
+
 
 Tenant admins automatically have access to all models without needing explicit collaborator assignment.
 
