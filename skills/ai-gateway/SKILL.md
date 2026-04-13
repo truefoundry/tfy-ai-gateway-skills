@@ -64,7 +64,7 @@ Following table lists the file path for each entity and policy which describes h
 
 ## Using Docs
 
-The reference files in this skill provide structural overviews and manifest guidance, but they don't cover every detail. For conceptual questions (e.g. "how does authorization work?", "what is a virtual MCP server?"), setup guides, feature deep-dives, or anything not fully answered by the reference files — search the docs proactively.
+The reference files in this skill provide structural overviews and manifest guidance, but they don't cover every detail. For conceptual questions (e.g. "how does authorization work?", "what is a virtual MCP server?"), setup guides, feature deep-dives, or anything not fully answered by the reference files — search the docs proactively. NEVER make up information or guess the answer/fact.
 
 - Use `search_true_foundry_docs` tool to search and understand product features.
 - Use `extract` tool to extract specific information from the docs links.
