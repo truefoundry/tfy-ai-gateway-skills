@@ -1,0 +1,7 @@
+type: agent_skill
+name: ai-gateway
+ml_repo: test-bhavesh-ml
+source:
+  type: local
+  skill_dir: skills/ai-gateway
+metadata: {}

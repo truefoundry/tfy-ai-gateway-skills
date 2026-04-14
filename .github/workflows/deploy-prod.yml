@@ -1,0 +1,28 @@
+name: Deploy Agent Skills (Prod)
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: tfy apply (Prod)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install TrueFoundry CLI
+        run: pip install truefoundry
+
+      - name: Apply manifest
+        env:
+          TFY_HOST: ${{ secrets.TFY_HOST_PROD }}
+          TFY_API_KEY: ${{ secrets.TFY_API_KEY_PROD }}
+        run: tfy apply -f manifest.yaml
