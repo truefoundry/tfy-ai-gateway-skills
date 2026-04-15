@@ -41,6 +41,8 @@ Each span you query from LLM Gateway captures key request and model details. The
 | `tfy.model.streaming`    | Whether the request used streaming mode                                                                                               |
 | `tfy.model.request_type` | Type of request (e.g., `"ChatCompletion", "Completion", "Embedding", "Rerank", "AgentResponse", "MCPGateway", "CreateModelResponse"`) |
 
+Note: Provider-side prompt caching tokens (`cache_read_tokens`, `cache_write_tokens`) are not available as span attributes. They are only available inside the `TfyGatewayOutput` JSON `usage` object on `Model` spans in the `traces` table.
+
 ### Model Performance Metrics
 
 | Attribute                                    | Description                                       |

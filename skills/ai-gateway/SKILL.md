@@ -91,3 +91,6 @@ This may mean a virtual account or an `x-tfy-metadata` key (surfaced as `TfyGate
 
 Gateway Caching (Semantic and Exact Match) and Provider Caching (cache read/write tokens) are different features. Gateway Caching is a policy configured at the gateway level. Provider Caching refers to the provider-side prompt caching reflected in token usage (e.g. `cache_read_input_tokens`). Clarify which one the user is asking about.
 
+- **Gateway Caching** data is available in `gateway_model_metrics` via the `CacheHit`, `CacheType`, `CacheLookupStatus`, and related columns.
+- **Provider Caching** tokens (`cache_read_tokens`, `cache_write_tokens`) are embedded in the `TfyGatewayOutput` JSON field in the `traces` table for spans with `TfyGatewaySpanType = 'Model'`. They are inside the `usage` object. They are **not** available as standalone columns in `gateway_model_metrics` or as span attributes.
+

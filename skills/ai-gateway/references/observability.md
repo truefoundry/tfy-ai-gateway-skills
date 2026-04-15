@@ -42,6 +42,11 @@ Query to get all traces in a time range:
 SELECT * FROM "default"."traces" WHERE "Timestamp" > '2026-03-13T10:00:00Z' AND "Timestamp" < '2026-03-13T11:00:00Z'
 ```
 
+### Common Query Patterns
+
+- **Provider Cache Token Usage**: Provider cache data is in the `TfyGatewayOutput` JSON field on `Model` spans in the `traces` table. Parse the JSON and extract the `usage` object for `cache_read_tokens` and `cache_write_tokens`. Filter with `TfyGatewaySpanType = 'Model'`.
+- **Gateway Cache Hit Rates**: Use the `CacheHit`, `CacheType`, and `CacheLookupStatus` columns in `gateway_model_metrics`. These reflect gateway-level semantic/exact-match caching, not provider-side prompt caching.
+
 ### Checklist For SQL Queries
 
 - [ ] Did I read the table schema and used the correct column names?
