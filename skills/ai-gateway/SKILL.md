@@ -94,3 +94,7 @@ Gateway Caching (Semantic and Exact Match) and Provider Caching (cache read/writ
 - **Gateway Caching** data is available in `gateway_model_metrics` via the `CacheHit`, `CacheType`, `CacheLookupStatus`, and related columns.
 - **Provider Caching** tokens (`cache_read_tokens`, `cache_write_tokens`) are embedded in the `TfyGatewayOutput` JSON field in the `traces` table for spans with `TfyGatewaySpanType = 'Model'`. They are inside the `usage` object. They are **not** available as standalone columns in `gateway_model_metrics` or as span attributes.
 
+### Reference to entity names
+
+If user refers to an entity by name, you must first find the entity in the system. E.g. Virtual Model, MCP Server, Team, User etc. Expect that user may do minor mistakes in typing the name.
+
