@@ -54,6 +54,13 @@ Note: Provider-side prompt caching tokens (`cache_read_tokens`, `cache_write_tok
 | `tfy.model.metric.cost_in_usd`               | Cost of the request in USD                        |
 | `tfy.model.metric.inter_token_latency_in_ms` | Average latency between tokens (streaming)        |
 
+### Provider Caching Metrics
+
+| Attribute                                        | Description                                         |
+|--------------------------------------------------|-----------------------------------------------------|
+| `tfy.model.metric.cache_read_input_tokens`       | Tokens served from provider-side prompt cache        |
+| `tfy.model.metric.cache_creation_input_tokens`   | Tokens written to provider-side prompt cache         |
+
 ### Load Balancing Attributes
 
 | Attribute                      | Description                                                                |
