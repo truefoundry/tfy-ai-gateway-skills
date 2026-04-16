@@ -19,6 +19,7 @@ Available tables:
 - `gateway_guardrail_metrics` - Stores metrics for applied guardrails
 - `gateway_config_metrics` - Stores metrics for applied rate limits, budget limits and load balancing rules
 - `gateway_request_metrics` - Stores metrics for every incoming request to the gateway
+- `gateway_feedbacks` - Stores user feedback (ratings, comments) linked to trace spans
 
 For each table, there is a `/references/tables/<table-name>.md` file which describes the table columns
 
@@ -46,7 +47,7 @@ SELECT * FROM "default"."traces" WHERE "Timestamp" > '2026-03-13T10:00:00Z' AND 
 
 - **Provider Cache Token Usage**: Provider cache data is in the `TfyGatewayOutput` JSON field on `Model` spans in the `traces` table. Parse the JSON and extract the `usage` object for `cache_read_tokens` and `cache_write_tokens`. Filter with `TfyGatewaySpanType = 'Model'`.
 - **Gateway Cache Hit Rates**: Use the `CacheHit`, `CacheType`, and `CacheLookupStatus` columns in `gateway_model_metrics`. These reflect gateway-level semantic/exact-match caching, not provider-side prompt caching.
-- 
+- **Feedback on Traces**: Feedback is stored in `gateway_feedbacks`, linked via `TargetTraceId`. Use a LEFT JOIN with `traces` to enrich traces with feedback. Always filter on `"Date"` (partition column) and `"IsDeleted" = false`. See `/references/tables/gateway_feedbacks.md` for schema and sample join query.
 
 
 ### Checklist For SQL Queries
