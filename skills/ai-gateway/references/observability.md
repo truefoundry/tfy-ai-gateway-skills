@@ -37,15 +37,15 @@ When using the `gateway_execute_sql` tool, follow these guidelines:
 
 #### Examples
 
-Query to get all traces in a time range:
+- Query to get all traces in a time range:
 
 ```sql
 SELECT * FROM "default"."traces" WHERE "Timestamp" > '2026-03-13T10:00:00Z' AND "Timestamp" < '2026-03-13T11:00:00Z'
 ```
 
-Querying map-type columns (e.g. `"Metadata"`):
+- Querying map-type columns (e.g. `"Metadata"`):
 
-Get distinct values for a specific known key:
+1. Get distinct values for a specific known key:
 
 ```sql
 SELECT DISTINCT "Metadata"['your_key'] AS value
@@ -54,7 +54,7 @@ WHERE "CreatedAt" > NOW() - INTERVAL '7 days'
   AND "VirtualModelName" IS NULL
 ```
 
-Discover all distinct keys that exist across rows using `map_keys()` + `unnest()`:
+2. Discover all distinct keys that exist across rows using `map_keys()` + `unnest()`:
 
 ```sql
 SELECT DISTINCT key
