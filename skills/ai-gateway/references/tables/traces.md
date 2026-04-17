@@ -24,7 +24,7 @@ SpanName: TEXT
 SpanKind: TEXT
     OpenTelemetry span kind (client, server, internal, producer, consumer).
 Duration: BIGINT
-    Span duration in the pipeline’s native unit (typically nanoseconds per OpenTelemetry).
+    Span duration in the pipeline's native unit (typically nanoseconds per OpenTelemetry).
 StatusCode: TEXT, nullable
     OpenTelemetry span status code (Unset, Ok, Error).
 StatusMessage: TEXT, nullable
@@ -40,7 +40,8 @@ TfyGatewayMetadata: Map(Text, Text), nullable
 TfyGatewayInput: TEXT, nullable
     JSON serialized gateway input payload. Contains sensitive data
 TfyGatewayOutput: TEXT, nullable
-    JSON serialized gateway output payload. Contains sensitive data
+    JSON serialized gateway output payload. Contains sensitive data.
+    For Model spans (TfyGatewaySpanType = 'Model'), this contains the full LLM response JSON
 TfyGatewaySpanType: TEXT, nullable
     Classifies the gateway span (e.g. model call, MCP, guardrail) for analysis.
 SpanAttributesString: Map(Text, Text), nullable

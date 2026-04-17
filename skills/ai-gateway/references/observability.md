@@ -19,6 +19,7 @@ Available tables:
 - `gateway_guardrail_metrics` - Stores metrics for applied guardrails
 - `gateway_config_metrics` - Stores metrics for applied rate limits, budget limits and load balancing rules
 - `gateway_request_metrics` - Stores metrics for every incoming request to the gateway
+- `gateway_feedbacks` - Stores user feedback (ratings, comments) linked to trace spans
 
 For each table, there is a `/references/tables/<table-name>.md` file which describes the table columns
 
@@ -42,9 +43,17 @@ Query to get all traces in a time range:
 SELECT * FROM "default"."traces" WHERE "Timestamp" > '2026-03-13T10:00:00Z' AND "Timestamp" < '2026-03-13T11:00:00Z'
 ```
 
+### Common Query Patterns
+
+- **Provider Cache Token Usage**: Provider cache tokens are available in `SpanAttributesNumber` on `Model` spans (`TfyGatewaySpanType = 'Model'`) in the `traces` table via `tfy.model.metric.cache_read_input_tokens` and `tfy.model.metric.cache_creation_input_tokens`.
+- **Gateway Cache Hit Rates**: Use the `CacheHit`, `CacheType`, and `CacheLookupStatus` columns in `gateway_model_metrics`. These reflect gateway-level semantic/exact-match caching, not provider-side prompt caching.
+- **Feedback on Traces**: Feedback is stored in `gateway_feedbacks`, linked via `TargetTraceId` and `TargetSpanId`. Use a LEFT JOIN with `traces` to enrich traces with feedback. Always filter `"IsDeleted" = false`. See `/references/tables/gateway_feedbacks.md` for schema and sample join query.
+
+
 ### Checklist For SQL Queries
 
 - [ ] Did I read the table schema and used the correct column names?
 - [ ] Did I quote the table name and column names?
 - [ ] Did I add time ranges and limits to the query?
 - [ ] Did I only include the columns that are relevant to the task at hand?
+

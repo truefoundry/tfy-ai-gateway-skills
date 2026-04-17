@@ -62,6 +62,7 @@ ErrorType: TEXT, nullable
     Categorized error type when IsFailure is true.
 ModelType: TEXT, nullable
     Classification of the model (e.g. chat, embedding) or integration flavor.
+## NOTE: The following cache columns pertain to Gateway-level caching (semantic/exact-match) only. Provider-side prompt caching tokens (cache_read_tokens, cache_write_tokens) are not available in this table — see the traces table's TfyGatewayOutput field instead.
 CacheType: TEXT, nullable
     Kind of response cache involved (e.g. semantic, exact) when applicable.
 CacheHit: BOOLEAN, nullable
