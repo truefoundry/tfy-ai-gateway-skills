@@ -41,6 +41,7 @@ Each span you query from LLM Gateway captures key request and model details. The
 | `tfy.model.streaming`    | Whether the request used streaming mode                                                                                               |
 | `tfy.model.request_type` | Type of request (e.g., `"ChatCompletion", "Completion", "Embedding", "Rerank", "AgentResponse", "MCPGateway", "CreateModelResponse"`) |
 
+
 ### Model Performance Metrics
 
 | Attribute                                    | Description                                       |
@@ -51,6 +52,13 @@ Each span you query from LLM Gateway captures key request and model details. The
 | `tfy.model.metric.output_tokens`             | Number of tokens in the model output              |
 | `tfy.model.metric.cost_in_usd`               | Cost of the request in USD                        |
 | `tfy.model.metric.inter_token_latency_in_ms` | Average latency between tokens (streaming)        |
+
+### Provider Caching Metrics
+
+| Attribute                                        | Description                                         |
+|--------------------------------------------------|-----------------------------------------------------|
+| `tfy.model.metric.cache_read_input_tokens`       | Tokens served from provider-side prompt cache        |
+| `tfy.model.metric.cache_creation_input_tokens`   | Tokens written to provider-side prompt cache         |
 
 ### Load Balancing Attributes
 
