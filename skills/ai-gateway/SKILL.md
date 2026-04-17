@@ -73,7 +73,7 @@ User queries are in natural language and often ambiguous. Before answering, unde
 
 ### "Application" / "App" / "Use-Case"
 
-This may mean a virtual account or an `x-tfy-metadata` key (surfaced as `TfyGatewayMetadata` in metrics/traces). Confirm with the user which one they mean before proceeding — the answer changes which data to query.
+This may mean a virtual account or an `x-tfy-metadata` key (surfaced as `TfyGatewayMetadata` in metrics/traces). You MUST askthe user which one they mean before proceeding — the answer changes which data to query.
 
 ### "Caching"
 
