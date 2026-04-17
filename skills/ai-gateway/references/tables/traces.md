@@ -41,7 +41,7 @@ TfyGatewayInput: TEXT, nullable
     JSON serialized gateway input payload. Contains sensitive data
 TfyGatewayOutput: TEXT, nullable
     JSON serialized gateway output payload. Contains sensitive data.
-    For Model spans (TfyGatewaySpanType = 'Model'), this contains the full LLM response JSON including a `usage` object with:
+    For Model spans (TfyGatewaySpanType = 'Model'), this contains the full LLM response JSON
 TfyGatewaySpanType: TEXT, nullable
     Classifies the gateway span (e.g. model call, MCP, guardrail) for analysis.
 SpanAttributesString: Map(Text, Text), nullable
