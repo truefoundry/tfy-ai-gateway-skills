@@ -59,5 +59,4 @@ Use `search_true_foundry_docs` to search for additional information about mcp se
 Search terms: "mcp gateway", "mcp oauth", "mcp server registry", "openapi to mcp server", "virtual mcp servers"
 
 ## Checklist
-[ ] Did I validate the manifest using `scripts/validate_schema.py`?
-#
+- [ ] Did I validate the manifest using `scripts/validate_schema.py`?

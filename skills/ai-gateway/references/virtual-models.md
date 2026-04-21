@@ -54,4 +54,4 @@ Use `search_true_foundry_docs` to search for additional information about virtua
 Search terms: "virtual models", "weight based routing", "latency based routing", "priority based routing", "model load balancing", "model fallback"
 
 ## Checklist
-[ ] Did I validate the manifest using `scripts/validate_schema.py`?
+- [ ] Did I validate the manifest using `scripts/validate_schema.py`?

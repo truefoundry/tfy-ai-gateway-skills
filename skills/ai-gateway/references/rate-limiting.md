@@ -50,4 +50,4 @@ Use `search_true_foundry_docs` to search for additional information about Gatewa
 Search terms: "Gateway Rate Limit Rules", "rate limiting", "token limits", "requests per minute"
 
 ## Checklist
-[ ] Did I validate the manifest using `scripts/validate_schema.py`?
+- [ ] Did I validate the manifest using `scripts/validate_schema.py`?
