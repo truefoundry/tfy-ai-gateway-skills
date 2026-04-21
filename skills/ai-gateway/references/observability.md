@@ -40,7 +40,7 @@ When using the `gateway_execute_sql` tool, follow these guidelines:
 - Query to get all traces in a time range:
 
 ```sql
-SELECT * FROM "default"."traces" WHERE "Timestamp" > '2026-03-13T10:00:00Z' AND "Timestamp" < '2026-03-13T11:00:00Z'
+SELECT * FROM "your-data-routing-destination"."traces" WHERE "Timestamp" > '2026-03-13T10:00:00Z' AND "Timestamp" < '2026-03-13T11:00:00Z'
 ```
 
 - Querying map-type columns (e.g. `"Metadata"`):
@@ -49,7 +49,7 @@ SELECT * FROM "default"."traces" WHERE "Timestamp" > '2026-03-13T10:00:00Z' AND 
 
 ```sql
 SELECT DISTINCT "Metadata"['your_key'] AS value
-FROM "default"."gateway_model_metrics"
+FROM "your-data-routing-destination"."gateway_model_metrics"
 WHERE "CreatedAt" > NOW() - INTERVAL '7 days'
   AND "VirtualModelName" IS NULL
 ```
@@ -60,7 +60,7 @@ WHERE "CreatedAt" > NOW() - INTERVAL '7 days'
 SELECT DISTINCT key
 FROM (
   SELECT unnest(map_keys("Metadata")) AS key
-  FROM "default"."gateway_model_metrics"
+  FROM "your-data-routing-destination"."gateway_model_metrics"
   WHERE "CreatedAt" > NOW() - INTERVAL '7 days'
     AND "VirtualModelName" IS NULL
 )
