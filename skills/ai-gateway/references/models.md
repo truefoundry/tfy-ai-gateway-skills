@@ -62,5 +62,3 @@ The content above covers common operations. For conceptual questions, setup guid
 Use `search_true_foundry_docs` to search for additional information about models.
 Search terms: "supported model providers", "model integrations"
 
-## Checklist
-- [ ] Did I validate the manifest using `scripts/validate_schema.py`?

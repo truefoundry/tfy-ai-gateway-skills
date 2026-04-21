@@ -58,5 +58,3 @@ The content above covers common operations. For conceptual questions, setup guid
 Use `search_true_foundry_docs` to search for additional information about mcp servers.
 Search terms: "mcp gateway", "mcp oauth", "mcp server registry", "openapi to mcp server", "virtual mcp servers"
 
-## Checklist
-- [ ] Did I validate the manifest using `scripts/validate_schema.py`?
