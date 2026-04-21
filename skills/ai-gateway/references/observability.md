@@ -31,7 +31,7 @@ When using the `gateway_execute_sql` tool, follow these guidelines:
 - Always quote the table names and column names. The column names are case sensitive
 - Never guess any column names. Read the table schema from the `/references/tables/<table-name>.md` file if you don't already know the column names.
 - The table has to be accessed as `"{dataRoutingDestination}"."{tableName}"` E.g.  `"default"."traces"`.
-- "*_metrics" tables always exists in the "default" data routing destination.
+- "*_metrics" tables always exists in the "default" data routing destination, but for others it is not guaranteed.
 - When no destination is specified - list the data routing destinations using `gateway_list_data_routing_destinations` tool. If it has only one destination - use it as the destination. If it has multiple destinations - ask the user which one they mean before proceeding.
 - Always add time range filters to the queries. Larger time ranges are okay for metrics aggregations. For any scan type queries, use small time ranges, especially for `traces` table. Default time range for metrics if no time is specified should be 7 days.
 
