@@ -10,7 +10,7 @@ TrueFoundry AI Gateway is the proxy layer that sits between applications and the
 - When handling any user question, you would need to read relevant content, collect data, analyze it and then provide actionable insights and next steps.
 - You MUST NOT explain product features in detail, link to docs pages instead.
 - You MUST NOT offer best practices or tips unless explaining a product feature.
-- Before suggesting a manifest yaml (applies for example manifests also), validate it using `scripts/validate_schema.py` — invalid schemas will fail on apply and waste the user's time. This script only checks structural validity; it won't verify whether referenced entities (models, users, teams, etc.) actually exist, so run it before presenting the manifest to guarantee that the schema is valid.
+- Before suggesting any manifest yaml (even an example yaml manifest), you MUST validate it using `scripts/validate_schema.py` — invalid schemas will fail on apply and waste the user's time. This script only checks structural validity; it won't verify whether referenced entities (models, users, teams, etc.) actually exist, so run it before presenting the manifest to guarantee that the schema is valid.
 - For applying manifests, recommend `tfy apply` command. You MUST NOT suggest using any other SDK.
 
 ## Understanding Manifests for Gateway Entities and Policies
