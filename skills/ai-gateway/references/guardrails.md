@@ -87,3 +87,6 @@ The content above covers common operations. For conceptual questions, setup guid
 Use `search_true_foundry_docs` to search for additional information about guardrails.
 
 Search terms: "configure guardrails", "guardrail integrations", "guardrail rules", "truefoundry guardrails", "azure pii guardrails", "content safety guardrails"
+
+## Checklist
+- [ ] Did I validate the manifest using `scripts/validate_schema.py`?
