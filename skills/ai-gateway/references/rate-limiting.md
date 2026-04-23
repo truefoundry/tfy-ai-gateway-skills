@@ -46,5 +46,5 @@ result:
 
 **Important**: This should be only used when other sources provide insufficient information.
 
-Use `search_true_foundry_docs` to search for additional information about Gateway rate limits.  
+Use `search_docs` to search for additional information about Gateway rate limits.  
 Search terms: "Gateway Rate Limit Rules", "rate limiting", "token limits", "requests per minute"
