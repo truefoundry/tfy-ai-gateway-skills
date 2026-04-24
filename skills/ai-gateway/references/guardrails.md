@@ -84,6 +84,6 @@ data:
 
 The content above covers common operations. For conceptual questions, setup guides, or anything not fully answered above, search the docs.
 
-Use `search_true_foundry_docs` to search for additional information about guardrails.
+Use `search_docs` to search for additional information about guardrails.
 
 Search terms: "configure guardrails", "guardrail integrations", "guardrail rules", "truefoundry guardrails", "azure pii guardrails", "content safety guardrails"

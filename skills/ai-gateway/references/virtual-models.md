@@ -50,5 +50,5 @@ The identifier `openai-account/gpt-4o` refers to the `gpt-4o` integration under 
 
 The content above covers common operations. For conceptual questions, setup guides, or anything not fully answered above, search the docs.
 
-Use `search_true_foundry_docs` to search for additional information about virtual models.
+Use `search_docs` to search for additional information about virtual models.
 Search terms: "virtual models", "weight based routing", "latency based routing", "priority based routing", "model load balancing", "model fallback"
