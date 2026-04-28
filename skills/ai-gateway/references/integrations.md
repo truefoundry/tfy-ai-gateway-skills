@@ -28,7 +28,7 @@ Docs: https://www.truefoundry.com/docs/ai-gateway/native-sdk-support
 ## External Integrations (IDEs, Agent Frameworks, Apps, Observability)
 
 When trying to integrate with external tools:
- - Use `search_true_foundry_docs` tool directly. Limit to 2 search attempts — results beyond that are unlikely to surface anything new.
+ - Use `search_docs` tool directly. Limit to 2 search attempts — results beyond that are unlikely to surface anything new.
    - Judge relevance from the excerpts alone; only extract full page content when the excerpt clearly matches.
  - Not all integrations have dedicated guides in the docs. If no guide is found, fall back to the OpenAI Compatibility or Native SDK Support approaches above. Native SDK proxying is only available for certain providers.
 
