@@ -1,4 +1,4 @@
-name: Deploy Agent Skills (Devtest)
+name: Upload Agent Skills to Develop environment
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
 
 jobs:
   deploy:
-    name: tfy apply (Devtest)
+    name: Upload (Develop)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -19,10 +19,10 @@ jobs:
           python-version: "3.12"
 
       - name: Install TrueFoundry CLI
-        run: pip install truefoundry
+        run: pip install "truefoundry>=0.15.0"
 
       - name: Apply manifest
         env:
-          TFY_HOST: ${{ secrets.TFY_HOST_DEVTEST }}
-          TFY_API_KEY: ${{ secrets.TFY_API_KEY_DEVTEST }}
+          TFY_HOST: ${{ secrets.TFY_HOST_DEVELOP }}
+          TFY_API_KEY: ${{ secrets.TFY_API_KEY_DEVELOP }}
         run: tfy apply -f manifest.yaml

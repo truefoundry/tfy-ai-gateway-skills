@@ -1,13 +1,13 @@
-name: Upload Agent Skills to Prod environment
+name: Upload Agent Skills to Devtest environment
 
 on:
   push:
     branches:
-      - main
+      - develop
 
 jobs:
   deploy:
-    name: Upload (Prod)
+    name: Upload (Devtest)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -23,6 +23,6 @@ jobs:
 
       - name: Apply manifest
         env:
-          TFY_HOST: ${{ secrets.TFY_HOST_PROD }}
-          TFY_API_KEY: ${{ secrets.TFY_API_KEY_PROD }}
+          TFY_HOST: ${{ secrets.TFY_HOST_DEVTEST }}
+          TFY_API_KEY: ${{ secrets.TFY_API_KEY_DEVTEST }}
         run: tfy apply -f manifest.yaml
