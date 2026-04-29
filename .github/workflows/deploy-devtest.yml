@@ -3,7 +3,7 @@ name: Upload Agent Skills to Devtest environment
 on:
   push:
     branches:
-      - develop
+      - platform
 
 jobs:
   deploy:
