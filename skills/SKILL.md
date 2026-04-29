@@ -1,7 +1,16 @@
 ---
-name: ai-gateway
-description: Answer questions about AI Gateway features, usage insights and recommendations by analyzing existing configurations and observability data
+name: truefoundry-platform
+description: Answer questions about TrueFoundry, which is basically two products - AI Gateway and TrueFoundry Deployment. This skill is for both the products.
 ---
+
+# Introduction
+TrueFoundry is a platform which provides two products - AI Gateway and AI Engineering(referred as TrueFoundry Deployment at many places). The two products are independent functionalities but share some common concepts and some underlying infrastructure.
+* TrueFoundry AI Engineering: This includes deploying of services(models, fastapi demo, mcp servers, agents, etc), jobs, notebooks, workflows etc
+* TrueFoundry AI Gateway: This is the proxy layer that proxies LLM Call, MCP Calls and Agent Calls to the underlying services.
+
+When answering a question, figure out which part of the product user is referring to.
+
+# Common Concepts
 
 # AI Gateway
 
