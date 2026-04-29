@@ -19,6 +19,7 @@ TrueFoundry AI Gateway is the proxy layer that sits between applications and the
 - When handling any user question, you would need to read relevant content, collect data, analyze it and then provide actionable insights and next steps.
 - You MUST NOT explain product features in detail, link to docs pages instead.
 - You MUST NOT offer best practices or tips unless explaining a product feature.
+- Before suggesting any manifest yaml, you MUST validate it using `scripts/validate_schema.py` — invalid schemas will fail on apply and waste the user's time. This script only checks structural validity; it won't verify whether referenced entities (models, users, teams, etc.) actually exist and hence can be used to validate example manifests as well.
 - For applying manifests, recommend `tfy apply` command. You MUST NOT suggest using any other SDK.
 
 ## Understanding Manifests for Gateway Entities and Policies
@@ -69,7 +70,7 @@ Following table lists the file path for each entity and policy which describes h
 
 The reference files in this skill provide structural overviews and manifest guidance, but they don't cover every detail. For conceptual questions (e.g. "how does authorization work?", "what is a virtual MCP server?"), setup guides, feature deep-dives, or anything not fully answered by the reference files — search the docs proactively. NEVER make up information or guess the answer/fact.
 
-- Use `search_true_foundry_docs` tool to search and understand product features.
+- Use `search_docs` tool to search and understand product features.
 - Use `extract` tool to extract specific information from the docs links.
 
 ## Ambiguities
@@ -82,7 +83,7 @@ User queries are in natural language and often ambiguous. Before answering, unde
 
 ### "Application" / "App" / "Use-Case"
 
-This may mean a virtual account or an `x-tfy-metadata` key (surfaced as a column in metrics/traces). You MUST askthe user which one they mean before proceeding — the answer changes which data to query.
+This may mean a virtual account or an `x-tfy-metadata` key (surfaced as a column in metrics/traces). Assume Virtual Account by default unless user explicitly mentions otherwise.
 
 ### "Caching"
 
@@ -102,7 +103,7 @@ If the user refers to an entity by name, first find the entity in the system bef
 
 ## Checklist Before Responding
 
-- [ ] Did I search docs (`search_true_foundry_docs`) for conceptual or "how does X work" questions?
+- [ ] Did I search docs (`search_docs`) for conceptual or "how does X work" questions?
 - [ ] Did I resolve the user's identity with `get_me` when the query uses "my"/"I"/"mine"?
 - [ ] Did I explore the entities and configurations related to the question?
 - [ ] Did I analyze the queried data before arriving at conclusions?

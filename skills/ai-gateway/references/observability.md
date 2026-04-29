@@ -30,9 +30,9 @@ When using the `gateway_execute_sql` tool, follow these guidelines:
 - Always use the Datafusion SQL Query Engine dialect to write queries.
 - Always quote the table names and column names. The column names are case sensitive
 - Never guess any column names. Read the table schema from the `ai-gateway/references/tables/<table-name>.md` file if you don't already know the column names.
-- The table has to be accessed as `"{dataRoutingDestination}"."{tableName}"` E.g.  `"default"."traces"`.
-- "*_metrics" tables always exists in "default" data routing destination.
-- When no destination is specified, use "default" as the destination.
+- The table has to be accessed as `"{dataRoutingDestination}"."{tableName}"`.
+- "*_metrics" tables always exists in the "default" data routing destination, but for others it is not guaranteed.
+- For traces/feedback when no destination is specified - you MUST list the data routing destinations using `gateway_list_data_routing_destinations` tool. If it has only one destination - use it as the destination. If it has multiple destinations - ask the user which one they mean before proceeding.
 - Always add time range filters to the queries. Larger time ranges are okay for metrics aggregations. For any scan type queries, use small time ranges, especially for `traces` table. Default time range for metrics if no time is specified should be 7 days.
 
 #### Examples
@@ -40,7 +40,7 @@ When using the `gateway_execute_sql` tool, follow these guidelines:
 - Query to get all traces in a time range:
 
 ```sql
-SELECT * FROM "default"."traces" WHERE "Timestamp" > '2026-03-13T10:00:00Z' AND "Timestamp" < '2026-03-13T11:00:00Z'
+SELECT * FROM "chosen-destination"."traces" WHERE "Timestamp" > '2026-03-13T10:00:00Z' AND "Timestamp" < '2026-03-13T11:00:00Z'
 ```
 
 - Querying map-type columns (e.g. `"Metadata"`):
@@ -49,7 +49,7 @@ SELECT * FROM "default"."traces" WHERE "Timestamp" > '2026-03-13T10:00:00Z' AND 
 
 ```sql
 SELECT DISTINCT "Metadata"['your_key'] AS value
-FROM "default"."gateway_model_metrics"
+FROM "chosen-destination"."gateway_model_metrics"
 WHERE "CreatedAt" > NOW() - INTERVAL '7 days'
   AND "VirtualModelName" IS NULL
 ```
@@ -60,7 +60,7 @@ WHERE "CreatedAt" > NOW() - INTERVAL '7 days'
 SELECT DISTINCT key
 FROM (
   SELECT unnest(map_keys("Metadata")) AS key
-  FROM "default"."gateway_model_metrics"
+  FROM "chosen-destination"."gateway_model_metrics"
   WHERE "CreatedAt" > NOW() - INTERVAL '7 days'
     AND "VirtualModelName" IS NULL
 )

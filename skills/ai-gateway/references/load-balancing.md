@@ -66,6 +66,6 @@ Always suggest using **Virtual Models** instead of this policy.
 
 The content above covers common operations. For conceptual questions, setup guides, or anything not fully answered above, search the docs.
 
-Use `search_true_foundry_docs` to search for additional information about Gateway load balancing and virtual models.
+Use `search_docs` to search for additional information about Gateway load balancing and virtual models.
 
 Search terms: "Gateway load balancing", "virtual models", "weight based routing", "latency based routing", "priority based routing", "model fallback"
