@@ -21,7 +21,7 @@ Available tables:
 - `gateway_request_metrics` - Stores metrics for every incoming request to the gateway
 - `gateway_feedbacks` - Stores user feedback (ratings, comments) linked to trace spans
 
-For each table, there is a `/references/tables/<table-name>.md` file which describes the table columns
+For each table, there is a `ai-gateway/references/tables/<table-name>.md` file which describes the table columns
 
 ### Writing SQL Queries
 
@@ -29,7 +29,7 @@ When using the `gateway_execute_sql` tool, follow these guidelines:
 
 - Always use the Datafusion SQL Query Engine dialect to write queries.
 - Always quote the table names and column names. The column names are case sensitive
-- Never guess any column names. Read the table schema from the `/references/tables/<table-name>.md` file if you don't already know the column names.
+- Never guess any column names. Read the table schema from the `ai-gateway/references/tables/<table-name>.md` file if you don't already know the column names.
 - The table has to be accessed as `"{dataRoutingDestination}"."{tableName}"` E.g.  `"default"."traces"`.
 - "*_metrics" tables always exists in "default" data routing destination.
 - When no destination is specified, use "default" as the destination.
@@ -70,7 +70,7 @@ FROM (
 
 - **Provider Cache Token Usage**: Provider cache tokens are available in `SpanAttributesNumber` on `Model` spans (`TfyGatewaySpanType = 'Model'`) in the `traces` table via `tfy.model.metric.cache_read_input_tokens` and `tfy.model.metric.cache_creation_input_tokens`.
 - **Gateway Cache Hit Rates**: Use the `CacheHit`, `CacheType`, and `CacheLookupStatus` columns in `gateway_model_metrics`. These reflect gateway-level semantic/exact-match caching, not provider-side prompt caching.
-- **Feedback on Traces**: Feedback is stored in `gateway_feedbacks`, linked via `TargetTraceId` and `TargetSpanId`. Use a LEFT JOIN with `traces` to enrich traces with feedback. Always filter `"IsDeleted" = false`. See `/references/tables/gateway_feedbacks.md` for schema and sample join query.
+- **Feedback on Traces**: Feedback is stored in `gateway_feedbacks`, linked via `TargetTraceId` and `TargetSpanId`. Use a LEFT JOIN with `traces` to enrich traces with feedback. Always filter `"IsDeleted" = false`. See `ai-gateway/references/tables/gateway_feedbacks.md` for schema and sample join query.
 
 ### Checklist For SQL Queries
 

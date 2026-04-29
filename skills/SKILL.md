@@ -35,26 +35,26 @@ Following table lists the file path for each entity and policy which describes h
 
 | **Entity** or Policy                                         | Filepath                        |
 | ------------------------------------------------------------ | ------------------------------- |
-| Models                                                       | `references/models.md`          |
-| Virtual Models                                               | `references/virtual-models.md`  |
-| MCP Servers and Virtual MCP Servers                          | `references/mcp-servers.md`     |
-| Guardrail Integrations and Guardrail Policy                  | `references/guardrails.md`      |
-| Rate Limiting Policy                                         | `references/rate-limiting.md`   |
-| Budget Limiting Policy                                       | `references/budget-limiting.md` |
-| Load Balancing Policy (Deprecated)                           | `references/load-balancing.md`  |
-| Users, Teams, Virtual Accounts and Access Control            | `references/access-management.md` |
+| Models                                                       | `ai-gateway/references/models.md`          |
+| Virtual Models                                               | `ai-gateway/references/virtual-models.md`  |
+| MCP Servers and Virtual MCP Servers                          | `ai-gateway/references/mcp-servers.md`     |
+| Guardrail Integrations and Guardrail Policy                  | `ai-gateway/references/guardrails.md`      |
+| Rate Limiting Policy                                         | `ai-gateway/references/rate-limiting.md`   |
+| Budget Limiting Policy                                       | `ai-gateway/references/budget-limiting.md` |
+| Load Balancing Policy (Deprecated)                           | `ai-gateway/references/load-balancing.md`  |
+| Users, Teams, Virtual Accounts and Access Control            | `ai-gateway/references/access-management.md` |
 
 
 ## Understanding Users, Teams and Virtual Accounts
 
-- Read `references/access-management.md` for identity types, authentication, access control, and token management.
+- Read `ai-gateway/references/access-management.md` for identity types, authentication, access control, and token management.
 
 ## Querying Gateway Usage Data
 
-- Read `references/observability.md` file to understand how to query traces and metrics
+- Read `ai-gateway/references/observability.md` file to understand how to query traces and metrics
 
 ## Integration with Tools/Libraries/Frameworks
-- Read `references/integrations.md` file to understand how to use models already configured in the Gateway with different tools/libraries/frameworks.
+- Read `ai-gateway/references/integrations.md` file to understand how to use models already configured in the Gateway with different tools/libraries/frameworks.
 
 ## Using Docs
 

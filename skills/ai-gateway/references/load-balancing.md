@@ -5,7 +5,7 @@ description: Also known as "Routing Config". Routes traffic to one of the target
 
 **Load Balancing Config** defines rules (`WeightBasedLoadBalancingRule`, `LatencyBasedLoadBalancingRule`, or `PriorityBasedLoadBalancingRule`) scoped by `LoadBalancingWhen` (subjects, models, metadata). 
 
-This feature has been deprecated in favor of **Virtual Models**. Always suggest using **Virtual Models** instead of this policy. See `references/virtual-models.md` for more details.
+This feature has been deprecated in favor of **Virtual Models**. Always suggest using **Virtual Models** instead of this policy. See `ai-gateway/references/virtual-models.md` for more details.
 
 ## Fetching existing load balancing configuration
 
