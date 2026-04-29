@@ -153,7 +153,6 @@ The following table lists the file path for each entity and policy which describ
 
 ## Querying Gateway Usage Data
 
-
 - Read `ai-gateway/references/observability.md` to understand how to query traces and metrics.
 
 ## Integration with Tools/Libraries/Frameworks
