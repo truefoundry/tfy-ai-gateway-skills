@@ -153,6 +153,7 @@ The following table lists the file path for each entity and policy which describ
 
 ## Querying Gateway Usage Data
 
+
 - Read `ai-gateway/references/observability.md` to understand how to query traces and metrics.
 
 ## Integration with Tools/Libraries/Frameworks
@@ -172,7 +173,7 @@ Gateway Caching and Provider Caching are different features — clarify with the
 - **Gateway Caching** (Semantic + Exact Match) is a policy configured at the Gateway level. Data lives in `gateway_model_metrics` via `CacheHit`, `CacheType`, `CacheLookupStatus`, and related columns.
 - **Provider Caching** is provider-side prompt caching reflected in token usage (e.g. `cache_read_input_tokens`). Tokens are available in `SpanAttributesNumber` on `Model` spans in the `traces` table via `tfy.model.metric.cache_read_input_tokens` and `tfy.model.metric.cache_creation_input_tokens` — cheaper to query than parsing the `TfyGatewayOutput` JSON.
 
-## Checklist Before Responding to a Gateway Question
+`## Checklist `Before Responding to a Gateway Question
 
 - [ ] Did I search docs (`search_docs`) for conceptual or "how does X work" questions?
 - [ ] Did I resolve the user's identity with `get_me` when the query uses "my"/"I"/"mine"?
