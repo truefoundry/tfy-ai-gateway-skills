@@ -1,0 +1,28 @@
+name: Upload Agent Skills to Devtest environment
+
+on:
+  push:
+    branches:
+      - platform
+
+jobs:
+  deploy:
+    name: Upload (Devtest)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install TrueFoundry CLI
+        run: pip install "truefoundry>=0.15.0"
+
+      - name: Apply manifest
+        env:
+          TFY_HOST: ${{ secrets.TFY_HOST_DEVTEST }}
+          TFY_API_KEY: ${{ secrets.TFY_API_KEY_DEVTEST }}
+        run: tfy apply -f manifest.yaml
