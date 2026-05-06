@@ -65,11 +65,11 @@ Virtual accounts support:
 - **Member**: No default resource access. Must be explicitly granted access.
 - **Custom Roles**: Admins can create custom roles with fine-grained permissions scoped to specific resource types (provider accounts, MCP servers, virtual accounts, teams, etc.).
 
-Roles are assigned per user. Use `search_true_foundry_docs` for detailed permission tables.
+Roles are assigned per user. Use `search_docs` for detailed permission tables.
 
 ## Searching Docs for Additional Information
 
 The content above covers common operations. For conceptual questions, setup guides, or anything not fully answered above, search the docs.
 
-Use `search_true_foundry_docs` to search for additional information about access management.
+Use `search_docs` to search for additional information about access management.
 Search terms: "authentication PAT VAT", "virtual account management", "access control provider account", "team management", "external identity", "user roles permissions", "token rotation", "secret store sync"
