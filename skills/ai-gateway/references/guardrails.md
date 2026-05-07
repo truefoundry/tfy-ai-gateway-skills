@@ -9,40 +9,87 @@ A tenant can have multiple guardrail groups (provider accounts). Each guardrail 
 
 ## Fetching existing guardrails configurations
 
-Use the `gateway_get_config` tool to get guardrail config manifest. The response would look like this
+Use the `get_gateway_config` tool (from `truefoundry-mcp`) with `type: gateway-guardrails-config` to get the guardrail config manifest. The response is shaped like:
 
 ```yaml
-result:
-  manifest:
-    type: gateway-guardrails-config
-    rules:
-      - id: pii-guardrail-rule
-        when:
-          ...
-        llm_input_guardrails:
-          - pii-guardrail-group/pii-redaction
-        llm_output_guardrails: []
-        mcp_tool_pre_invoke_guardrails: []
-        mcp_tool_post_invoke_guardrails: []
-      - # more rules
+id: ...
+tenantName: ...
+type: gateway-guardrails-config
+manifest:
+  name: guardrails-control
+  type: gateway-guardrails-config
+  rules:
+    - id: pii-guardrail-rule
+      when:
+        target:
+          operator: or
+          conditions:
+            model:
+              values:
+                - openai-main/o3
+              condition: in
+        subjects:
+          operator: and
+          conditions:
+            in:
+              - user:alice@example.com
+            not_in:
+              - user:bob@example.com
+      llm_input_guardrails:
+        - pii-guardrail-group/pii-redaction
+      llm_output_guardrails: []
+      mcp_tool_pre_invoke_guardrails: []
+      mcp_tool_post_invoke_guardrails: []
+    - # more rules
+createdBySubject: { ... }
+createdAt: ...
+updatedAt: ...
 ```
 
 The `pii-guardrail-group/pii-redaction` refers to `pii-redaction` guardrail integration under `pii-guardrail-group` guardrail config group.
 
-Use the `gateway_list_guardrails` tool to get the list of guardrail groups and their integrations. The response would look like this:
+Use the `list_provider_accounts` tool (from `truefoundry-mcp`) with `includeGuardrailConfigs: true` (and other `include*` flags set to `false` to filter out other account types) to list guardrail config groups along with their integrations. The response shape is:
 
 ```yaml
 data:
   - id: ...
+    name: pii-guardrail-group
+    fqn: truefoundry:guardrail-config-group:pii-guardrail-group
     provider: guardrail-config-group
     manifest:
-      name:  pii-guardrail-group
+      name: pii-guardrail-group
       type: provider-account/guardrail-config-group
+      collaborators:
+        - role_id: provider-account-manager
+          subject: user:alice@example.com
+        - role_id: provider-account-access
+          subject: team:everyone
       integrations:
-        - name:  pii-redaction
+        - name: pii-redaction
           type: integration/guardrail-config/tfy-pii
+          operation: validate
+          enforcing_strategy: enforce
           # Fields specific to integration/guardrail-config/tfy-pii
+    integrations:
+      - id: ...
+        name: pii-redaction
+        fqn: truefoundry:guardrail-config-group:pii-guardrail-group:guardrail-config:pii-redaction
+        type: guardrail-config
+        providerAccountFqn: truefoundry:guardrail-config-group:pii-guardrail-group
+        manifest:
+          name: pii-redaction
+          type: integration/guardrail-config/tfy-pii
+          operation: validate
+          enforcing_strategy: enforce
+          # Fields specific to integration/guardrail-config/tfy-pii
+        # ...other top-level integration fields (createdBy, timestamps, etc.)
+pagination:
+  total: ...
+  offset: 0
+  limit: 100
 ```
+
+To inspect a single guardrail config group by id, use `get_provider_account` (from `truefoundry-mcp`).
 
 ## Generating Valid Manifests for Guardrail Usage
 
