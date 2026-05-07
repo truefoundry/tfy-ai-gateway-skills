@@ -7,26 +7,37 @@ description: Budget policies enforce spending and token budgets with optional al
 
 ## Fetching existing budget configuration
 
-Use the `gateway_get_config` tool to get the budget config manifest. The response would look like this:
+Use the `get_gateway_config` tool (from `truefoundry-mcp`) with `type: gateway-budget-config` to get the budget config manifest. The response is shaped like:
 
 ```yaml
-result:
-  id: ...
-  manifest:
-    name: budget
-    rules:
-      - id: ...
-        unit: cost_per_day
-        when:
-          models:
-            - openai/gpt-4o-mini
-          subjects:
-            - user:john@example.com
-        limit_to: 0.000001
-        audit_mode: false
-        budget_applies_per:
-          - model
-      - # more rules
+id: ...
+tenantName: ...
+type: gateway-budget-config
+manifest:
+  name: budget
+  type: gateway-budget-config
+  rules:
+    - id: ...
+      unit: cost_per_day
+      when:
+        models:
+          - openai/gpt-4o-mini
+        subjects:
+          - user:john@example.com
+      limit_to: 0.000001
+      audit_mode: false
+      budget_applies_per:
+        - model
+      alerts:
+        thresholds: [50, 75, 90, 100]
+        notification_target:
+          - type: slack-bot
+            channels: ["#notification-test"]
+            notification_channel: truefoundry:slack:test-bot:notification-channel:tfy-slack-bot
+    - # more rules
+createdBySubject: { ... }
+createdAt: ...
+updatedAt: ...
 ```
 
 ## Searching Docs

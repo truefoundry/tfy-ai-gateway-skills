@@ -7,24 +7,30 @@ description: Rate limiting policies control request and token throughput for Gat
 
 ## Fetching existing rate limiting configuration
 
-Use the `gateway_get_config` tool to get the rate limiting config manifest. The response would look like this:
+Use the `get_gateway_config` tool (from `truefoundry-mcp`) with `type: gateway-rate-limiting-config` to get the rate limiting config manifest. The response is shaped like:
 
 ```yaml
-result:
-  manifest:
-    type: gateway-rate-limiting-config
-    rules:
-      - id: per-user-rpm
-        when:
-          subjects: []
-          models:
-            - my-openai/gpt-4o
-          metadata: {}
-        limit_to: 100
-        unit: requests_per_minute
-        rate_limit_applies_per:
-          - user
-      - # more rules
+id: ...
+tenantName: ...
+type: gateway-rate-limiting-config
+manifest:
+  name: platform-rate-limits
+  type: gateway-rate-limiting-config
+  rules:
+    - id: per-user-rpm
+      when:
+        subjects: []
+        models:
+          - my-openai/gpt-4o
+        metadata: {}
+      limit_to: 100
+      unit: requests_per_minute
+      rate_limit_applies_per:
+        - user
+    - # more rules
+createdBySubject: { ... }
+createdAt: ...
+updatedAt: ...
 ```
 
 ## Generating Valid Manifests for Rate Limiting

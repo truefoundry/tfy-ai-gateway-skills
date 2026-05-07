@@ -9,39 +9,45 @@ This feature has been deprecated in favor of **Virtual Models**. Always suggest 
 
 ## Fetching existing load balancing configuration
 
-Use the `gateway_get_config` tool to get the load balancing config manifest. The response would look like this:
+Use the `get_gateway_config` tool (from `truefoundry-mcp`) with `type: gateway-load-balancing-config` to get the load balancing config manifest. The response is shaped like:
 
 ```yaml
-result:
-  id: ...
-  manifest:
-    rules:
-      - id: ...
-        type: priority-based-routing
-        when:
-          models:
-            - ...
-        load_balance_targets:
-          - target: openai-account/gpt-4o
-            priority: 2
-            sla_cutoff:
-              time_per_output_token_ms: 30000
-            timeout_ms: 30000
-            retry_config:
-              delay: 100
-              attempts: 2
-              on_status_codes:
-                - "429"
-                - "500"
-                - "504"
-            fallback_candidate: true
-            fallback_status_codes:
+id: ...
+tenantName: ...
+type: gateway-load-balancing-config
+manifest:
+  name: routing-config
+  type: gateway-load-balancing-config
+  rules:
+    - id: ...
+      type: priority-based-routing
+      when:
+        models:
+          - ...
+      load_balance_targets:
+        - target: openai-account/gpt-4o
+          priority: 2
+          sla_cutoff:
+            time_per_output_token_ms: 30000
+          timeout_ms: 30000
+          retry_config:
+            delay: 100
+            attempts: 2
+            on_status_codes:
               - "429"
               - "500"
-              - "502"
-              # ...
-          - # more targets
-      # more rules
+              - "504"
+          fallback_candidate: true
+          fallback_status_codes:
+            - "429"
+            - "500"
+            - "502"
+            # ...
+        - # more targets
+    # more rules
+createdBySubject: { ... }
+createdAt: ...
+updatedAt: ...
 ```
 
 ## Generating Valid Manifests for Virtual Models

@@ -9,21 +9,50 @@ A tenant can have multiple model accounts (provider accounts). Each account can 
 
 ## Fetching existing model configurations
 
-Use the `gateway_list_models` tool to get the list of all models and virtual models. The response shape for **model accounts** is similar to:
+Use the `list_provider_accounts` tool (from `truefoundry-mcp`) with `includeModelProviders: true` (and other `include*` flags set to `false` to filter out non-model accounts) to list model provider accounts along with their model integrations. The response shape is:
 
 ```yaml
-result:
-  manifest:
-    type: provider-account/openai
+data:
+  - id: ...
     name: my-openai-account
+    fqn: truefoundry:openai:my-openai-account
+    provider: openai
+    manifest:
+      name: my-openai-account
+      type: provider-account/openai
+      collaborators:
+        - role_id: provider-account-manager
+          subject: user:alice@example.com
+        - role_id: provider-account-access
+          subject: team:everyone
+      integrations:
+        - name: gpt-4o
+          type: integration/model/openai
+          model_id: gpt-4o
+          # Fields specific to integration/model/openai
     integrations:
-      - name: gpt-4o
-        type: integration/model/openai
-        model_id: gpt-4o
-        # Fields specific to integration/model/openai
+      - id: ...
+        name: gpt-4o
+        fqn: truefoundry:openai:my-openai-account:model:gpt-4o
+        type: model
+        providerAccountFqn: truefoundry:openai:my-openai-account
+        manifest:
+          name: gpt-4o
+          type: integration/model/openai
+          model_id: gpt-4o
+          # Fields specific to integration/model/openai
+        # ...other top-level integration fields (createdBy, timestamps, etc.)
+pagination:
+  total: ...
+  offset: 0
+  limit: 100
 ```
 
+The integration manifest under `data[].manifest.integrations` and `data[].integrations[].manifest` are equivalent for the integration spec; the latter additionally exposes `id`, `fqn`, `providerAccountFqn`, and audit fields.
+
 The identifier `my-openai-account/gpt-4o` refers to the `gpt-4o` integration under provider account `my-openai-account`.
+
+To inspect a single provider account by id, use `get_provider_account` (from `truefoundry-mcp`).
 
 ## Generating Valid Manifests for Model Integrations and Model Provider Accounts
 

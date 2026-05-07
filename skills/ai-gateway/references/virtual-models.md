@@ -9,26 +9,60 @@ A tenant can have multiple virtual model accounts. Each account can have multipl
 
 ## Fetching existing virtual model configurations
 
-Use the `gateway_list_models` tool to get the list of virtual models. The response shape is similar to:
+Use the `list_provider_accounts` tool (from `truefoundry-mcp`) with `includeModelProviders: true` (and other `include*` flags set to `false` to filter out non-model accounts) — virtual model accounts come back alongside model accounts and are identified by `provider: virtual-model` / `manifest.type: provider-account/virtual-model`. The response shape is:
 
 ```yaml
-result:
-  manifest:
-    type: provider-account/virtual-model
+data:
+  - id: ...
     name: my-virtual-group
+    fqn: truefoundry:virtual-model:my-virtual-group
+    provider: virtual-model
+    manifest:
+      name: my-virtual-group
+      type: provider-account/virtual-model
+      collaborators:
+        - role_id: provider-account-manager
+          subject: user:alice@example.com
+        - role_id: provider-account-access
+          subject: team:everyone
+      integrations:
+        - name: balanced-chat
+          type: integration/model/virtual
+          model_types: [chat]
+          routing_config:
+            type: weight-based-routing
+            load_balance_targets:
+              - target: openai-account/gpt-4o
+                weight: 50
+              # more targets
     integrations:
-      - name: balanced-chat
-        type: integration/model/virtual
-        slug: balanced-chat
-        routing_config:
-          type: weight-based-routing
-          load_balance_targets:
-            - target: openai-account/gpt-4o
-              weight: 50
-            # more targets
+      - id: ...
+        name: balanced-chat
+        fqn: truefoundry:virtual-model:my-virtual-group:model:balanced-chat
+        type: model
+        providerAccountFqn: truefoundry:virtual-model:my-virtual-group
+        manifest:
+          name: balanced-chat
+          type: integration/model/virtual
+          model_types: [chat]
+          routing_config:
+            type: weight-based-routing
+            load_balance_targets:
+              - target: openai-account/gpt-4o
+                weight: 50
+              # more targets
+        # ...other top-level integration fields (createdBy, timestamps, etc.)
+pagination:
+  total: ...
+  offset: 0
+  limit: 100
 ```
 
+The integration manifest under `data[].manifest.integrations` and `data[].integrations[].manifest` are equivalent for the integration spec; the latter additionally exposes `id`, `fqn`, `providerAccountFqn`, and audit fields.
+
 The identifier `openai-account/gpt-4o` refers to the `gpt-4o` integration under model account `openai-account`.
+
+To inspect a single virtual-model account by id, use `get_provider_account` (from `truefoundry-mcp`).
 
 ## Generating Valid Manifests for Virtual Models and Virtual Model Accounts
 
