@@ -3,7 +3,7 @@ name: Upload Agent Skills to Devtest environment
 on:
   push:
     branches:
-      - platform
+      - gateway-with-mcp
 
 jobs:
   deploy:
@@ -18,8 +18,15 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
       - name: Install TrueFoundry CLI
-        run: pip install "truefoundry>=0.15.0"
+        env:
+          UV_SYSTEM_PYTHON: 1
+        run: uv pip install --pre truefoundry
 
       - name: Apply manifest
         env:
