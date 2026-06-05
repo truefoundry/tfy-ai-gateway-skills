@@ -8,29 +8,41 @@ description: Deploy and connect MCP Servers to the AI Gateway to provide tools t
 
 ## Fetching existing MCP servers
 
-Use the `gateway_list_mcp_servers` tool to get the list of all MCP servers. The response would look like this:
+Use the `list_mcp_servers_admin` tool to get the list of all MCP servers. The response would look like this:
 
 ```yaml
 data:
   - id: ...
+    fqn: truefoundry:mcp-server:mcp-server-1
     manifest:
-      name:  mcp-server-1
+      name: mcp-server-1
       type: mcp-server/remote
       # Fields specific to mcp-server/remote
-    - id: ...
-      manifest:
-        name:  mcp-server-2
-        type: mcp-server/virtual
-        servers:
-          - name: mcp-server-1
-            enabled_tools:
-              - tool-1
-              - tool-2
-          - name: mcp-server-2
-            enabled_tools:
-              - tool-3
-              - tool-4
-        # Fields specific to mcp-server/virtual
+    createdBySubject: { ... }
+    createdAt: ...
+    updatedAt: ...
+  - id: ...
+    fqn: truefoundry:mcp-server:mcp-server-2
+    manifest:
+      name: mcp-server-2
+      type: mcp-server/virtual
+      servers:
+        - name: mcp-server-1
+          enabled_tools:
+            - tool-1
+            - tool-2
+        - name: mcp-server-3
+          enabled_tools:
+            - tool-3
+            - tool-4
+      # Fields specific to mcp-server/virtual
+    createdBySubject: { ... }
+    createdAt: ...
+    updatedAt: ...
+pagination:
+  total: ...
+  offset: 0
+  limit: 100
 ```
 
 ## Generating Valid Manifests for MCP Servers
