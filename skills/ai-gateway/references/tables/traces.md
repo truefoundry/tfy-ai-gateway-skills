@@ -6,7 +6,7 @@ description: Stores OTEL compliant spans with additional columns for gateway spe
 ## CRITICAL
 
 - `TfyGatewayInput` and `TfyGatewayOutput` columns store the request and response payloads of the gateway. These are huge json serialized payloads that contain sensitive data. Only fetch these when necessary
-- When working with `SpanAttributes.*` columns, refer to the `/references/span-attributes.md` to understand keys inside these columns.
+- When working with `SpanAttributes.*` columns, refer to the `ai-gateway/references/span-attributes.md` to understand keys inside these columns.
 
 ## Schema
 
@@ -68,4 +68,4 @@ TfyCreatedBySubject: TEXT
 
 ## Checklist
 
-- [ ] Did I refer to the `/references/span-attributes.md` file to understand the span attributes?
+- [ ] Did I refer to the `ai-gateway/references/span-attributes.md` file to understand the span attributes?

@@ -3,7 +3,7 @@ name: Upload Agent Skills to Devtest environment
 on:
   push:
     branches:
-      - gateway-with-mcp
+      - platform
 
 jobs:
   deploy:

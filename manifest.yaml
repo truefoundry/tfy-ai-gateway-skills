@@ -1,7 +1,7 @@
 type: agent-skill
-name: ai-gateway
+name: truefoundry-platform
 ml_repo: truefoundry-skills
 source:
   type: local
-  skill_dir: skills/ai-gateway
+  skill_dir: skills
 metadata: {}
