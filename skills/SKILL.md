@@ -1,6 +1,6 @@
 ---
 name: truefoundry-platform
-description: Answer questions about TrueFoundry — an enterprise AI platform with two products: AI Gateway (proxy for LLMs, MCP servers, and agents with governance) and AI Engineering (deploy services, async services, jobs, notebooks, SSH servers, workflows, helm charts, volumes; ML repos, model registry, fine-tuning). Trigger on any mention of TrueFoundry, the `tfy` CLI, AI Gateway entities (models, virtual models, MCP servers, guardrails), gateway policies (rate limit, budget, caching, guardrail), gateway tracing/observability, prompt management, or deploying applications/jobs/workflows on TrueFoundry — even when the product name isn't explicitly stated.
+description: Answer questions about TrueFoundry — an enterprise AI platform with two products - AI Gateway (proxy for LLMs, MCP servers, and agents with governance) and AI Engineering (deploy services, async services, jobs, notebooks, SSH servers, workflows, helm charts, volumes; ML repos, model registry, fine-tuning). Trigger on any mention of TrueFoundry, the `tfy` CLI, AI Gateway entities (models, virtual models, MCP servers, guardrails), gateway policies (rate limit, budget, caching, guardrail), gateway tracing/observability, prompt management, or deploying applications/jobs/workflows on TrueFoundry — even when the product name isn't explicitly stated.
 ---
 
 # Introduction
