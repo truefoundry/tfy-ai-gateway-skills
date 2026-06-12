@@ -3,5 +3,5 @@ name: ai-gateway
 ml_repo: truefoundry-skills
 source:
   type: local
-  skill_dir: skills/ai-gateway
+  skill_dir: skills
 metadata: {}
