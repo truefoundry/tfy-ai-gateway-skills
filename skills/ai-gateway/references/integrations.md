@@ -15,7 +15,7 @@ Any tool, library, or framework that supports OpenAI-compatible APIs can integra
 | `apiKey`    | TrueFoundry API Key (PAT or VAT)                                                  |
 | `model`     | Model ID in `providerAccount/modelName` format (e.g. `openai-main/gpt-4o-mini`)   |
 
-All three values are available in the **Code Snippets** tab of the Playground. You will find instructions to integrate for most of the popular tools/libraries/frameworks in the docs. But if it is not available, stick to basics. You can integrate using OpenAI Compatibility. You just need to ensure the target integration allows you to set the baseURL or not.
+All three values are available in the **Code Snippets** tab of the Playground, or you can generate them programmatically using the `generate_multi_lang_code_snippets` tool which produces ready-to-use snippets in multiple languages and frameworks. You will find instructions to integrate for most of the popular tools/libraries/frameworks in the docs. But if it is not available, stick to basics. You can integrate using OpenAI Compatibility. You just need to ensure the target integration allows you to set the baseURL or not.
 
 Docs: https://www.truefoundry.com/docs/ai-gateway/making-llm-requests-via-gateway
 
