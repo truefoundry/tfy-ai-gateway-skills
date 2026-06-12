@@ -32,7 +32,7 @@ When using the `gateway_execute_sql` tool, follow these guidelines:
 - Never guess any column names. Read the table schema from the `ai-gateway/references/tables/<table-name>.md` file if you don't already know the column names.
 - The table has to be accessed as `"{dataRoutingDestination}"."{tableName}"`.
 - "*_metrics" tables always exists in the "default" data routing destination, but for others it is not guaranteed.
-- For traces/feedback when no destination is specified - you MUST list the data routing destinations using `gateway_list_data_routing_destinations` tool. If it has only one destination - use it as the destination. If it has multiple destinations - ask the user which one they mean before proceeding.
+- For traces/feedback when no destination is specified - you MUST fetch the data routing destinations using the `get_gateway_config` tool with `type: gateway-data-routing-config`. If it has only one destination - use it as the destination. If it has multiple destinations - ask the user which one they mean before proceeding.
 - Always add time range filters to the queries. Larger time ranges are okay for metrics aggregations. For any scan type queries, use small time ranges, especially for `traces` table. Default time range for metrics if no time is specified should be 7 days.
 
 #### Examples
@@ -66,6 +66,27 @@ FROM (
 )
 ```
 
+### Latency Reporting Rules
+
+- **Never use AVG() for latency columns** (`LatencyMs`, `TimeToFirstTokenMs`, `InterTokenLatencyMs`, `CacheLookupLatencyMs`). Averages hide tail latency and are misleading for latency distributions.
+- **Always use percentiles** via `approx_percentile_cont` when aggregating latency. Default to P95 unless the user asks for a specific percentile.
+- When asked about slow, slowest, or fastest models/requests, use **P95** (or P99 for worst-case) latency to rank them.
+- When presenting latency breakdowns, include **P50, P75, P90, and P99** to show the full distribution.
+
+```sql
+SELECT "ModelName",
+  approx_percentile_cont("LatencyMs", 0.5) AS "P50LatencyMs",
+  approx_percentile_cont("LatencyMs", 0.75) AS "P75LatencyMs",
+  approx_percentile_cont("LatencyMs", 0.9) AS "P90LatencyMs",
+  approx_percentile_cont("LatencyMs", 0.99) AS "P99LatencyMs",
+  COUNT(*) AS "RequestCount"
+FROM "default"."gateway_model_metrics"
+WHERE "CreatedAt" > NOW() - INTERVAL '7 days'
+  AND "VirtualModelName" IS NULL
+GROUP BY "ModelName"
+ORDER BY "P99LatencyMs" DESC
+```
+
 ### Common Query Patterns
 
 - **Provider Cache Token Usage**: Provider cache tokens are available in `SpanAttributesNumber` on `Model` spans (`TfyGatewaySpanType = 'Model'`) in the `traces` table via `tfy.model.metric.cache_read_input_tokens` and `tfy.model.metric.cache_creation_input_tokens`.
@@ -78,3 +99,4 @@ FROM (
 - [ ] Did I quote the table name and column names?
 - [ ] Did I add time ranges and limits to the query?
 - [ ] Did I only include the columns that are relevant to the task at hand?
+- [ ] Did I use `approx_percentile_cont` instead of `AVG` for any latency columns?
