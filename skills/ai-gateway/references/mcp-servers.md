@@ -73,7 +73,7 @@ Important: Ignore `MCPServerProviderAccount` and `MCPServerIntegration` classes.
 
 1. Use `ask_user_question` to ask the user what type of authentication they want (options depend on what the schema supports — typically: no auth, OAuth 2.0, API Key / Header-based).
 
-2. **If OAuth 2.0 is selected**: Call `get_mcp_server_oauth_config` with the MCP server's URL to retrieve the Raw OAuth 2.0 Authorization Server Metadata (RFC 8414). This provides `authorization_url`, `token_url`, supported `scopes`, and other metadata needed to fill the auth config.
+2. **If OAuth 2.0 is selected**: You **MUST** call `get_mcp_server_oauth_config` with the MCP server's URL before proceeding. This returns the Raw OAuth 2.0 Authorization Server Metadata (RFC 8414) which provides `authorization_url`, `token_url`, supported `scopes`, and other metadata required to fill the auth config. Do NOT skip this step or guess the OAuth URLs.
 
 3. Collect remaining auth details from the user (client_id, client_secret, scopes, etc.).
 
