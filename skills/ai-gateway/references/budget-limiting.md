@@ -70,10 +70,53 @@ Search terms: "gateway budget rules", "gateway budget alerts", "budget limits", 
 2. Use `python scripts/validate_schema.py --file-path <path-to-manifest>` to validate the manifest.
 3. Repeat the process until the manifest is valid.
 
-## Checklist
+## Creating/Updating Budget Rules (Write Flow)
 
-- [ ] Did I ensure that the final manifest is a union of existing manifest and my recommendation?
-- [ ] Did I check docs to get updated understanding of budget?
-- [ ] Did I use the correct order of budget limiting rules in the manifest?
-- [ ] Did I verify that subjects in the new rule are not already matched by earlier rules (verify team members are not already matched by two rules)?
+### Phase 1: Get Schema and Existing Config
 
+1. Call `get_manifest_json_schema` with type `gateway-budget-config`.
+2. Call `get_gateway_config` with `type: gateway-budget-config` to fetch the existing config. New rules must be merged with existing ones — never replace.
+
+### Phase 2: Validate and Apply
+
+1. Build the complete manifest with `name`, `type: gateway-budget-config`, and the full `rules` array (existing rules + new rule).
+2. Call `apply_manifest` with `dryRun: true` to validate.
+3. If validation fails, fix and retry.
+4. Once dry-run passes, call `apply_manifest` without dry-run to update the config.
+
+### Manifest Structure
+
+```yaml
+name: <config-name>
+type: gateway-budget-config
+rules:
+  - id: <unique-rule-id>
+    unit: <cost_per_day|cost_per_month|cost_per_hour>
+    when:
+      subjects:
+        - <user:email or team:name>
+      models:
+        - <account-name/model-name>
+      metadata:
+        <key>: <value>
+    limit_to: <budget-limit-in-usd>
+    audit_mode: <true|false>
+    budget_applies_per:
+      - <user|model>
+    alerts:
+      thresholds:
+        - <percentage-value>
+      notification_target:
+        - type: slack-bot
+          channels:
+            - <channel-name>
+          notification_channel: <notification-channel-fqn>
+```
+
+### Checklist
+
+- [ ] Did I fetch the existing budget config before making changes?
+- [ ] Did I merge new rules with existing rules (not replace)?
+- [ ] Did I include the `name` field in the manifest?
+- [ ] Did I verify that subjects in the new rule are not already matched by earlier rules?
+- [ ] Did I validate with `apply_manifest` (dryRun: true) before applying?

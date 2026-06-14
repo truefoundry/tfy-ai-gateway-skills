@@ -25,6 +25,25 @@ These rules apply universally — keep them in mind regardless of which product 
 - **Explore `scripts/manifest_schemas.py` BEFORE generating YAML.** It is the source-of-truth Pydantic schema for every manifest type the platform understands — both gateway entities (`gateway-model`, `virtual-model`, `mcp-server`, …) and AI Engineering apps (`service`, `async-service`, `job`, `notebook`, `ssh-server`, `workflow`, `helm`, `volume`).
 - **For applying manifests, recommend `tfy apply` only.** Don't suggest legacy SDKs or other tooling — `tfy apply` is the supported, idempotent way to reconcile any manifest. See https://www.truefoundry.com/docs/using-tfy-apply.
 
+## Creating and Modifying Entities (Write Operations)
+
+When creating or modifying platform entities, follow this workflow:
+
+1. **Get the JSON schema** — use `get_manifest_json_schema` to retrieve the schema for the entity type you want to create/modify. This is the source of truth for required and optional fields.
+2. **Ask user for required inputs** — use `ask_user_question` to collect decisions (auth method, permissions, etc.) when multiple options exist. Never guess — always confirm.
+3. **Fetch existing state when needed** — for gateway configs (rate limiting, budget, guardrails), always fetch the existing config first. Your new rules must be merged with existing rules, never replace them.
+4. **Construct the manifest** — follow the JSON schema strictly. Incomplete or malformed schemas will cause failures.
+5. **Dry-run first** — call `apply_manifest` with `dryRun: true` to validate the structure before applying.
+6. **Apply** — once dry-run passes, call `apply_manifest` without dry-run to create/update the entity.
+
+Key write tools:
+- `get_manifest_json_schema` — retrieve the JSON schema for any manifest type
+- `apply_manifest` — create or update an entity (supports `dryRun` for validation)
+- `get_mcp_server_oauth_config` — get OAuth 2.0 Authorization Server Metadata for MCP server auth setup
+- `list_providers` — list available models, pricing, and regions for a provider
+- `create_personal_access_token` — create a PAT for the current user
+- `ask_user_question` — collect structured choices from the user
+
 ## Using docs proactively
 
 The reference files in this skill cover the most-asked structural topics, but they don't cover every detail. For conceptual questions, setup guides, integration steps, or anything not directly addressed by the references — search the docs first. **Never make up an answer** about TrueFoundry behavior; if the docs don't confirm it, say so.
@@ -107,7 +126,16 @@ The available filters, retention, and export options are documented — `search_
 
 ## Applying Manifests
 
-Every entity in the platform — gateway models, virtual models, MCP servers, guardrail policies, services, jobs, workflows — is described by a YAML manifest with a `type` field. The same workflow applies to all of them:
+Every entity in the platform — gateway models, virtual models, MCP servers, guardrail policies, services, jobs, workflows — is described by a YAML manifest with a `type` field. Two workflows exist:
+
+### Workflow A: Using tools directly (Preferred for Gateway entities)
+
+1. Get the schema: call `get_manifest_json_schema` with the entity type to retrieve the full JSON schema.
+2. Construct the manifest following the schema strictly — all required fields must be present.
+3. Validate: call `apply_manifest` with `dryRun: true`.
+4. Apply: call `apply_manifest` without dry-run.
+
+### Workflow B: Using the CLI (For AI Engineering entities or manual operations)
 
 1. Look up the schema in `scripts/manifest_schemas.py` (filter by the relevant `type` literal — e.g. `Literal["service"]`, `Literal["gateway-model"]`).
 2. Write the YAML, copying field names exactly from the schema.
@@ -140,16 +168,19 @@ TrueFoundry AI Gateway is the proxy layer that sits between applications and the
 
 The following table lists the file path for each entity and policy which describes how to fetch existing data and how to write new valid manifests:
 
-| **Entity** or Policy                                         | Filepath                                     |
-| ------------------------------------------------------------ | -------------------------------------------- |
-| Models                                                       | `ai-gateway/references/models.md`            |
-| Virtual Models                                               | `ai-gateway/references/virtual-models.md`    |
-| MCP Servers and Virtual MCP Servers                          | `ai-gateway/references/mcp-servers.md`       |
-| Guardrail Integrations and Guardrail Policy                  | `ai-gateway/references/guardrails.md`        |
-| Rate Limiting Policy                                         | `ai-gateway/references/rate-limiting.md`     |
-| Budget Limiting Policy                                       | `ai-gateway/references/budget-limiting.md`   |
-| Load Balancing Policy (Deprecated)                           | `ai-gateway/references/load-balancing.md`    |
-| Users, Teams, Virtual Accounts and Access Control            | `ai-gateway/references/access-management.md` |
+| **Entity** or Policy                                         | Filepath                                        |
+| ------------------------------------------------------------ | ----------------------------------------------- |
+| Models                                                       | `ai-gateway/references/models.md`               |
+| Virtual Models                                               | `ai-gateway/references/virtual-models.md`       |
+| MCP Servers and Virtual MCP Servers                          | `ai-gateway/references/mcp-servers.md`          |
+| Guardrail Integrations and Guardrail Policy                  | `ai-gateway/references/guardrails.md`           |
+| Rate Limiting Policy                                         | `ai-gateway/references/rate-limiting.md`        |
+| Budget Limiting Policy                                       | `ai-gateway/references/budget-limiting.md`      |
+| Load Balancing Policy (Deprecated)                           | `ai-gateway/references/load-balancing.md`       |
+| Users, Teams, Virtual Accounts and Access Control            | `ai-gateway/references/access-management.md`    |
+| Teams (Create/Manage)                                        | `ai-gateway/references/teams.md`                |
+| Virtual Accounts (Create/Manage)                             | `ai-gateway/references/virtual-accounts.md`     |
+| Personal Access Tokens (Create)                              | `ai-gateway/references/personal-access-tokens.md` |
 
 ## Querying Gateway Usage Data
 
@@ -179,8 +210,10 @@ Gateway Caching and Provider Caching are different features — clarify with the
 - [ ] Did I look up entities (model, MCP server, team, VA) by name before assuming they don't exist?
 - [ ] Did I explore the entities and configurations related to the question?
 - [ ] Did I analyze the queried data before arriving at conclusions?
-- [ ] Did I explore `scripts/manifest_schemas.py` BEFORE generating YAML manifests?
-- [ ] Did I validate generated manifests with `scripts/validate_schema.py`?
+- [ ] Did I use `get_manifest_json_schema` BEFORE constructing any manifest for write operations?
+- [ ] Did I validate generated manifests with `apply_manifest` using `dryRun: true` before applying?
+- [ ] For gateway configs (rate limit, budget, guardrails), did I fetch existing rules and merge rather than replace?
+- [ ] Did I ask the user for auth method choice when multiple options exist?
 - [ ] Does my answer cite observation/data behind any claims?
 - [ ] Does my answer contain actionable next steps in priority order, plus a follow-up suggestion?
 
