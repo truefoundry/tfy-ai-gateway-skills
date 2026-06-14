@@ -84,6 +84,51 @@ To inspect a single provider account by id, use `get_provider_account`.
 2. Use `python scripts/validate_schema.py --file-path <path-to-manifest>` to validate the manifest.
 3. Repeat until the manifest is valid.
 
+## Creating Model Provider Accounts (Write Flow)
+
+### Phase 1: Get Schema
+
+1. Call `get_manifest_json_schema` with the provider account type the user wants (e.g. `provider-account/openai`, `provider-account/aws-bedrock`, `provider-account/anthropic`, `provider-account/azure-openai`, etc.).
+
+### Phase 2: Determine Authentication and Models
+
+1. If the schema shows multiple authentication methods, use `ask_user_question` to ask the user which auth method to use.
+2. Call `list_providers` to get the available models, pricing, and regions for the selected provider. Use this to help the user pick which models to add.
+
+### Phase 3: Validate and Apply
+
+1. Build the manifest following the JSON schema strictly.
+2. Call `apply_manifest` with `dryRun: true` to validate.
+3. If validation fails, fix and retry.
+4. Once dry-run passes, call `apply_manifest` without dry-run to create the provider account.
+
+### Manifest Structure
+
+```yaml
+type: <provider-account/type>
+name: <unique-account-name>
+collaborators:
+  - role_id: provider-account-manager
+    subject: <user:email or team:name>
+  - role_id: provider-account-access
+    subject: <user:email or team:name>
+region: <region>
+integrations:
+  - name: <integration-name>
+    type: <integration/model/provider>
+    model_id: <provider-model-id>
+    model_types:
+      - <chat|embedding|rerank>
+```
+
+### Checklist
+
+- [ ] Did I call `get_manifest_json_schema` to get the current schema for the provider account type?
+- [ ] Did I ask the user which auth method to use if multiple are available?
+- [ ] Did I call `list_providers` to show available models and regions?
+- [ ] Did I validate with `apply_manifest` (dryRun: true) before creating?
+- [ ] Did I apply without dry-run only after validation passed?
+
 ## Searching docs for additional information
 
 The content above covers common operations. For conceptual questions, setup guides, or anything not fully answered above, search the docs.

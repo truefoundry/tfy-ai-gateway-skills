@@ -80,6 +80,56 @@ To inspect a single virtual-model account by id, use `get_provider_account`.
 2. Use `python scripts/validate_schema.py --file-path <path-to-manifest>` to validate the manifest.
 3. Repeat the process until the manifest is valid.
 
+## Creating Virtual Model Accounts (Write Flow)
+
+### Phase 1: Get Schema
+
+1. Call `get_manifest_json_schema` with type `provider-account/virtual-model`.
+
+### Phase 2: Gather Requirements
+
+1. Collect from the user:
+   - Which routing strategy to use per virtual model (`weight-based-routing`, `priority-based-routing`, or `latency-based-routing`)
+   - Which target models to route to (format: `accountName/modelName`)
+   - Weights, priorities, or latency SLA cutoffs depending on routing type
+   - Whether targets should be fallback candidates
+
+### Phase 3: Validate and Apply
+
+1. Build the manifest following the JSON schema strictly.
+2. Call `apply_manifest` with `dryRun: true` to validate.
+3. If validation fails, fix and retry.
+4. Once dry-run passes, call `apply_manifest` without dry-run to create the virtual model account.
+
+### Manifest Structure
+
+```yaml
+type: provider-account/virtual-model
+name: <unique-account-name>
+collaborators:
+  - role_id: provider-account-manager
+    subject: <user:email or team:name>
+integrations:
+  - name: <virtual-model-name>
+    type: integration/model/virtual
+    model_types:
+      - <chat|completion|embedding>
+    routing_config:
+      type: <weight-based-routing|priority-based-routing|latency-based-routing>
+      load_balance_targets:
+        - target: <account-name/model-name>
+          weight: <weight>
+          priority: <priority>
+          fallback_candidate: <true|false>
+```
+
+### Checklist
+
+- [ ] Did I call `get_manifest_json_schema` to get the current schema?
+- [ ] Did I ask the user which routing strategy to use?
+- [ ] Are all target models referenced correctly in `accountName/modelName` format?
+- [ ] Did I validate with `apply_manifest` (dryRun: true) before creating?
+
 ## Searching Docs for Additional Information
 
 The content above covers common operations. For conceptual questions, setup guides, or anything not fully answered above, search the docs.

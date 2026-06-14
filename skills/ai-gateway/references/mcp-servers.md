@@ -63,6 +63,58 @@ Important: Ignore `MCPServerProviderAccount` and `MCPServerIntegration` classes.
 2. Use `python scripts/validate_schema.py --file-path <path-to-manifest>` to validate the manifest.
 3. Repeat the process until the manifest is valid.
 
+## Creating MCP Servers (Write Flow)
+
+### Phase 1: Get Schema
+
+1. Call `get_manifest_json_schema` with the MCP server type (e.g. `mcp-server/remote`, `mcp-server/openapi`, `mcp-server/virtual`) to get the full JSON schema.
+
+### Phase 2: Determine Authentication
+
+1. Use `ask_user_question` to ask the user what type of authentication they want (options depend on what the schema supports — typically: no auth, OAuth 2.0, API Key / Header-based).
+
+2. **If OAuth 2.0 is selected**: Call `get_mcp_server_oauth_config` with the MCP server's URL to retrieve the Raw OAuth 2.0 Authorization Server Metadata (RFC 8414). This provides `authorization_url`, `token_url`, supported `scopes`, and other metadata needed to fill the auth config.
+
+3. Collect remaining auth details from the user (client_id, client_secret, scopes, etc.).
+
+### Phase 3: Validate and Apply
+
+1. Build the manifest following the JSON schema strictly.
+2. Call `apply_manifest` with `dryRun: true` to validate.
+3. If validation fails, fix and retry.
+4. Once dry-run passes, call `apply_manifest` without dry-run to create the MCP server.
+
+### Manifest Structure
+
+```yaml
+name: <unique-mcp-server-name>
+description: <description>
+url: <mcp-server-endpoint-url>
+collaborators:
+  - role_id: mcp-server-manager
+    subject: <user:email or team:name>
+type: mcp-server/remote
+auth_data:
+  type: oauth2
+  grant_type: authorization_code
+  authorization_url: <from-oauth-server-metadata>
+  token_url: <from-oauth-server-metadata>
+  client_id: <client-id>
+  client_secret: <client-secret>
+  jwt_source: access_token
+  scopes:
+    - <scope-1>
+    - <scope-2>
+```
+
+### Checklist
+
+- [ ] Did I call `get_manifest_json_schema` to get the current schema?
+- [ ] Did I ask the user which auth type they want before proceeding?
+- [ ] If OAuth, did I call `get_mcp_server_oauth_config` to get server metadata?
+- [ ] Did I validate with `apply_manifest` (dryRun: true) before creating?
+- [ ] Did I apply without dry-run only after validation passed?
+
 ## Searching Docs for Additional Information
 
 The content above covers common operations. For conceptual questions, setup guides, or anything not fully answered above, search the docs.
