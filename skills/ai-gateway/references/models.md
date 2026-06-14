@@ -93,7 +93,8 @@ To inspect a single provider account by id, use `get_provider_account`.
 ### Phase 2: Determine Authentication and Models
 
 1. If the schema shows multiple authentication methods, use `ask_user_question` to ask the user which auth method to use.
-2. Call `list_providers` to get the available models, pricing, and regions for the selected provider. Use this to help the user pick which models to add.
+2. You **MUST** call `list_providers` to get the available models, pricing, and regions for the selected provider. Do NOT skip this step — present the available models to the user so they can pick which ones to add to the provider account.
+3. For pricing: use `public` pricing by default. Do NOT manually add cost fields from `list_providers` output. Only add custom cost fields if the user explicitly provides their own pricing.
 
 ### Phase 3: Validate and Apply
 

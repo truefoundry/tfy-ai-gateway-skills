@@ -32,9 +32,13 @@ When creating or modifying platform entities, follow this workflow:
 1. **Get the JSON schema** — use `get_manifest_json_schema` to retrieve the schema for the entity type you want to create/modify. This is the source of truth for required and optional fields.
 2. **Ask user for required inputs** — use `ask_user_question` to collect decisions (auth method, permissions, etc.) when multiple options exist. Never guess — always confirm.
 3. **Fetch existing state when needed** — for gateway configs (rate limiting, budget, guardrails), always fetch the existing config first. Your new rules must be merged with existing rules, never replace them.
-4. **Construct the manifest** — follow the JSON schema strictly. Incomplete or malformed schemas will cause failures.
+4. **Construct the manifest** — follow the JSON schema strictly. Incomplete or malformed schemas will cause failures. **Every gateway config manifest MUST include a top-level `name` field** — use the name from the existing config.
 5. **Dry-run first** — call `apply_manifest` with `dryRun: true` to validate the structure before applying.
 6. **Apply** — once dry-run passes, call `apply_manifest` without dry-run to create/update the entity.
+
+Critical tool-call requirements (do NOT skip these):
+- For **MCP servers with OAuth**: you MUST call `get_mcp_server_oauth_config` to get the authorization server metadata before building the manifest.
+- For **model provider accounts**: you MUST call `list_providers` to get available models and regions before building the manifest.
 
 Key write tools:
 - `get_manifest_json_schema` — retrieve the JSON schema for any manifest type

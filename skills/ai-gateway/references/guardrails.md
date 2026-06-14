@@ -177,6 +177,10 @@ integrations:
 
 The guardrails config (type `gateway-guardrails-config`) defines **when** guardrail integrations are applied.
 
+## CRITICAL
+
+- The manifest **MUST** have a top-level `name` field. Without it, `apply_manifest` will return: `"Manifest does not have a name field"`. Use the `name` from the existing config fetched in Phase 1.
+
 ### Phase 1: Get Schema and Existing Config
 
 1. Call `get_manifest_json_schema` with type `gateway-guardrails-config`.
@@ -184,7 +188,7 @@ The guardrails config (type `gateway-guardrails-config`) defines **when** guardr
 
 ### Phase 2: Validate and Apply
 
-1. Build the complete manifest with `name`, `type: gateway-guardrails-config`, and the full `rules` array (existing rules + new rule).
+1. Build the complete manifest. **You MUST include the `name` field** from the existing config at the top level.
 2. Call `apply_manifest` with `dryRun: true` to validate.
 3. If validation fails, fix and retry.
 4. Once dry-run passes, call `apply_manifest` without dry-run to update the config.
