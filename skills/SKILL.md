@@ -29,7 +29,7 @@ These rules apply universally — keep them in mind regardless of which product 
 
 ### Gateway Entities
 
-When creating or modifying Gateway entities (models, MCP servers, virtual models, guardrails, rate limits, budgets, teams, virtual accounts), follow this workflow:
+When creating or modifying Gateway entities (models, MCP servers, virtual models, guardrails, rate limits, budgets, teams, virtual accounts, roles, role bindings), follow this workflow:
 
 1. **Get the JSON schema** — use `get_manifest_json_schema` to retrieve the schema for the entity type you want to create/modify. This is the source of truth for required and optional fields.
 2. **Ask user for required inputs** — use `ask_user_question` to collect decisions (auth method, permissions, etc.) when multiple options exist. Never guess — always confirm.
@@ -183,6 +183,7 @@ The following table lists the file path for each entity and policy which describ
 | Users, Teams, Virtual Accounts and Access Control            | `ai-gateway/references/access-management.md`    |
 | Teams (Create/Manage)                                        | `ai-gateway/references/teams.md`                |
 | Virtual Accounts (Create/Manage)                             | `ai-gateway/references/virtual-accounts.md`     |
+| Roles (Create/Manage)                                        | `ai-gateway/references/roles.md`                |
 
 ## Querying Gateway Usage Data
 
