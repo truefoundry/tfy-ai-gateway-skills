@@ -93,8 +93,10 @@ To inspect a single virtual-model account by id, use `get_provider_account`.
 type: provider-account/virtual-model
 name: <unique-account-name>
 collaborators:
+  - role_id: provider-account-manager
+    subject: user:<current-user-email>  # from get_me
   - role_id: provider-account-access
-    subject: team:everyone              # default; replace if user specifies collaborators
+    subject: team:everyone
 integrations:
   - name: <virtual-model-name>
     type: integration/model/virtual

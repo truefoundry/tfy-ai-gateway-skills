@@ -118,8 +118,10 @@ ModelType enum: `chat`, `completion`, `embedding`, `realtime`, `rerank`, `audio_
 type: <provider-account/type>
 name: <unique-account-name>
 collaborators:
+  - role_id: provider-account-manager
+    subject: user:<current-user-email>  # from get_me
   - role_id: provider-account-access
-    subject: team:everyone              # default; replace if user specifies collaborators
+    subject: team:everyone
 region: <region>
 integrations:
   - name: <integration-name>            # for realtime/audio_transcription/text_to_speech: MUST equal model_id
