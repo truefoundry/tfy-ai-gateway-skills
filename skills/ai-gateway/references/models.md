@@ -100,8 +100,8 @@ ModelType enum: `chat`, `completion`, `embedding`, `realtime`, `rerank`, `audio_
 4. Do NOT dump the full model list to the user — it can be very large. Ask the user which models they want to add (by name or type) and look them up in the `list_providers` response.
 5. **Naming rule**: For `realtime`, `audio_transcription`, `audio_translation`, `text_to_speech` modes, integration `name` MUST equal `model_id`. For all other modes, any descriptive name works.
 6. **Pricing rule — follow strictly per model type:**
-   - **`chat`, `completion`, `embedding`** → add `cost:` with `metric: public_cost` to enable public pricing
-   - **All other modes** (`realtime`, `rerank`, `audio_transcription`, `audio_translation`, `text_to_speech`, `moderation`, `image`, `responses`) → do NOT add a `cost` field at all (omitting it disables cost tracking)
+   - **`chat`, `completion`, `embedding`, `responses`** → add `cost:` with `metric: public_cost` to enable public pricing
+   - **All other modes** (`realtime`, `rerank`, `audio_transcription`, `audio_translation`, `text_to_speech`, `moderation`, `image`) → do NOT add a `cost` field at all (omitting it disables cost tracking)
    - Do NOT manually copy cost values from `list_providers` output. Only add custom cost fields if the user explicitly provides their own pricing.
 
 ### Phase 3: Build and Validate
@@ -139,8 +139,8 @@ integrations:
 - [ ] Did I call `list_providers` and filter models to only those available in the selected region?
 - [ ] Did I avoid dumping the full model list and instead ask the user which models they want?
 - [ ] For `realtime`/`audio_transcription`/`audio_translation`/`text_to_speech` modes, is the integration `name` set to exactly the `model_id`?
-- [ ] Did I add `cost: metric: public_cost` ONLY for models with mode `chat`, `completion`, or `embedding`?
-- [ ] Did I omit the `cost` field entirely for all other modes (`realtime`, `rerank`, `audio_transcription`, `audio_translation`, `text_to_speech`, `moderation`, `image`, `responses`)?
+- [ ] Did I add `cost: metric: public_cost` ONLY for models with mode `chat`, `completion`, `embedding`, or `responses`?
+- [ ] Did I omit the `cost` field entirely for all other modes (`realtime`, `rerank`, `audio_transcription`, `audio_translation`, `text_to_speech`, `moderation`, `image`)?
 - [ ] Did I validate with `scripts/validate_schema.py` before dry-running?
 - [ ] Did I dry-run with `apply_manifest` (dryRun: true) before applying?
 - [ ] Did I call `apply_manifest` directly as a tool (not from sandbox/code mode)?
