@@ -99,9 +99,9 @@ To inspect a single virtual-model account by id, use `get_provider_account`.
 
 1. Build the manifest following the JSON schema strictly. Write it to a file.
 2. Run `python scripts/validate_schema.py --file-path <manifest.yaml>` to validate. Fix and repeat until valid.
-3. Call `apply_manifest` with `dryRun: true` to validate against the live platform.
+3. Call `apply_manifest` directly as a tool (NOT from code mode) with `dryRun: true`.
 4. If dry-run fails, fix and retry.
-5. Once dry-run passes, call `apply_manifest` without dry-run to create the virtual model account.
+5. Once dry-run passes, call `apply_manifest` directly as a tool (NOT from code mode) without dry-run to create the virtual model account.
 
 ### Manifest Structure
 

@@ -160,14 +160,15 @@ Key fields in each model entry under `metadata.<model_id>`:
    - For **chat, completions, and embedding** models: enable public pricing by default (do NOT disable cost tracking).
    - For **all other model types** (rerank, etc.): disable cost by default.
    - Do NOT manually add cost fields from `list_providers` output. Only add custom cost fields if the user explicitly provides their own pricing.
+4. For **realtime and audio** models: the integration `name` and `model_id` MUST be exactly the same value (e.g. `name: gpt-4o-realtime-preview`, `model_id: gpt-4o-realtime-preview`).
 
 ### Phase 3: Build and Validate
 
 1. Build the manifest following the JSON schema strictly. Write it to a file.
 2. Run `python scripts/validate_schema.py --file-path <manifest.yaml>` to validate. Fix and repeat until valid.
-3. Call `apply_manifest` with `dryRun: true` to validate against the live platform.
+3. Call `apply_manifest` directly as a tool (NOT from code mode) with `dryRun: true`.
 4. If dry-run fails, fix and retry.
-5. Once dry-run passes, call `apply_manifest` without dry-run to create the provider account.
+5. Once dry-run passes, call `apply_manifest` directly as a tool (NOT from code mode) without dry-run to create the provider account.
 
 ### Manifest Structure
 
@@ -192,6 +193,7 @@ integrations:
 - [ ] Did I call `get_manifest_json_schema` to get the current schema for the provider account type?
 - [ ] Did I ask the user which auth method to use if multiple are available?
 - [ ] Did I call `list_providers` to show supported models and regions?
+- [ ] For realtime/audio models, is the integration `name` identical to `model_id`?
 - [ ] Did I validate with `scripts/validate_schema.py` before dry-running?
 - [ ] Did I dry-run with `apply_manifest` (dryRun: true) before creating?
 - [ ] Did I apply without dry-run only after dry-run passed?
