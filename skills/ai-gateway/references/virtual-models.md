@@ -111,13 +111,13 @@ integrations:
 
 ### Checklist
 
-- [ ] Called `get_manifest_json_schema` with type `provider-account/virtual-model`?
-- [ ] Asked user which routing strategy to use?
-- [ ] Verified target models exist via `list_provider_accounts`?
-- [ ] All targets in `accountName/modelName` format?
-- [ ] Validated with `scripts/validate_schema.py`?
-- [ ] Dry-run with `apply_manifest` (dryRun: true) passed?
-- [ ] Applied with `apply_manifest` (direct tool call, not sandbox)?
+- [ ] Did I call `get_manifest_json_schema` with type `provider-account/virtual-model`?
+- [ ] Did I ask the user which routing strategy to use?
+- [ ] Did I verify target models exist via `list_provider_accounts`?
+- [ ] Are all target models referenced correctly in `accountName/modelName` format?
+- [ ] Did I validate with `scripts/validate_schema.py` before dry-running?
+- [ ] Did I dry-run with `apply_manifest` (dryRun: true) before applying?
+- [ ] Did I call `apply_manifest` directly as a tool (not from sandbox/code mode)?
 
 ## Searching Docs for Additional Information
 

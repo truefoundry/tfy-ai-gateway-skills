@@ -92,12 +92,12 @@ auth_data:
 
 ### Checklist
 
-- [ ] Called `get_manifest_json_schema` for the MCP server type?
-- [ ] Asked user which auth type they want?
-- [ ] If OAuth, called `get_mcp_server_oauth_config` to get server metadata?
-- [ ] Validated with `scripts/validate_schema.py`?
-- [ ] Dry-run with `apply_manifest` (dryRun: true) passed?
-- [ ] Applied with `apply_manifest` (direct tool call, not sandbox)?
+- [ ] Did I call `get_manifest_json_schema` to get the current schema?
+- [ ] Did I ask the user which auth type they want before proceeding?
+- [ ] If OAuth, did I call `get_mcp_server_oauth_config` to get server metadata?
+- [ ] Did I validate with `scripts/validate_schema.py` before dry-running?
+- [ ] Did I dry-run with `apply_manifest` (dryRun: true) before applying?
+- [ ] Did I call `apply_manifest` directly as a tool (not from sandbox/code mode)?
 
 ## Searching Docs for Additional Information
 

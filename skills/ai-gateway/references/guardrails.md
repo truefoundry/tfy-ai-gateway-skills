@@ -138,11 +138,11 @@ integrations:
 
 ### Checklist
 
-- [ ] Called `get_manifest_json_schema` with type `provider-account/guardrail-config-group`?
-- [ ] Asked user which guardrail type and auth method to use?
-- [ ] Validated with `scripts/validate_schema.py`?
-- [ ] Dry-run with `apply_manifest` (dryRun: true) passed?
-- [ ] Applied with `apply_manifest` (direct tool call, not sandbox)?
+- [ ] Did I call `get_manifest_json_schema` with type `provider-account/guardrail-config-group`?
+- [ ] Did I ask the user which guardrail type and auth method to use?
+- [ ] Did I validate with `scripts/validate_schema.py` before dry-running?
+- [ ] Did I dry-run with `apply_manifest` (dryRun: true) before applying?
+- [ ] Did I call `apply_manifest` directly as a tool (not from sandbox/code mode)?
 
 ## Creating/Updating Guardrails Config Policy (Write Flow)
 
@@ -201,13 +201,13 @@ rules:
 
 ### Checklist
 
-- [ ] Called `get_manifest_json_schema` with type `gateway-guardrails-config`?
-- [ ] Fetched existing config and merged rules (not replaced)?
-- [ ] Included the `name` field from existing config?
-- [ ] Guardrail integrations in `groupName/integrationName` format?
-- [ ] Skipped `validate_schema.py` (it rejects `name`)?
-- [ ] Dry-run with `apply_manifest` (dryRun: true) passed?
-- [ ] Applied with `apply_manifest` (direct tool call, not sandbox)?
+- [ ] Did I call `get_manifest_json_schema` with type `gateway-guardrails-config`?
+- [ ] Did I fetch the existing guardrails config and merge rules (not replace)?
+- [ ] Did I include the `name` field in the manifest?
+- [ ] Are guardrail integrations referenced correctly in `groupName/integrationName` format?
+- [ ] Did I skip `validate_schema.py` (it rejects the required `name` field)?
+- [ ] Did I dry-run with `apply_manifest` (dryRun: true) before applying?
+- [ ] Did I call `apply_manifest` directly as a tool (not from sandbox/code mode)?
 
 ## Searching Docs for Additional Information
 

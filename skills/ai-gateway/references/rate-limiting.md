@@ -72,12 +72,13 @@ rules:
 
 ### Checklist
 
-- [ ] Called `get_manifest_json_schema` with type `gateway-rate-limiting-config`?
-- [ ] Fetched existing config and merged rules (not replaced)?
-- [ ] Included the `name` field from existing config?
-- [ ] Skipped `validate_schema.py` (it rejects `name`)?
-- [ ] Dry-run with `apply_manifest` (dryRun: true) passed?
-- [ ] Applied with `apply_manifest` (direct tool call, not sandbox)?
+- [ ] Did I call `get_manifest_json_schema` with type `gateway-rate-limiting-config`?
+- [ ] Did I fetch the existing rate limiting config before making changes?
+- [ ] Did I merge new rules with existing rules (not replace)?
+- [ ] Did I include the `name` field in the manifest?
+- [ ] Did I skip `validate_schema.py` (it rejects the required `name` field)?
+- [ ] Did I dry-run with `apply_manifest` (dryRun: true) before applying?
+- [ ] Did I call `apply_manifest` directly as a tool (not from sandbox/code mode)?
 
 ## Searching Docs for Additional Information
 

@@ -131,17 +131,17 @@ integrations:
 
 ### Checklist
 
-- [ ] For "do you support X model?" questions, called `list_providers` and checked the metadata?
-- [ ] Called `get_manifest_json_schema` for the provider account type?
-- [ ] Asked user which auth method to use (if multiple)?
-- [ ] Called `list_providers` and filtered models to only those available in the selected region?
-- [ ] Did NOT dump the full model list — asked user which models they want?
-- [ ] For `realtime`/`audio_transcription`/`text_to_speech` modes, `name` equals `model_id`?
-- [ ] Added `cost: metric: public_cost` ONLY for `chat`/`completion`/`embedding` modes?
-- [ ] Omitted the `cost` field entirely for all other modes (`image`, `video`, `text_to_speech`, `audio_transcription`, `realtime`, `rerank`, `moderation`, `responses`, `unknown`, `unsupported`)?
-- [ ] Validated with `scripts/validate_schema.py`?
-- [ ] Dry-run with `apply_manifest` (dryRun: true) passed?
-- [ ] Applied with `apply_manifest` (direct tool call, not sandbox)?
+- [ ] For "do you support X model?" questions, did I call `list_providers` and check the metadata?
+- [ ] Did I call `get_manifest_json_schema` to get the current schema for the provider account type?
+- [ ] Did I ask the user which auth method to use if multiple are available?
+- [ ] Did I call `list_providers` and filter models to only those available in the selected region?
+- [ ] Did I avoid dumping the full model list and instead ask the user which models they want?
+- [ ] For `realtime`/`audio_transcription`/`text_to_speech` modes, is the integration `name` set to exactly the `model_id`?
+- [ ] Did I add `cost: metric: public_cost` ONLY for models with mode `chat`, `completion`, or `embedding`?
+- [ ] Did I omit the `cost` field entirely for all other modes (`image`, `video`, `text_to_speech`, `audio_transcription`, `realtime`, `rerank`, `moderation`, `responses`, `unknown`, `unsupported`)?
+- [ ] Did I validate with `scripts/validate_schema.py` before dry-running?
+- [ ] Did I dry-run with `apply_manifest` (dryRun: true) before applying?
+- [ ] Did I call `apply_manifest` directly as a tool (not from sandbox/code mode)?
 
 ## Searching docs for additional information
 
