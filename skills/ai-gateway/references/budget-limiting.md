@@ -77,10 +77,10 @@ updatedAt: ...
 ### Phase 2: Build and Validate
 
 1. Build the complete manifest. **You MUST include the `name` field** from the existing config at the top level. Write it to a file.
-2. Run `python scripts/validate_schema.py --file-path <manifest.yaml>` to validate. Fix and repeat until valid.
-3. Call `apply_manifest` with `dryRun: true` to validate against the live platform.
+2. **Do NOT run `validate_schema.py`** — the budget schema uses `extra = forbid` and rejects the `name` field, so local validation will fail. Use dry-run as the sole validation step.
+3. Call `apply_manifest` directly as a tool (NOT from code mode) with `dryRun: true`.
 4. If dry-run fails, fix and retry.
-5. Once dry-run passes, call `apply_manifest` without dry-run to update the config.
+5. Once dry-run passes, call `apply_manifest` directly as a tool (NOT from code mode) without dry-run to update the config.
 
 ### Manifest Structure
 
@@ -118,7 +118,7 @@ rules:
 - [ ] Did I merge new rules with existing rules (not replace)?
 - [ ] Did I include the `name` field in the manifest?
 - [ ] Did I verify that subjects in the new rule are not already matched by earlier rules?
-- [ ] Did I validate with `scripts/validate_schema.py` before dry-running?
+- [ ] Did I skip `validate_schema.py` (it rejects the required `name` field)?
 - [ ] Did I dry-run with `apply_manifest` (dryRun: true) before applying?
 
 ## Searching Docs for Additional Information

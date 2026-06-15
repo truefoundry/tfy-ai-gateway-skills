@@ -27,13 +27,15 @@ These rules apply universally — keep them in mind regardless of which product 
 
 ## Creating and Modifying Entities (Write Operations)
 
-When creating or modifying platform entities, follow this workflow:
+### Gateway Entities
+
+When creating or modifying Gateway entities (models, MCP servers, virtual models, guardrails, rate limits, budgets, teams, virtual accounts), follow this workflow:
 
 1. **Get the JSON schema** — use `get_manifest_json_schema` to retrieve the schema for the entity type you want to create/modify. This is the source of truth for required and optional fields.
 2. **Ask user for required inputs** — use `ask_user_question` to collect decisions (auth method, permissions, etc.) when multiple options exist. Never guess — always confirm.
 3. **Fetch existing state when needed** — for gateway configs (rate limiting, budget, guardrails), always fetch the existing config first. Your new rules must be merged with existing rules, never replace them.
-4. **Construct the manifest** — write a YAML manifest to a file, following the JSON schema strictly. Incomplete or malformed schemas will cause failures. **Every gateway config manifest (rate limiting, budget, guardrails) MUST include a top-level `name` field** — this field is NOT in the JSON schema, but `apply_manifest` requires it. Get the name from the existing config fetched in step 3.
-5. **Validate locally** — run `python scripts/validate_schema.py --file-path <manifest.yaml>` to check structure. Fix and repeat until valid.
+4. **Construct the manifest** — write a YAML manifest to a file, following the JSON schema strictly. **Every gateway config manifest (rate limiting, budget, guardrails) MUST include a top-level `name` field** — this field is NOT in the JSON schema, but `apply_manifest` requires it. Get the name from the existing config fetched in step 3.
+5. **Validate locally** — run `python scripts/validate_schema.py --file-path <manifest.yaml>` to check structure. Fix and repeat until valid. **Exception**: skip this step for gateway config types (rate limiting, budget, guardrails) — their schemas use `extra = forbid` and reject the required `name` field. For those, rely on dry-run (step 6) for validation.
 6. **Dry-run** — call `apply_manifest` with `dryRun: true` to validate against the live platform.
 7. **Apply** — once dry-run passes, call `apply_manifest` without dry-run to create/update the entity. `apply_manifest` is idempotent — calling it with the same `name` updates the existing entity rather than creating a duplicate.
 
@@ -45,13 +47,26 @@ Critical tool-call requirements (do NOT skip these):
 - For **MCP servers with OAuth**: you MUST call `get_mcp_server_oauth_config` to get the authorization server metadata before building the manifest.
 - For **model provider accounts**: you MUST call `list_providers` to get the catalog of supported models and regions before building the manifest.
 
-Key write tools:
+> **WARNING**: `apply_manifest` is a destructive MCP tool. You MUST call it directly as a tool so it goes through the user approval flow. NEVER call it from code mode, sandbox, or a script — it will be blocked.
+
+Key Gateway write tools:
 - `get_manifest_json_schema` — retrieve the JSON schema for any manifest type
-- `apply_manifest` — create or update an entity (supports `dryRun` for validation). **Call this as a tool directly — do NOT call it via code/sandbox mode.**
+- `apply_manifest` — create or update an entity (supports `dryRun` for validation)
 - `get_mcp_server_oauth_config` — get OAuth 2.0 Authorization Server Metadata for MCP server auth setup
 - `list_providers` — platform catalog of all supported providers, models, pricing, and regions (NOT existing configs)
 - `create_personal_access_token` — create a PAT for the current user
 - `ask_user_question` — collect structured choices from the user
+
+### AI Engineering Entities
+
+For AI Engineering entities (services, async services, jobs, notebooks, SSH servers, workflows, helm charts, volumes):
+
+1. **Look up the schema** — find the type in `scripts/manifest_schemas.py` (e.g. `Literal["service"]`, `Literal["job"]`).
+2. **Construct the manifest** — write YAML matching the schema exactly.
+3. **Validate locally** — run `python scripts/validate_schema.py --file-path <manifest.yaml>`.
+4. **Hand off to the user** — give them the manifest and ask them to run `tfy apply -f <manifest.yaml>`. You must NOT run `tfy apply` yourself.
+
+For CLI install, auth, dry-run, environment override, and CI/CD usage → https://www.truefoundry.com/docs/using-tfy-apply.
 
 ## Using docs proactively
 
@@ -200,7 +215,7 @@ Gateway Caching and Provider Caching are different features — clarify with the
 - [ ] Did I explore the entities and configurations related to the question?
 - [ ] Did I analyze the queried data before arriving at conclusions?
 - [ ] Did I use `get_manifest_json_schema` BEFORE constructing any manifest for write operations?
-- [ ] Did I validate generated manifests with `scripts/validate_schema.py` before dry-running?
+- [ ] Did I validate generated manifests with `scripts/validate_schema.py` before dry-running? (Skip for gateway configs — they reject the required `name` field.)
 - [ ] Did I dry-run with `apply_manifest` using `dryRun: true` before applying?
 - [ ] For gateway configs (rate limit, budget, guardrails), did I fetch existing rules and merge rather than replace?
 - [ ] Did I ask the user for auth method choice when multiple options exist?

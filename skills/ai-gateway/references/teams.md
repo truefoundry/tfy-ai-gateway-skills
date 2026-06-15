@@ -22,9 +22,9 @@ Use the `list_teams` tool to get the list of all teams. Use `get_team` to inspec
 1. Collect the team name and member emails from the user.
 2. Build the manifest following the JSON schema strictly. Write it to a file.
 3. Run `python scripts/validate_schema.py --file-path <manifest.yaml>` to validate. Fix and repeat until valid.
-4. Call `apply_manifest` with `dryRun: true` to validate against the live platform.
+4. Call `apply_manifest` directly as a tool (NOT from code mode) with `dryRun: true`.
 5. If dry-run fails, fix and retry.
-6. Once dry-run passes, call `apply_manifest` without dry-run to create the team.
+6. Once dry-run passes, call `apply_manifest` directly as a tool (NOT from code mode) without dry-run to create the team.
 
 ### Manifest Structure
 
