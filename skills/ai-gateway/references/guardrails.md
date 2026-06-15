@@ -91,42 +91,6 @@ pagination:
 
 To inspect a single guardrail config group by id, use `get_provider_account`.
 
-## Generating Valid Manifests for Guardrail Usage
-
-### Phase 1: Research Guardrail Integrations
-
-1. Use grep in `scripts/manifest_schemas.py` to find guardrail integration type of the provider or interest. If you want to find all guardrail integration types, use the following command:
-
-    ```shell
-    grep -h -E 'integration/guardrail-config/' scripts/manifest_schemas.py
-    ```
-
-2. Use grep further on `scripts/manifest_schemas.py` to read the schema for a specific type
-
-    ```shell
-    grep -B 20 -A 20 -h -E 'integration/guardrail-config/azure-prompt-shield' scripts/manifest_schemas.py
-    ```
-
-### Phase 2: Generate Valid Guardrail Integration Manifest
-
-1. Using the discovered schemas write yaml manifest to a file.
-2. Use `python scripts/validate_schema.py --file-path <path-to-manifest>` to validate the manifest.
-3. Repeat the process until the manifest is valid.
-
-### Phase 3: Research Guardrail Config Schema
-
-1. Use grep on `scripts/manifest_schemas.py` to understand schema of class `GuardrailsConfig` and related classes.
-
-    ```shell
-    grep -A 20 -h -E 'class Guardrails.+' scripts/manifest_schemas.py
-    ```
-
-### Phase 4: Generate Valid Guardrail Config Manifest
-
-1. Using the discovered schemas write yaml manifest to a file. This should reference the guardrail integrations written in Phase 2.
-2. Use `python ./scripts/validate_schema.py --file-path <path-to-manifest>` to validate the guardrail config manifest.
-3. Repeat the process until the guardrail config manifest is valid.
-
 ## Creating Guardrail Config Groups (Write Flow)
 
 A guardrail config group is a provider account that holds one or more guardrail integrations.
@@ -174,10 +138,11 @@ integrations:
 
 ### Checklist
 
-- [ ] Did I call `get_manifest_json_schema` to get the current schema?
+- [ ] Did I call `get_manifest_json_schema` with type `provider-account/guardrail-config-group`?
 - [ ] Did I ask the user which guardrail type and auth method to use?
 - [ ] Did I validate with `scripts/validate_schema.py` before dry-running?
-- [ ] Did I dry-run with `apply_manifest` (dryRun: true) before creating?
+- [ ] Did I dry-run with `apply_manifest` (dryRun: true) before applying?
+- [ ] Did I call `apply_manifest` directly as a tool (not from sandbox/code mode)?
 
 ## Creating/Updating Guardrails Config Policy (Write Flow)
 
@@ -236,13 +201,13 @@ rules:
 
 ### Checklist
 
-- [ ] Did I call `get_manifest_json_schema` to get the current schema?
-- [ ] Did I fetch the existing guardrails config and merge rules?
+- [ ] Did I call `get_manifest_json_schema` with type `gateway-guardrails-config`?
+- [ ] Did I fetch the existing guardrails config and merge rules (not replace)?
 - [ ] Did I include the `name` field in the manifest?
-- [ ] Did I ask the user for guardrail type and auth method when creating a guardrail group?
-- [ ] Are guardrail integrations referenced correctly in the format `groupName/integrationName`?
+- [ ] Are guardrail integrations referenced correctly in `groupName/integrationName` format?
 - [ ] Did I skip `validate_schema.py` (it rejects the required `name` field)?
 - [ ] Did I dry-run with `apply_manifest` (dryRun: true) before applying?
+- [ ] Did I call `apply_manifest` directly as a tool (not from sandbox/code mode)?
 
 ## Searching Docs for Additional Information
 

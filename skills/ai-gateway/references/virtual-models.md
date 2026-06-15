@@ -64,22 +64,6 @@ The identifier `openai-account/gpt-4o` refers to the `gpt-4o` integration under 
 
 To inspect a single virtual-model account by id, use `get_provider_account`.
 
-## Generating Valid Manifests for Virtual Models and Virtual Model Accounts
-
-### Phase 1: Research Virtual Model Schema
-
-1. Use grep on `scripts/manifest_schemas.py` to understand schema of class `VirtualModel` and related classes.
-
-    ```shell
-    grep -A 10 -h -E 'class (VirtualModel.*|.+LoadBalancing|.*LoadBalanceTarget)' scripts/manifest_schemas.py
-    ```
-
-### Phase 2: Generate Valid Virtual Model Account Manifest
-
-1. Using the discovered schemas, write a YAML manifest to a file. This should reference the virtual model integrations written in Phase 2.
-2. Use `python scripts/validate_schema.py --file-path <path-to-manifest>` to validate the manifest.
-3. Repeat the process until the manifest is valid.
-
 ## Creating Virtual Model Accounts (Write Flow)
 
 ### Phase 1: Get Schema
@@ -127,12 +111,13 @@ integrations:
 
 ### Checklist
 
-- [ ] Did I call `get_manifest_json_schema` to get the current schema?
+- [ ] Did I call `get_manifest_json_schema` with type `provider-account/virtual-model`?
 - [ ] Did I ask the user which routing strategy to use?
 - [ ] Did I verify target models exist via `list_provider_accounts`?
 - [ ] Are all target models referenced correctly in `accountName/modelName` format?
 - [ ] Did I validate with `scripts/validate_schema.py` before dry-running?
-- [ ] Did I dry-run with `apply_manifest` (dryRun: true) before creating?
+- [ ] Did I dry-run with `apply_manifest` (dryRun: true) before applying?
+- [ ] Did I call `apply_manifest` directly as a tool (not from sandbox/code mode)?
 
 ## Searching Docs for Additional Information
 
