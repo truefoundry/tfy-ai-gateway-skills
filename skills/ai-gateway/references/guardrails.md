@@ -154,8 +154,8 @@ A guardrail config group is a provider account that holds one or more guardrail 
 name: <unique-group-name>
 type: provider-account/guardrail-config-group
 collaborators:
-  - role_id: provider-account-manager
-    subject: user:<current-user-email>  # from get_me; ask user before adding others
+  - role_id: provider-account-access
+    subject: team:everyone              # default; replace if user specifies collaborators
 integrations:
   - name: <integration-name>
     type: <integration/guardrail-config/type>
