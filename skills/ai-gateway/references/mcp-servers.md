@@ -92,8 +92,8 @@ name: <unique-mcp-server-name>
 description: <description>
 url: <mcp-server-endpoint-url>
 collaborators:
-  - role_id: mcp-server-manager
-    subject: user:<current-user-email>  # from get_me; ask user before adding others
+  - role_id: mcp-server-access
+    subject: team:everyone              # default; replace if user specifies collaborators
 type: mcp-server/remote
 auth_data:
   type: oauth2

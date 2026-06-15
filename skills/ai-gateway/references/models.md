@@ -176,8 +176,8 @@ Key fields in each model entry under `metadata.<model_id>`:
 type: <provider-account/type>
 name: <unique-account-name>
 collaborators:
-  - role_id: provider-account-manager
-    subject: user:<current-user-email>  # from get_me; ask user before adding others
+  - role_id: provider-account-access
+    subject: team:everyone              # default; replace if user specifies collaborators
 region: <region>
 integrations:
   - name: <integration-name>

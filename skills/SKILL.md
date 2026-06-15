@@ -40,8 +40,8 @@ When creating or modifying Gateway entities (models, MCP servers, virtual models
 7. **Apply** — once dry-run passes, call `apply_manifest` without dry-run to create/update the entity. `apply_manifest` is idempotent — calling it with the same `name` updates the existing entity rather than creating a duplicate.
 
 Collaborators:
-- Ask the user if they want to add any collaborators. If none specified, default to adding only the current user (from `get_me`) as manager. Do NOT add anyone else by default.
-- If the user provides specific collaborators, use exactly what they specified.
+- Ask the user if they want to add any collaborators. If none specified, default to only `team:everyone` as access.
+- If the user provides a specific collaborator list, use exactly what they specified.
 
 Critical tool-call requirements (do NOT skip these):
 - For **MCP servers with OAuth**: you MUST call `get_mcp_server_oauth_config` to get the authorization server metadata before building the manifest.
@@ -54,7 +54,6 @@ Key Gateway write tools:
 - `apply_manifest` — create or update an entity (supports `dryRun` for validation)
 - `get_mcp_server_oauth_config` — get OAuth 2.0 Authorization Server Metadata for MCP server auth setup
 - `list_providers` — platform catalog of all supported providers, models, pricing, and regions (NOT existing configs)
-- `create_personal_access_token` — create a PAT for the current user
 - `ask_user_question` — collect structured choices from the user
 
 ### AI Engineering Entities
@@ -184,7 +183,6 @@ The following table lists the file path for each entity and policy which describ
 | Users, Teams, Virtual Accounts and Access Control            | `ai-gateway/references/access-management.md`    |
 | Teams (Create/Manage)                                        | `ai-gateway/references/teams.md`                |
 | Virtual Accounts (Create/Manage)                             | `ai-gateway/references/virtual-accounts.md`     |
-| Personal Access Tokens (Create)                              | `ai-gateway/references/personal-access-tokens.md` |
 
 ## Querying Gateway Usage Data
 
