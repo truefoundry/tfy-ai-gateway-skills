@@ -84,7 +84,7 @@ The response is an array of providers. Each provider has integrations with a `me
 ```
 
 Key fields: `model` (model_id for manifests), `mode`, `costs[]` (per region), `status`.
-Modes: `chat`, `completion`, `embedding`, `image`, `video`, `text_to_speech`, `audio_transcription`, `realtime`, `rerank`, `moderation`, `responses`, `unknown`, `unsupported`.
+ModelType enum: `chat`, `completion`, `embedding`, `realtime`, `rerank`, `audio_transcription`, `audio_translation`, `text_to_speech`, `moderation`, `image`, `responses`.
 
 ## Creating Model Provider Accounts (Write Flow)
 
@@ -98,10 +98,10 @@ Modes: `chat`, `completion`, `embedding`, `image`, `video`, `text_to_speech`, `a
 2. You **MUST** call `list_providers` to get the supported models, pricing, and regions for the selected provider. Do NOT skip this step.
 3. **Filter models by region** — from the `list_providers` response, only include models that have a cost entry matching the user's selected region (or `region: "*"`). Do NOT add models unavailable in the chosen region.
 4. Do NOT dump the full model list to the user — it can be very large. Ask the user which models they want to add (by name or type) and look them up in the `list_providers` response.
-5. **Naming rule**: For `realtime`, `audio_transcription`, `text_to_speech`, `audio_translation`, modes, integration `name` MUST equal `model_id`. For all other modes, any descriptive name works.
+5. **Naming rule**: For `realtime`, `audio_transcription`, `audio_translation`, `text_to_speech` modes, integration `name` MUST equal `model_id`. For all other modes, any descriptive name works.
 6. **Pricing rule — follow strictly per model type:**
    - **`chat`, `completion`, `embedding`** → add `cost:` with `metric: public_cost` to enable public pricing
-   - **All other modes** (`image`, `video`, `text_to_speech`, `audio_transcription`, `realtime`, `rerank`, `moderation`, `responses`, `unknown`, `unsupported`) → do NOT add a `cost` field at all (omitting it disables cost tracking)
+   - **All other modes** (`realtime`, `rerank`, `audio_transcription`, `audio_translation`, `text_to_speech`, `moderation`, `image`, `responses`) → do NOT add a `cost` field at all (omitting it disables cost tracking)
    - Do NOT manually copy cost values from `list_providers` output. Only add custom cost fields if the user explicitly provides their own pricing.
 
 ### Phase 3: Build and Validate
@@ -122,11 +122,11 @@ collaborators:
     subject: team:everyone              # default; replace if user specifies collaborators
 region: <region>
 integrations:
-  - name: <integration-name>            # for realtime/audio: MUST equal model_id
+  - name: <integration-name>            # for realtime/audio_transcription/text_to_speech: MUST equal model_id
     type: <integration/model/provider>
     model_id: <provider-model-id>
     model_types:
-      - <chat|embedding|rerank|realtime|audio>
+      - <chat|completion|embedding|realtime|rerank|audio_transcription|audio_translation|text_to_speech|moderation|image|responses>
 ```
 
 ### Checklist
@@ -136,9 +136,9 @@ integrations:
 - [ ] Did I ask the user which auth method to use if multiple are available?
 - [ ] Did I call `list_providers` and filter models to only those available in the selected region?
 - [ ] Did I avoid dumping the full model list and instead ask the user which models they want?
-- [ ] For `realtime`/`audio_transcription`/`text_to_speech` modes, is the integration `name` set to exactly the `model_id`?
+- [ ] For `realtime`/`audio_transcription`/`audio_translation`/`text_to_speech` modes, is the integration `name` set to exactly the `model_id`?
 - [ ] Did I add `cost: metric: public_cost` ONLY for models with mode `chat`, `completion`, or `embedding`?
-- [ ] Did I omit the `cost` field entirely for all other modes (`image`, `video`, `text_to_speech`, `audio_transcription`, `realtime`, `rerank`, `moderation`, `responses`, `unknown`, `unsupported`)?
+- [ ] Did I omit the `cost` field entirely for all other modes (`realtime`, `rerank`, `audio_transcription`, `audio_translation`, `text_to_speech`, `moderation`, `image`, `responses`)?
 - [ ] Did I validate with `scripts/validate_schema.py` before dry-running?
 - [ ] Did I dry-run with `apply_manifest` (dryRun: true) before applying?
 - [ ] Did I call `apply_manifest` directly as a tool (not from sandbox/code mode)?
