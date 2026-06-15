@@ -93,13 +93,15 @@ To inspect a single virtual-model account by id, use `get_provider_account`.
    - Which target models to route to (format: `accountName/modelName`)
    - Weights, priorities, or latency SLA cutoffs depending on routing type
    - Whether targets should be fallback candidates
+2. Verify target models exist by calling `list_provider_accounts` with `includeModelProviders: true` and confirming each `accountName/modelName` is present.
 
-### Phase 3: Validate and Apply
+### Phase 3: Build and Validate
 
-1. Build the manifest following the JSON schema strictly.
-2. Call `apply_manifest` with `dryRun: true` to validate.
-3. If validation fails, fix and retry.
-4. Once dry-run passes, call `apply_manifest` without dry-run to create the virtual model account.
+1. Build the manifest following the JSON schema strictly. Write it to a file.
+2. Run `python scripts/validate_schema.py --file-path <manifest.yaml>` to validate. Fix and repeat until valid.
+3. Call `apply_manifest` with `dryRun: true` to validate against the live platform.
+4. If dry-run fails, fix and retry.
+5. Once dry-run passes, call `apply_manifest` without dry-run to create the virtual model account.
 
 ### Manifest Structure
 
@@ -108,7 +110,7 @@ type: provider-account/virtual-model
 name: <unique-account-name>
 collaborators:
   - role_id: provider-account-manager
-    subject: <user:email or team:name>
+    subject: user:<current-user-email>  # from get_me; ask user before adding others
 integrations:
   - name: <virtual-model-name>
     type: integration/model/virtual
@@ -127,8 +129,10 @@ integrations:
 
 - [ ] Did I call `get_manifest_json_schema` to get the current schema?
 - [ ] Did I ask the user which routing strategy to use?
+- [ ] Did I verify target models exist via `list_provider_accounts`?
 - [ ] Are all target models referenced correctly in `accountName/modelName` format?
-- [ ] Did I validate with `apply_manifest` (dryRun: true) before creating?
+- [ ] Did I validate with `scripts/validate_schema.py` before dry-running?
+- [ ] Did I dry-run with `apply_manifest` (dryRun: true) before creating?
 
 ## Searching Docs for Additional Information
 

@@ -50,21 +50,20 @@ updatedAt: ...
 
 ## Creating/Updating Rate Limiting Rules (Write Flow)
 
-## CRITICAL
-
-- The manifest **MUST** have a top-level `name` field. Without it, `apply_manifest` will return: `"Manifest does not have a name field"`. Use the `name` from the existing config fetched in Phase 1.
+> **CRITICAL**: The manifest **MUST** have a top-level `name` field. This field is NOT in the JSON schema, but `apply_manifest` requires it. Without it you will get: `"Manifest does not have a name field"`. Get the `name` from the existing config.
 
 ### Phase 1: Get Schema and Existing Config
 
 1. Call `get_manifest_json_schema` with type `gateway-rate-limiting-config`.
-2. Call `get_gateway_config` with `type: gateway-rate-limiting-config` to fetch the existing config. New rules must be merged with existing ones — never replace.
+2. Call `get_gateway_config` with `type: gateway-rate-limiting-config` to fetch the existing config. New rules must be merged with existing ones — never replace. Note the `name` field from the existing config — you will need it.
 
-### Phase 2: Validate and Apply
+### Phase 2: Build and Validate
 
-1. Build the complete manifest. **You MUST include the `name` field** from the existing config at the top level.
-2. Call `apply_manifest` with `dryRun: true` to validate.
-3. If validation fails, fix and retry.
-4. Once dry-run passes, call `apply_manifest` without dry-run to update the config.
+1. Build the complete manifest. **You MUST include the `name` field** from the existing config at the top level. Write it to a file.
+2. Run `python scripts/validate_schema.py --file-path <manifest.yaml>` to validate. Fix and repeat until valid.
+3. Call `apply_manifest` with `dryRun: true` to validate against the live platform.
+4. If dry-run fails, fix and retry.
+5. Once dry-run passes, call `apply_manifest` without dry-run to update the config.
 
 ### Manifest Structure
 
@@ -88,10 +87,12 @@ rules:
 
 ### Checklist
 
+- [ ] Did I call `get_manifest_json_schema` to get the current schema?
 - [ ] Did I fetch the existing rate limiting config before making changes?
 - [ ] Did I merge new rules with existing rules (not replace)?
 - [ ] Did I include the `name` field in the manifest?
-- [ ] Did I validate with `apply_manifest` (dryRun: true) before applying?
+- [ ] Did I validate with `scripts/validate_schema.py` before dry-running?
+- [ ] Did I dry-run with `apply_manifest` (dryRun: true) before applying?
 
 ## Searching Docs for Additional Information
 

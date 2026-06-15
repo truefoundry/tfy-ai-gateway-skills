@@ -5,6 +5,10 @@ description: Create and manage virtual accounts — non-human identities for app
 
 **Virtual Accounts** are non-human identities for applications, services, and CI/CD pipelines. Each virtual account has its own token (VAT) and can be scoped to minimum required permissions. One virtual account per application is recommended.
 
+## Fetching existing virtual accounts
+
+Use the `list_virtual_accounts` tool to get the list of all virtual accounts. Use `get_virtual_account` to inspect a single VA by name or ID.
+
 ## Creating Virtual Accounts (Write Flow)
 
 ### Phase 1: Get Schema
@@ -15,12 +19,13 @@ description: Create and manage virtual accounts — non-human identities for app
 
 1. A virtual account must have at least one permission assigned. Use `ask_user_question` to ask the user what permissions this VA should have (role, resource, resource type).
 
-### Phase 3: Validate and Apply
+### Phase 3: Build and Validate
 
-1. Build the manifest following the JSON schema strictly.
-2. Call `apply_manifest` with `dryRun: true` to validate.
-3. If validation fails, fix and retry.
-4. Once dry-run passes, call `apply_manifest` without dry-run to create the virtual account.
+1. Build the manifest following the JSON schema strictly. Write it to a file.
+2. Run `python scripts/validate_schema.py --file-path <manifest.yaml>` to validate. Fix and repeat until valid.
+3. Call `apply_manifest` with `dryRun: true` to validate against the live platform.
+4. If dry-run fails, fix and retry.
+5. Once dry-run passes, call `apply_manifest` without dry-run to create the virtual account.
 
 ### Manifest Structure
 
@@ -50,7 +55,8 @@ token_type: <jwt>
 - [ ] Did I call `get_manifest_json_schema` to get the current schema?
 - [ ] Did I ask the user what permissions this VA should have?
 - [ ] Does the VA have at least one permission assigned?
-- [ ] Did I validate with `apply_manifest` (dryRun: true) before creating?
+- [ ] Did I validate with `scripts/validate_schema.py` before dry-running?
+- [ ] Did I dry-run with `apply_manifest` (dryRun: true) before creating?
 
 ## Searching Docs for Additional Information
 
