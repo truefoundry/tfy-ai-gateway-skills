@@ -40,32 +40,9 @@ createdAt: ...
 updatedAt: ...
 ```
 
-## Generating Valid Manifests for Budget Limiting
-
-### Phase 1: Fetch existing budget config.
-
-1. Gateway has a single budget config manifest. The final manifest will be union of existing + your changes.
-
-### Phase 2: Research Budget Config Schema
-
-1. Use grep on `scripts/manifest_schemas.py` to understand schema of class `BudgetConfig` and related classes.
-
-    ```shell
-    grep -A 20 -h -E 'class Budget.+' scripts/manifest_schemas.py
-    ```
-
-### Phase 3: Validate your understanding of budget config rules
-
-1. Use `search_docs` for "gateway budget rules" to find the canonical doc page.
-2. Fetch the doc page to understand the semantic rules (e.g. how `budget_applies_per` interacts with `when` matchers, alert thresholds, audit mode behavior). The schema gives you structure; the docs give you correctness.
-
-### Phase 4: Generate Valid Budget Config Manifest
-
-1. Using the discovered schema write yaml manifest to a file.
-2. Use `python scripts/validate_schema.py --file-path <path-to-manifest>` to validate the manifest.
-3. Repeat the process until the manifest is valid.
-
 ## Creating/Updating Budget Rules (Write Flow)
+
+> **Tip**: For complex rules, use `search_docs` for "gateway budget rules" to understand how `budget_applies_per` interacts with `when` matchers, alert thresholds, and audit mode behavior.
 
 > **CRITICAL**: The manifest **MUST** have a top-level `name` field. This field is NOT in the JSON schema, but `apply_manifest` requires it. Without it you will get: `"Manifest does not have a name field"`. Get the `name` from the existing config.
 
@@ -113,13 +90,12 @@ rules:
 
 ### Checklist
 
-- [ ] Did I call `get_manifest_json_schema` to get the current schema?
-- [ ] Did I fetch the existing budget config before making changes?
-- [ ] Did I merge new rules with existing rules (not replace)?
-- [ ] Did I include the `name` field in the manifest?
-- [ ] Did I verify that subjects in the new rule are not already matched by earlier rules?
-- [ ] Did I skip `validate_schema.py` (it rejects the required `name` field)?
-- [ ] Did I dry-run with `apply_manifest` (dryRun: true) before applying?
+- [ ] Called `get_manifest_json_schema` with type `gateway-budget-config`?
+- [ ] Fetched existing config and merged rules (not replaced)?
+- [ ] Included the `name` field from existing config?
+- [ ] Skipped `validate_schema.py` (it rejects `name`)?
+- [ ] Dry-run with `apply_manifest` (dryRun: true) passed?
+- [ ] Applied with `apply_manifest` (direct tool call, not sandbox)?
 
 ## Searching Docs for Additional Information
 

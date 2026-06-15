@@ -38,9 +38,10 @@ members:
 
 ### Checklist
 
-- [ ] Did I call `get_manifest_json_schema` to get the current schema?
-- [ ] Did I validate with `scripts/validate_schema.py` before dry-running?
-- [ ] Did I dry-run with `apply_manifest` (dryRun: true) before creating?
+- [ ] Called `get_manifest_json_schema` with type `team`?
+- [ ] Validated with `scripts/validate_schema.py`?
+- [ ] Dry-run with `apply_manifest` (dryRun: true) passed?
+- [ ] Applied with `apply_manifest` (direct tool call, not sandbox)?
 
 ## Searching Docs for Additional Information
 

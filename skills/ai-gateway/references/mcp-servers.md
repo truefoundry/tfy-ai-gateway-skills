@@ -45,24 +45,6 @@ pagination:
   limit: 100
 ```
 
-## Generating Valid Manifests for MCP Servers
-
-### Phase 1: Research MCP Server Schema
-
-1. Use grep on `scripts/manifest_schemas.py` to understand schema of class `RemoteMCPServerManifest` / `OpenAPIMCPServerManifest` / `VirtualMCPServerManifest` and related classes.
-
-    ```shell
-    grep -A 20 -h -E 'class .+MCPServerManifest' scripts/manifest_schemas.py
-    ```
-
-Important: Ignore `MCPServerProviderAccount` and `MCPServerIntegration` classes. These are deprecated and should not be used.
-
-### Phase 2: Generate Valid MCP Server Manifest
-
-1. Using the discovered schema, write a YAML manifest to a file.
-2. Use `python scripts/validate_schema.py --file-path <path-to-manifest>` to validate the manifest.
-3. Repeat the process until the manifest is valid.
-
 ## Creating MCP Servers (Write Flow)
 
 ### Phase 1: Get Schema
@@ -110,12 +92,12 @@ auth_data:
 
 ### Checklist
 
-- [ ] Did I call `get_manifest_json_schema` to get the current schema?
-- [ ] Did I ask the user which auth type they want before proceeding?
-- [ ] If OAuth, did I call `get_mcp_server_oauth_config` to get server metadata?
-- [ ] Did I validate with `scripts/validate_schema.py` before dry-running?
-- [ ] Did I dry-run with `apply_manifest` (dryRun: true) before creating?
-- [ ] Did I apply without dry-run only after dry-run passed?
+- [ ] Called `get_manifest_json_schema` for the MCP server type?
+- [ ] Asked user which auth type they want?
+- [ ] If OAuth, called `get_mcp_server_oauth_config` to get server metadata?
+- [ ] Validated with `scripts/validate_schema.py`?
+- [ ] Dry-run with `apply_manifest` (dryRun: true) passed?
+- [ ] Applied with `apply_manifest` (direct tool call, not sandbox)?
 
 ## Searching Docs for Additional Information
 

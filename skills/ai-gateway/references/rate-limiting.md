@@ -33,21 +33,6 @@ createdAt: ...
 updatedAt: ...
 ```
 
-## Generating Valid Manifests for Rate Limiting
-
-### Phase 1: Research Rate Limit Config Schema
-
-1. Use grep in `scripts/manifest_schemas.py` to understand schema of class `RateLimitConfig` and related classes.
-  ```shell
-    grep -A 20 -h -E 'class RateLimit.+' scripts/manifest_schemas.py
-  ```
-
-### Phase 2: Generate Valid Rate Limit Config Manifest
-
-1. Using the discovered schema, write a YAML manifest to a file.
-2. Use `python scripts/validate_schema.py --file-path <path-to-manifest>` to validate the manifest.
-3. Repeat the process until the manifest is valid.
-
 ## Creating/Updating Rate Limiting Rules (Write Flow)
 
 > **CRITICAL**: The manifest **MUST** have a top-level `name` field. This field is NOT in the JSON schema, but `apply_manifest` requires it. Without it you will get: `"Manifest does not have a name field"`. Get the `name` from the existing config.
@@ -87,16 +72,14 @@ rules:
 
 ### Checklist
 
-- [ ] Did I call `get_manifest_json_schema` to get the current schema?
-- [ ] Did I fetch the existing rate limiting config before making changes?
-- [ ] Did I merge new rules with existing rules (not replace)?
-- [ ] Did I include the `name` field in the manifest?
-- [ ] Did I skip `validate_schema.py` (it rejects the required `name` field)?
-- [ ] Did I dry-run with `apply_manifest` (dryRun: true) before applying?
+- [ ] Called `get_manifest_json_schema` with type `gateway-rate-limiting-config`?
+- [ ] Fetched existing config and merged rules (not replaced)?
+- [ ] Included the `name` field from existing config?
+- [ ] Skipped `validate_schema.py` (it rejects `name`)?
+- [ ] Dry-run with `apply_manifest` (dryRun: true) passed?
+- [ ] Applied with `apply_manifest` (direct tool call, not sandbox)?
 
 ## Searching Docs for Additional Information
 
-**Important**: This should be only used when other sources provide insufficient information.
-
-Use `search_docs` to search for additional information about Gateway rate limits.  
+Use `search_docs` to search for additional information about Gateway rate limits.
 Search terms: "Gateway Rate Limit Rules", "rate limiting", "token limits", "requests per minute"
