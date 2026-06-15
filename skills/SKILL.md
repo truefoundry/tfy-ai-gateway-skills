@@ -29,7 +29,7 @@ These rules apply universally — keep them in mind regardless of which product 
 
 ### Gateway Entities
 
-When creating or modifying Gateway entities (models, MCP servers, virtual models, guardrails, rate limits, budgets, teams, virtual accounts, roles, role bindings), follow this workflow:
+When creating or modifying Gateway entities (models, MCP servers, virtual models, guardrails, rate limits, budgets, teams, virtual accounts, roles), follow this workflow:
 
 1. **Get the JSON schema** — use `get_manifest_json_schema` to retrieve the schema for the entity type you want to create/modify. This is the source of truth for required and optional fields.
 2. **Ask user for required inputs** — use `ask_user_question` to collect decisions (auth method, permissions, etc.) when multiple options exist. Never guess — always confirm.
@@ -57,6 +57,10 @@ Key Gateway write tools:
 - `get_mcp_server_oauth_config` — get OAuth 2.0 Authorization Server Metadata for MCP server auth setup
 - `list_providers` — platform catalog of all supported providers, models, pricing, and regions (NOT existing configs)
 - `create_personal_access_token` — create a PAT for the current user
+- `list_roles` — list all roles (built-in and custom)
+- `create_or_update_role_binding` — assign roles to users/teams/VAs on specific resources (supports `dryRun`)
+- `list_role_bindings` — list existing role bindings
+- `delete_role_binding` — delete a role binding by ID
 - `ask_user_question` — collect structured choices from the user
 
 ### AI Engineering Entities
@@ -186,7 +190,7 @@ The following table lists the file path for each entity and policy which describ
 | Users, Teams, Virtual Accounts and Access Control            | `ai-gateway/references/access-management.md`    |
 | Teams (Create/Manage)                                        | `ai-gateway/references/teams.md`                |
 | Virtual Accounts (Create/Manage)                             | `ai-gateway/references/virtual-accounts.md`     |
-| Roles (Create/Manage)                                        | `ai-gateway/references/roles.md`                |
+| Roles and Role Bindings (Create/Manage)                      | `ai-gateway/references/roles.md`                |
 | Personal Access Tokens (Create)                              | `ai-gateway/references/personal-access-tokens.md` |
 
 ## Querying Gateway Usage Data
