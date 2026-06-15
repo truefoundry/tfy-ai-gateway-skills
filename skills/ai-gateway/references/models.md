@@ -54,6 +54,68 @@ The identifier `my-openai-account/gpt-4o` refers to the `gpt-4o` integration und
 
 To inspect a single provider account by id, use `get_provider_account`.
 
+## Querying supported models with `list_providers`
+
+`list_providers` returns the **platform catalog** — every provider, model, and pricing tier the platform *supports*. It does NOT return the user's existing/configured provider accounts (use `list_provider_accounts` for that).
+
+Use `list_providers` for:
+- **Checking model support** — when the user asks "do you support X model?", "is X available?", always call `list_providers` and search the response. Do NOT answer from memory.
+- **Checking provider support** — when asked "which providers do you support?", "which providers are available?", list the top-level `type` / `label` entries from the response.
+- **Building provider account manifests** — when creating a provider account (write flow), use this data to present available models, get the correct `model_id` values, and determine available regions.
+
+The response is an array of supported providers, each containing supported integrations with a `metadata` object keyed by `model_id`. The shape is:
+
+```yaml
+- type: provider-account/openai          # provider account type
+  label: OpenAI                           # display name
+  integrations:
+    - type: integration/model/openai      # integration type
+      label: OpenAI Model
+      metadata:                           # keyed by model_id
+        gpt-4o:
+          model: gpt-4o                   # the model_id to use in manifests
+          mode: chat                      # chat | embedding | rerank | completion
+          costs:
+            - input_cost_per_token: 0.0000025
+              output_cost_per_token: 0.00001
+              region: "*"                 # "*" means all regions
+          limits:
+            context_window: 128000
+            max_output_tokens: 16384
+          features:                       # supported capabilities
+            - function_calling
+            - structured_output
+            - prompt_caching
+          status: active                  # active | deprecated
+          isDeprecated: false
+        # ...more models
+- type: provider-account/aws-bedrock
+  label: AWS Bedrock
+  integrations:
+    - type: integration/model/bedrock
+      metadata:
+        anthropic.claude-sonnet-4-20250514-v1:0:
+          model: anthropic.claude-sonnet-4-20250514-v1:0
+          mode: chat
+          costs:
+            - input_cost_per_token: 0.000003
+              output_cost_per_token: 0.000015
+              region: us-east-1           # region-specific pricing
+            - input_cost_per_token: 0.000003
+              output_cost_per_token: 0.000015
+              region: us-west-2
+          # ...
+# ...more providers
+```
+
+Key fields in each model entry under `metadata.<model_id>`:
+- `model` — the model ID to use in manifests
+- `mode` — `chat`, `embedding`, `rerank`, or `completion`
+- `costs[]` — pricing per region (`region: "*"` = all regions)
+- `limits` — context window, max output tokens
+- `features[]` — capabilities like `function_calling`, `structured_output`, `prompt_caching`
+- `status` / `isDeprecated` — whether the model is still active
+
 ## Generating Valid Manifests for Model Integrations and Model Provider Accounts
 
 ### Phase 1: Research Model Integration Schema
@@ -93,15 +155,19 @@ To inspect a single provider account by id, use `get_provider_account`.
 ### Phase 2: Determine Authentication and Models
 
 1. If the schema shows multiple authentication methods, use `ask_user_question` to ask the user which auth method to use.
-2. You **MUST** call `list_providers` to get the available models, pricing, and regions for the selected provider. Do NOT skip this step — present the available models to the user so they can pick which ones to add to the provider account.
-3. For pricing: use `public` pricing by default. Do NOT manually add cost fields from `list_providers` output. Only add custom cost fields if the user explicitly provides their own pricing.
+2. You **MUST** call `list_providers` to get the supported models, pricing, and regions for the selected provider. Do NOT skip this step — present the supported models to the user so they can pick which ones to add to the provider account.
+3. For pricing:
+   - For **chat, completions, and embedding** models: enable public pricing by default (do NOT disable cost tracking).
+   - For **all other model types** (rerank, etc.): disable cost by default.
+   - Do NOT manually add cost fields from `list_providers` output. Only add custom cost fields if the user explicitly provides their own pricing.
 
-### Phase 3: Validate and Apply
+### Phase 3: Build and Validate
 
-1. Build the manifest following the JSON schema strictly.
-2. Call `apply_manifest` with `dryRun: true` to validate.
-3. If validation fails, fix and retry.
-4. Once dry-run passes, call `apply_manifest` without dry-run to create the provider account.
+1. Build the manifest following the JSON schema strictly. Write it to a file.
+2. Run `python scripts/validate_schema.py --file-path <manifest.yaml>` to validate. Fix and repeat until valid.
+3. Call `apply_manifest` with `dryRun: true` to validate against the live platform.
+4. If dry-run fails, fix and retry.
+5. Once dry-run passes, call `apply_manifest` without dry-run to create the provider account.
 
 ### Manifest Structure
 
@@ -110,9 +176,7 @@ type: <provider-account/type>
 name: <unique-account-name>
 collaborators:
   - role_id: provider-account-manager
-    subject: <user:email or team:name>
-  - role_id: provider-account-access
-    subject: <user:email or team:name>
+    subject: user:<current-user-email>  # from get_me; ask user before adding others
 region: <region>
 integrations:
   - name: <integration-name>
@@ -124,11 +188,13 @@ integrations:
 
 ### Checklist
 
+- [ ] For "do you support X model?" questions, did I call `list_providers` and check the metadata?
 - [ ] Did I call `get_manifest_json_schema` to get the current schema for the provider account type?
 - [ ] Did I ask the user which auth method to use if multiple are available?
-- [ ] Did I call `list_providers` to show available models and regions?
-- [ ] Did I validate with `apply_manifest` (dryRun: true) before creating?
-- [ ] Did I apply without dry-run only after validation passed?
+- [ ] Did I call `list_providers` to show supported models and regions?
+- [ ] Did I validate with `scripts/validate_schema.py` before dry-running?
+- [ ] Did I dry-run with `apply_manifest` (dryRun: true) before creating?
+- [ ] Did I apply without dry-run only after dry-run passed?
 
 ## Searching docs for additional information
 

@@ -140,12 +140,13 @@ A guardrail config group is a provider account that holds one or more guardrail 
 1. Use `ask_user_question` to ask the user which guardrail type they want to add (options come from the schema — e.g. `integration/guardrail-config/aws-bedrock`, `integration/guardrail-config/tfy-pii`, `integration/guardrail-config/azure-content-safety`, etc.).
 2. If the selected type has multiple auth methods, ask the user which to use. Collect required credentials.
 
-### Phase 3: Validate and Apply
+### Phase 3: Build and Validate
 
-1. Build the manifest following the JSON schema strictly.
-2. Call `apply_manifest` with `dryRun: true` to validate.
-3. If validation fails, fix and retry.
-4. Once dry-run passes, call `apply_manifest` without dry-run to create the guardrail group.
+1. Build the manifest following the JSON schema strictly. Write it to a file.
+2. Run `python scripts/validate_schema.py --file-path <manifest.yaml>` to validate. Fix and repeat until valid.
+3. Call `apply_manifest` with `dryRun: true` to validate against the live platform.
+4. If dry-run fails, fix and retry.
+5. Once dry-run passes, call `apply_manifest` without dry-run to create the guardrail group.
 
 ### Manifest Structure
 
@@ -154,9 +155,7 @@ name: <unique-group-name>
 type: provider-account/guardrail-config-group
 collaborators:
   - role_id: provider-account-manager
-    subject: <user:email or team:name>
-  - role_id: provider-account-access
-    subject: <user:email or team:name>
+    subject: user:<current-user-email>  # from get_me; ask user before adding others
 integrations:
   - name: <integration-name>
     type: <integration/guardrail-config/type>
@@ -173,25 +172,31 @@ integrations:
     enforcing_strategy: <enforce|enforce_but_ignore_on_error>
 ```
 
+### Checklist
+
+- [ ] Did I call `get_manifest_json_schema` to get the current schema?
+- [ ] Did I ask the user which guardrail type and auth method to use?
+- [ ] Did I validate with `scripts/validate_schema.py` before dry-running?
+- [ ] Did I dry-run with `apply_manifest` (dryRun: true) before creating?
+
 ## Creating/Updating Guardrails Config Policy (Write Flow)
 
 The guardrails config (type `gateway-guardrails-config`) defines **when** guardrail integrations are applied.
 
-## CRITICAL
-
-- The manifest **MUST** have a top-level `name` field. Without it, `apply_manifest` will return: `"Manifest does not have a name field"`. Use the `name` from the existing config fetched in Phase 1.
+> **CRITICAL**: The manifest **MUST** have a top-level `name` field. This field is NOT in the JSON schema, but `apply_manifest` requires it. Without it you will get: `"Manifest does not have a name field"`. Get the `name` from the existing config.
 
 ### Phase 1: Get Schema and Existing Config
 
 1. Call `get_manifest_json_schema` with type `gateway-guardrails-config`.
-2. Call `get_gateway_config` with `type: gateway-guardrails-config` to fetch the existing config. New rules must be merged with existing ones — never replace.
+2. Call `get_gateway_config` with `type: gateway-guardrails-config` to fetch the existing config. New rules must be merged with existing ones — never replace. Note the `name` field from the existing config — you will need it.
 
-### Phase 2: Validate and Apply
+### Phase 2: Build and Validate
 
-1. Build the complete manifest. **You MUST include the `name` field** from the existing config at the top level.
-2. Call `apply_manifest` with `dryRun: true` to validate.
-3. If validation fails, fix and retry.
-4. Once dry-run passes, call `apply_manifest` without dry-run to update the config.
+1. Build the complete manifest. **You MUST include the `name` field** from the existing config at the top level. Write it to a file.
+2. Run `python scripts/validate_schema.py --file-path <manifest.yaml>` to validate. Fix and repeat until valid.
+3. Call `apply_manifest` with `dryRun: true` to validate against the live platform.
+4. If dry-run fails, fix and retry.
+5. Once dry-run passes, call `apply_manifest` without dry-run to update the config.
 
 ### Manifest Structure
 
@@ -231,11 +236,13 @@ rules:
 
 ### Checklist
 
+- [ ] Did I call `get_manifest_json_schema` to get the current schema?
 - [ ] Did I fetch the existing guardrails config and merge rules?
 - [ ] Did I include the `name` field in the manifest?
 - [ ] Did I ask the user for guardrail type and auth method when creating a guardrail group?
 - [ ] Are guardrail integrations referenced correctly in the format `groupName/integrationName`?
-- [ ] Did I validate with `apply_manifest` (dryRun: true) before applying?
+- [ ] Did I validate with `scripts/validate_schema.py` before dry-running?
+- [ ] Did I dry-run with `apply_manifest` (dryRun: true) before applying?
 
 ## Searching Docs for Additional Information
 

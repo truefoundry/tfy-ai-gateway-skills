@@ -77,12 +77,13 @@ Important: Ignore `MCPServerProviderAccount` and `MCPServerIntegration` classes.
 
 3. Collect remaining auth details from the user (client_id, client_secret, scopes, etc.).
 
-### Phase 3: Validate and Apply
+### Phase 3: Build and Validate
 
-1. Build the manifest following the JSON schema strictly.
-2. Call `apply_manifest` with `dryRun: true` to validate.
-3. If validation fails, fix and retry.
-4. Once dry-run passes, call `apply_manifest` without dry-run to create the MCP server.
+1. Build the manifest following the JSON schema strictly. Write it to a file.
+2. Run `python scripts/validate_schema.py --file-path <manifest.yaml>` to validate. Fix and repeat until valid.
+3. Call `apply_manifest` with `dryRun: true` to validate against the live platform.
+4. If dry-run fails, fix and retry.
+5. Once dry-run passes, call `apply_manifest` without dry-run to create the MCP server.
 
 ### Manifest Structure
 
@@ -92,7 +93,7 @@ description: <description>
 url: <mcp-server-endpoint-url>
 collaborators:
   - role_id: mcp-server-manager
-    subject: <user:email or team:name>
+    subject: user:<current-user-email>  # from get_me; ask user before adding others
 type: mcp-server/remote
 auth_data:
   type: oauth2
@@ -112,8 +113,9 @@ auth_data:
 - [ ] Did I call `get_manifest_json_schema` to get the current schema?
 - [ ] Did I ask the user which auth type they want before proceeding?
 - [ ] If OAuth, did I call `get_mcp_server_oauth_config` to get server metadata?
-- [ ] Did I validate with `apply_manifest` (dryRun: true) before creating?
-- [ ] Did I apply without dry-run only after validation passed?
+- [ ] Did I validate with `scripts/validate_schema.py` before dry-running?
+- [ ] Did I dry-run with `apply_manifest` (dryRun: true) before creating?
+- [ ] Did I apply without dry-run only after dry-run passed?
 
 ## Searching Docs for Additional Information
 
