@@ -10,7 +10,6 @@ description: Deploy and connect MCP Servers to the AI Gateway to provide tools t
 - Fetching existing MCP servers
 - Creating Remote MCP Servers (Write Flow)
 - Creating Stdio MCP Servers (Write Flow)
-- Creating Virtual MCP Servers (Write Flow)
 
 ## Fetching existing MCP servers
 
@@ -140,53 +139,4 @@ collaborators:
 - [ ] Did I ask the user for the command and args?
 - [ ] Did I skip dry-run (not supported for MCP servers)?
 
-## Creating Virtual MCP Servers (Write Flow)
-
-Virtual MCP Servers compose tools from multiple existing MCP servers into a single server.
-
-### Phase 1: Get Schema
-
-1. Call `get_manifest_json_schema` with type `mcp-server/virtual` to get the full JSON schema.
-
-### Phase 2: Determine Backing Servers and Tools
-
-1. Ask the user which existing MCP servers to include and whether they want all tools or specific tools from each.
-2. For each backing server:
-   - **All tools** → omit `enabled_tools` (includes everything from that server).
-   - **Specific tools** → ask the user for the exact tool names to include in `enabled_tools`.
-
-> **CRITICAL**: There is no tool to programmatically discover which tools an MCP server exposes. Do NOT call `list_mcp_servers_admin`, `get_mcp_server_admin`, or `get_mcp_server` to look up tool names — they return `tools: null`. Ask the user for tool names, or omit `enabled_tools` to include all tools.
-
-### Phase 3: Validate and Apply
-
-Build the manifest → write to file → `python scripts/validate_schema.py --file-path <manifest.yaml>` → `apply_manifest` (no dry-run — not supported for MCP servers).
-
-### Manifest Structure
-
-```yaml
-type: mcp-server/virtual
-name: <unique-virtual-server-name>
-description: <description>
-servers:
-  - name: <backing-mcp-server-name-1>     # name of an existing MCP server
-    enabled_tools:                          # omit this field entirely to include all tools
-      - <tool-name-1>
-      - <tool-name-2>
-  - name: <backing-mcp-server-name-2>
-    # no enabled_tools = all tools from this server
-collaborators:
-  - role_id: mcp-server-manager
-    subject: user:<current-user-email>  # from get_me
-  - role_id: mcp-server-access
-    subject: team:everyone
-```
-
-### Checklist
-
-- [ ] Did I call `get_manifest_json_schema` with type `mcp-server/virtual`?
-- [ ] Did I ask the user which backing servers to include?
-- [ ] Did I ask the user whether they want all tools or specific tools from each server?
-- [ ] If specific tools, did I get the exact tool names from the user (NOT from list/get tools)?
-- [ ] Did I skip dry-run (not supported for MCP servers)?
-
-For more info: `search_docs` with "mcp gateway", "mcp oauth", "mcp server registry", "virtual mcp servers".
+For more info: `search_docs` with "mcp gateway", "mcp oauth", "mcp server registry".

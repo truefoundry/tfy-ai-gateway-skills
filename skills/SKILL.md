@@ -78,9 +78,6 @@ Key Gateway write tools:
 - `list_providers` — platform catalog of all supported providers, models, pricing, and regions (NOT existing configs)
 - `create_personal_access_token` — create a PAT for the current user
 - `list_roles` — list all roles (built-in and custom)
-- `create_or_update_role_binding` — assign roles to users/teams/VAs on specific resources (supports `dryRun`)
-- `list_role_bindings` — list existing role bindings
-- `delete_role_binding` — delete a role binding by ID
 - `ask_user_question` — collect structured choices from the user
 
 ### AI Engineering Entities
@@ -202,7 +199,7 @@ The following table lists the file path for each entity and policy which describ
 | ------------------------------------------------------------ | ----------------------------------------------- |
 | Models                                                       | `ai-gateway/references/models.md`               |
 | Virtual Models                                               | `ai-gateway/references/virtual-models.md`       |
-| MCP Servers and Virtual MCP Servers                          | `ai-gateway/references/mcp-servers.md`          |
+| MCP Servers (Remote and Stdio)                               | `ai-gateway/references/mcp-servers.md`          |
 | Guardrail Integrations and Guardrail Policy                  | `ai-gateway/references/guardrails.md`           |
 | Rate Limiting Policy                                         | `ai-gateway/references/rate-limiting.md`        |
 | Budget Limiting Policy                                       | `ai-gateway/references/budget-limiting.md`      |
@@ -210,7 +207,7 @@ The following table lists the file path for each entity and policy which describ
 | Users, Teams, Virtual Accounts and Access Control            | `ai-gateway/references/access-management.md`    |
 | Teams (Create/Manage)                                        | `ai-gateway/references/teams.md`                |
 | Virtual Accounts (Create/Manage)                             | `ai-gateway/references/virtual-accounts.md`     |
-| Roles and Role Bindings (Create/Manage)                      | `ai-gateway/references/roles.md`                |
+| Roles (Create/Manage)                                        | `ai-gateway/references/roles.md`                |
 | Personal Access Tokens (Create)                              | `ai-gateway/references/personal-access-tokens.md` |
 
 ## Querying Gateway Usage Data

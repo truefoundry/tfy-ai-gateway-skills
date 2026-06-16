@@ -10,7 +10,6 @@ description: Create and manage custom roles and role bindings for fine-grained a
 - Fetching Existing Roles
 - Creating Custom Roles (Write Flow)
 - Verified Permission Strings
-- Role Bindings (fetching, creating, deleting)
 - Checklists
 
 ## Access Control Strategy
@@ -253,93 +252,6 @@ permissions:
   - gateway-controls:ManageGatewayControls
 ```
 
-## Role Bindings
-
-**Role Bindings** assign roles to subjects (users, teams, virtual accounts, or external identities). After creating a custom role, you need a role binding to actually grant it to someone.
-
-> **Note**: For custom roles, role bindings are always **tenant-scoped** — the binding grants the role's permissions across the entire tenant. For granting access to a *specific* resource, use **collaborators** on the entity's manifest instead.
-
-## Fetching Existing Role Bindings
-
-Use the `list_role_bindings` tool to get all role bindings. To check if a specific role binding already exists, use `check_role_binding_exists` with the binding name.
-
-
-## Creating / Updating Role Bindings (Write Flow)
-
-> **CRITICAL**: Role bindings do NOT use `get_manifest_json_schema`, `validate_schema.py`, or `apply_manifest`. Use the `create_or_update_role_binding` tool directly.
-
-### Phase 1: Gather Requirements
-
-1. Ask the user:
-   - **Who** should get access? (user email, team name, virtual account name, or external identity name)
-   - **What role** should they get? (the custom role name you created, or a built-in role name from `list_roles`)
-2. Get the **tenant name** — this is the `resourceFqn` for tenant-scoped bindings. Use `get_me` or the tenant context to determine it.
-
-### Phase 2: Create or Update
-
-1. Build the role binding payload following the manifest structure below.
-2. Call `create_or_update_role_binding` directly as a tool (not from sandbox) with `dryRun: true`.
-3. If dry-run fails, fix and retry.
-4. Once dry-run passes, call `create_or_update_role_binding` directly as a tool (not from sandbox) without dry-run.
-
-### Manifest Structure
-
-```yaml
-type: role-binding
-name: <unique-binding-name>        # lowercase, 3-64 chars, letter start/end, hyphens allowed
-subjects:
-  - type: <subject-type>           # user | team | virtualaccount | external-identity
-    name: <subject-name>           # email for user; name for team/virtualaccount/external-identity
-permissions:
-  - resourceType: tenant           # always "tenant" for custom role bindings
-    resourceFqn: <tenant-name>     # the tenant name
-    role: <role-name>              # name of the custom role to assign
-```
-
-### Critical Rules
-
-- `type` MUST be `role-binding`.
-- `name` pattern: starts with a lowercase letter, ends with a letter or digit, 3–64 chars, only lowercase letters, digits, and hyphens.
-- `subjects` MUST have at least 1 item.
-- `permissions` MUST have at least 1 item.
-- Subject `type` MUST be one of: `user`, `team`, `virtualaccount`, `external-identity`. Any other value is rejected.
-- For subject type `user`, `name` is the user's **email address**. For `team`, `virtualaccount`, and `external-identity`, `name` is the entity's name.
-- The `role` in each permission MUST match an existing role name (built-in or custom). Use `list_roles` to verify.
-- For custom roles, `resourceType` is `tenant` and `resourceFqn` is the tenant name.
-- Matching is by `name` — if a role binding with the same name exists, it is updated. Otherwise a new one is created.
-
-## Example: Assign Custom Role to a User
-
-```yaml
-type: role-binding
-name: alice-gateway-config-creatorm
-subjects:
-  - type: user
-    name: alice@example.com
-permissions:
-  - resourceType: tenant
-    resourceFqn: my-tenant
-    role: gateway-config-creator
-```
-
-## Example: Assign Custom Role to a Team
-
-```yaml
-type: role-binding
-name: backend-team-gateway-creator
-subjects:
-  - type: team
-    name: backend-team
-permissions:
-  - resourceType: tenant
-    resourceFqn: my-tenant
-    role: gateway-config-creator
-```
-
-## Deleting a Role Binding
-
-Use the `delete_role_binding` tool with the role binding ID. First use `list_role_bindings` or `check_role_binding_exists` to find the binding, then delete by its `id`.
-
 ## Checklists
 
 ### Custom Role Creation
@@ -349,13 +261,4 @@ Use the `delete_role_binding` tool with the role binding ID. First use `list_rol
 - [ ] Are all permission strings in `{resource-type}:{ActionInCamelCase}` format (NOT SCREAMING_SNAKE_CASE)?
 - [ ] For Global Settings, did I use prefix `settings` (not `global-settings`)?
 
-### Role Binding (assigning the role)
-- [ ] Did I determine the correct role name (custom or built-in) from `list_roles`?
-- [ ] Does each subject have a valid `type` (`user`, `team`, `virtualaccount`, or `external-identity`)?
-- [ ] For `user` subjects, is `name` an email address?
-- [ ] Is `resourceType` set to `tenant` and `resourceFqn` set to the tenant name?
-
-### Resource-Specific Access (no role binding needed)
-- [ ] Did I add the user/team as a **collaborator** on the entity's manifest instead of creating a role binding?
-
-For more info: `search_docs` with "custom role permissions", "role binding", "assign role to user", "access control".
+For more info: `search_docs` with "custom role permissions", "access control".
