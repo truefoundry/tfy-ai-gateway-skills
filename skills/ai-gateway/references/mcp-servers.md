@@ -79,7 +79,7 @@ url: <mcp-server-endpoint-url>
 collaborators:
   - role_id: mcp-server-manager
     subject: user:<current-user-email>  # from get_me
-  - role_id: mcp-server-access
+  - role_id: mcp-server-user
     subject: team:everyone
 type: mcp-server/remote
 auth_data:
@@ -131,7 +131,7 @@ args:
 collaborators:
   - role_id: mcp-server-manager
     subject: user:<current-user-email>    # from get_me
-  - role_id: mcp-server-access
+  - role_id: mcp-server-user
     subject: team:everyone
 ```
 

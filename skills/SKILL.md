@@ -39,29 +39,23 @@ When creating or modifying Gateway entities (models, MCP servers, virtual models
 6. **Dry-run** — call `apply_manifest` with `dryRun: true` to validate against the live platform.
 7. **Apply** — once dry-run passes, call `apply_manifest` without dry-run to create/update the entity. `apply_manifest` is idempotent — calling it with the same `name` updates the existing entity rather than creating a duplicate.
 
-Collaborators:
+Collaborators — **MANDATORY** for every entity that supports them (models, virtual models, guardrails, MCP servers):
 - Call `get_me` to resolve the current user's identity.
-- Always add the current user (from `get_me`) as **manager** by default.
-- Always add `team:everyone` as **access** by default.
+- Every manifest MUST include collaborators. Never omit them.
+- Always add the current user (from `get_me`) as **manager**.
+- Always add `team:everyone` as **access**.
 - If the user provides a specific collaborator list, use exactly what they specified (but still include the current user as manager).
 
-Collaborator format — each collaborator has two fields:
-```yaml
-collaborators:
-  - role_id: <entity-type>-manager   # manager role
-    subject: user:<email>            # from get_me
-  - role_id: <entity-type>-access    # access role
-    subject: team:everyone
-```
+Each collaborator has two fields: `role_id` and `subject`.
 - `subject` format: `user:<email>` for users, `team:<team-name>` for teams.
-- `role_id` depends on the entity type:
+- `role_id` varies by entity type — look up the correct values from the table below (do NOT guess):
 
 | Entity Type | Manager role_id | Access role_id |
 |---|---|---|
 | Provider Accounts / Models | `provider-account-manager` | `provider-account-access` |
 | Virtual Models | `provider-account-manager` | `provider-account-access` |
 | Guardrail Config Groups | `provider-account-manager` | `provider-account-access` |
-| MCP Servers | `mcp-server-manager` | `mcp-server-access` |
+| MCP Servers | `mcp-server-manager` | `mcp-server-user` |
 
 Do NOT call list tools to look up the collaborator structure — use this table directly.
 
