@@ -69,7 +69,7 @@ Critical tool-call requirements (do NOT skip these):
 - For **MCP servers with OAuth**: you MUST call `get_mcp_server_oauth_config` to get the authorization server metadata before building the manifest.
 - For **model provider accounts**: you MUST call `list_providers` to get the catalog of supported models and regions before building the manifest.
 
-> **WARNING**: `apply_manifest` is a destructive MCP tool. You MUST call it directly as a tool so it goes through the user approval flow. NEVER call it from code mode, sandbox, or a script — it will be blocked.
+> **WARNING**: ALL MCP tools (e.g., `apply_manifest`, `get_me`, `list_roles`, `get_mcp_server_admin`, `list_mcp_servers_admin`, `create_or_update_role_binding`, etc.) MUST be called directly as tool calls. NEVER invoke them from code mode, sandbox, shell scripts, `mcp-client` CLI, or any Python/JS code — they will fail or return empty results. Always use the direct tool call mechanism.
 
 Key Gateway write tools:
 - `get_manifest_json_schema` — retrieve the JSON schema for any manifest type
