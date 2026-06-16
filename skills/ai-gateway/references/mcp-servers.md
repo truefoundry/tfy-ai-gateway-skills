@@ -3,7 +3,7 @@ name: mcp-servers
 description: Deploy and connect MCP Servers to the AI Gateway to provide tools to models and agents
 ---
 
-**MCP Servers** can be registered to MCP Gateway. MCP Servers can be of type `mcp-server/remote` or `mcp-server/openapi`.
+**MCP Servers** can be registered to MCP Gateway. MCP Servers can be of type `mcp-server/remote`, `mcp-server/openapi`, or `mcp-server/stdio`.
 **Virtual MCP Servers** allows to compose tools from multiple MCP Servers into a single MCP Server.
 
 ## Fetching existing MCP servers
@@ -45,11 +45,11 @@ pagination:
   limit: 100
 ```
 
-## Creating MCP Servers (Write Flow)
+## Creating Remote MCP Servers (Write Flow)
 
 ### Phase 1: Get Schema
 
-1. Call `get_manifest_json_schema` with the MCP server type (e.g. `mcp-server/remote`, `mcp-server/openapi`, `mcp-server/virtual`) to get the full JSON schema.
+1. Call `get_manifest_json_schema` with the MCP server type (e.g. `mcp-server/remote`, `mcp-server/openapi`) to get the full JSON schema.
 
 ### Phase 2: Determine Authentication
 
@@ -97,6 +97,106 @@ auth_data:
 - [ ] Did I call `get_manifest_json_schema` to get the current schema?
 - [ ] Did I ask the user which auth type they want before proceeding?
 - [ ] If OAuth, did I call `get_mcp_server_oauth_config` to get server metadata?
+- [ ] Did I validate with `scripts/validate_schema.py` before dry-running?
+- [ ] Did I dry-run with `apply_manifest` (dryRun: true) before applying?
+- [ ] Did I call `apply_manifest` directly as a tool (not from sandbox/code mode)?
+
+## Creating Stdio MCP Servers (Write Flow)
+
+Stdio MCP Servers run a local command (e.g., `npx`, `python`) that communicates via stdin/stdout.
+
+### Phase 1: Get Schema
+
+1. Call `get_manifest_json_schema` with type `mcp-server/stdio` to get the full JSON schema.
+
+### Phase 2: Gather Details
+
+1. Ask the user for the command, args, and any environment variables needed to run the MCP server.
+
+### Phase 3: Build and Validate
+
+1. Build the manifest following the JSON schema strictly. Write it to a file.
+2. Run `python scripts/validate_schema.py --file-path <manifest.yaml>` to validate. Fix and repeat until valid.
+3. Call `apply_manifest` directly as a tool (NOT from code mode) with `dryRun: true`.
+4. If dry-run fails, fix and retry.
+5. Once dry-run passes, call `apply_manifest` directly as a tool (NOT from code mode) without dry-run.
+
+### Manifest Structure
+
+```yaml
+type: mcp-server/stdio
+name: <unique-mcp-server-name>
+description: <description>
+command: <command>                        # e.g. npx, python, node
+args:
+  - <arg-1>
+  - <arg-2>
+collaborators:
+  - role_id: mcp-server-manager
+    subject: user:<current-user-email>    # from get_me
+  - role_id: mcp-server-access
+    subject: team:everyone
+```
+
+### Checklist
+
+- [ ] Did I call `get_manifest_json_schema` with type `mcp-server/stdio`?
+- [ ] Did I ask the user for the command and args?
+- [ ] Did I validate with `scripts/validate_schema.py` before dry-running?
+- [ ] Did I dry-run with `apply_manifest` (dryRun: true) before applying?
+- [ ] Did I call `apply_manifest` directly as a tool (not from sandbox/code mode)?
+
+## Creating Virtual MCP Servers (Write Flow)
+
+Virtual MCP Servers compose tools from multiple existing MCP servers into a single server.
+
+### Phase 1: Get Schema
+
+1. Call `get_manifest_json_schema` with type `mcp-server/virtual` to get the full JSON schema.
+
+### Phase 2: Determine Backing Servers and Tools
+
+1. Ask the user which existing MCP servers to include and whether they want all tools or specific tools from each.
+2. For each backing server:
+   - **All tools** → omit `enabled_tools` (includes everything from that server).
+   - **Specific tools** → ask the user for the exact tool names to include in `enabled_tools`.
+
+> **Important:** There is no tool to programmatically discover which tools an MCP server exposes. Do NOT call `list_mcp_servers_admin`, `get_mcp_server_admin`, or `get_mcp_server` to try to look up tool names — these return `tools: null` in most cases. Instead, ask the user to provide the tool names they want, or omit `enabled_tools` to include all tools.
+
+### Phase 3: Build and Validate
+
+1. Build the manifest following the JSON schema strictly. Write it to a file.
+2. Run `python scripts/validate_schema.py --file-path <manifest.yaml>` to validate. Fix and repeat until valid.
+3. Call `apply_manifest` directly as a tool (NOT from code mode) with `dryRun: true`.
+4. If dry-run fails, fix and retry.
+5. Once dry-run passes, call `apply_manifest` directly as a tool (NOT from code mode) without dry-run.
+
+### Manifest Structure
+
+```yaml
+type: mcp-server/virtual
+name: <unique-virtual-server-name>
+description: <description>
+servers:
+  - name: <backing-mcp-server-name-1>     # name of an existing MCP server
+    enabled_tools:                          # omit this field entirely to include all tools
+      - <tool-name-1>
+      - <tool-name-2>
+  - name: <backing-mcp-server-name-2>
+    # no enabled_tools = all tools from this server
+collaborators:
+  - role_id: mcp-server-manager
+    subject: user:<current-user-email>  # from get_me
+  - role_id: mcp-server-access
+    subject: team:everyone
+```
+
+### Checklist
+
+- [ ] Did I call `get_manifest_json_schema` with type `mcp-server/virtual`?
+- [ ] Did I ask the user which backing servers to include?
+- [ ] Did I ask the user whether they want all tools or specific tools from each server?
+- [ ] If specific tools, did I get the exact tool names from the user (NOT from list/get tools)?
 - [ ] Did I validate with `scripts/validate_schema.py` before dry-running?
 - [ ] Did I dry-run with `apply_manifest` (dryRun: true) before applying?
 - [ ] Did I call `apply_manifest` directly as a tool (not from sandbox/code mode)?

@@ -45,6 +45,26 @@ Collaborators:
 - Always add `team:everyone` as **access** by default.
 - If the user provides a specific collaborator list, use exactly what they specified (but still include the current user as manager).
 
+Collaborator format — each collaborator has two fields:
+```yaml
+collaborators:
+  - role_id: <entity-type>-manager   # manager role
+    subject: user:<email>            # from get_me
+  - role_id: <entity-type>-access    # access role
+    subject: team:everyone
+```
+- `subject` format: `user:<email>` for users, `team:<team-name>` for teams.
+- `role_id` depends on the entity type:
+
+| Entity Type | Manager role_id | Access role_id |
+|---|---|---|
+| Provider Accounts / Models | `provider-account-manager` | `provider-account-access` |
+| Virtual Models | `provider-account-manager` | `provider-account-access` |
+| Guardrail Config Groups | `provider-account-manager` | `provider-account-access` |
+| MCP Servers | `mcp-server-manager` | `mcp-server-access` |
+
+Do NOT call list tools to look up the collaborator structure — use this table directly.
+
 Critical tool-call requirements (do NOT skip these):
 - For **MCP servers with OAuth**: you MUST call `get_mcp_server_oauth_config` to get the authorization server metadata before building the manifest.
 - For **model provider accounts**: you MUST call `list_providers` to get the catalog of supported models and regions before building the manifest.
