@@ -6,6 +6,12 @@ description: Deploy and connect MCP Servers to the AI Gateway to provide tools t
 **MCP Servers** can be registered to MCP Gateway. MCP Servers can be of type `mcp-server/remote`, `mcp-server/openapi`, or `mcp-server/stdio`.
 **Virtual MCP Servers** allows to compose tools from multiple MCP Servers into a single MCP Server.
 
+## Contents
+- Fetching existing MCP servers
+- Creating Remote MCP Servers (Write Flow)
+- Creating Stdio MCP Servers (Write Flow)
+- Creating Virtual MCP Servers (Write Flow)
+
 ## Fetching existing MCP servers
 
 Use the `list_mcp_servers_admin` tool to get the list of all MCP servers. The response would look like this:
@@ -59,13 +65,9 @@ pagination:
 
 3. Collect remaining auth details from the user (client_id, client_secret, scopes, etc.).
 
-### Phase 3: Build and Validate
+### Phase 3: Validate and Apply
 
-1. Build the manifest following the JSON schema strictly. Write it to a file.
-2. Run `python scripts/validate_schema.py --file-path <manifest.yaml>` to validate. Fix and repeat until valid.
-3. Call `apply_manifest` directly as a tool (NOT from code mode) with `dryRun: true`.
-4. If dry-run fails, fix and retry.
-5. Once dry-run passes, call `apply_manifest` directly as a tool (NOT from code mode) without dry-run to create the MCP server.
+Build the manifest → write to file → `python scripts/validate_schema.py --file-path <manifest.yaml>` → `apply_manifest` (no dry-run — not supported for MCP servers).
 
 ### Manifest Structure
 
@@ -97,9 +99,7 @@ auth_data:
 - [ ] Did I call `get_manifest_json_schema` to get the current schema?
 - [ ] Did I ask the user which auth type they want before proceeding?
 - [ ] If OAuth, did I call `get_mcp_server_oauth_config` to get server metadata?
-- [ ] Did I validate with `scripts/validate_schema.py` before dry-running?
-- [ ] Did I dry-run with `apply_manifest` (dryRun: true) before applying?
-- [ ] Did I call `apply_manifest` directly as a tool (not from sandbox/code mode)?
+- [ ] Did I skip dry-run (not supported for MCP servers)?
 
 ## Creating Stdio MCP Servers (Write Flow)
 
@@ -113,13 +113,9 @@ Stdio MCP Servers run a local command (e.g., `npx`, `python`) that communicates 
 
 1. Ask the user for the command, args, and any environment variables needed to run the MCP server.
 
-### Phase 3: Build and Validate
+### Phase 3: Validate and Apply
 
-1. Build the manifest following the JSON schema strictly. Write it to a file.
-2. Run `python scripts/validate_schema.py --file-path <manifest.yaml>` to validate. Fix and repeat until valid.
-3. Call `apply_manifest` directly as a tool (NOT from code mode) with `dryRun: true`.
-4. If dry-run fails, fix and retry.
-5. Once dry-run passes, call `apply_manifest` directly as a tool (NOT from code mode) without dry-run.
+Build the manifest → write to file → `python scripts/validate_schema.py --file-path <manifest.yaml>` → `apply_manifest` (no dry-run — not supported for MCP servers).
 
 ### Manifest Structure
 
@@ -142,9 +138,7 @@ collaborators:
 
 - [ ] Did I call `get_manifest_json_schema` with type `mcp-server/stdio`?
 - [ ] Did I ask the user for the command and args?
-- [ ] Did I validate with `scripts/validate_schema.py` before dry-running?
-- [ ] Did I dry-run with `apply_manifest` (dryRun: true) before applying?
-- [ ] Did I call `apply_manifest` directly as a tool (not from sandbox/code mode)?
+- [ ] Did I skip dry-run (not supported for MCP servers)?
 
 ## Creating Virtual MCP Servers (Write Flow)
 
@@ -161,15 +155,11 @@ Virtual MCP Servers compose tools from multiple existing MCP servers into a sing
    - **All tools** → omit `enabled_tools` (includes everything from that server).
    - **Specific tools** → ask the user for the exact tool names to include in `enabled_tools`.
 
-> **Important:** There is no tool to programmatically discover which tools an MCP server exposes. Do NOT call `list_mcp_servers_admin`, `get_mcp_server_admin`, or `get_mcp_server` to try to look up tool names — these return `tools: null` in most cases. Instead, ask the user to provide the tool names they want, or omit `enabled_tools` to include all tools.
+> **CRITICAL**: There is no tool to programmatically discover which tools an MCP server exposes. Do NOT call `list_mcp_servers_admin`, `get_mcp_server_admin`, or `get_mcp_server` to look up tool names — they return `tools: null`. Ask the user for tool names, or omit `enabled_tools` to include all tools.
 
-### Phase 3: Build and Validate
+### Phase 3: Validate and Apply
 
-1. Build the manifest following the JSON schema strictly. Write it to a file.
-2. Run `python scripts/validate_schema.py --file-path <manifest.yaml>` to validate. Fix and repeat until valid.
-3. Call `apply_manifest` directly as a tool (NOT from code mode) with `dryRun: true`.
-4. If dry-run fails, fix and retry.
-5. Once dry-run passes, call `apply_manifest` directly as a tool (NOT from code mode) without dry-run.
+Build the manifest → write to file → `python scripts/validate_schema.py --file-path <manifest.yaml>` → `apply_manifest` (no dry-run — not supported for MCP servers).
 
 ### Manifest Structure
 
@@ -197,13 +187,6 @@ collaborators:
 - [ ] Did I ask the user which backing servers to include?
 - [ ] Did I ask the user whether they want all tools or specific tools from each server?
 - [ ] If specific tools, did I get the exact tool names from the user (NOT from list/get tools)?
-- [ ] Did I validate with `scripts/validate_schema.py` before dry-running?
-- [ ] Did I dry-run with `apply_manifest` (dryRun: true) before applying?
-- [ ] Did I call `apply_manifest` directly as a tool (not from sandbox/code mode)?
+- [ ] Did I skip dry-run (not supported for MCP servers)?
 
-## Searching Docs for Additional Information
-
-The content above covers common operations. For conceptual questions, setup guides, or anything not fully answered above, search the docs.
-
-Use `search_docs` to search for additional information about mcp servers.
-Search terms: "mcp gateway", "mcp oauth", "mcp server registry", "openapi to mcp server", "virtual mcp servers"
+For more info: `search_docs` with "mcp gateway", "mcp oauth", "mcp server registry", "virtual mcp servers".

@@ -7,6 +7,11 @@ description: Guardrails are used to filter and sanitize model and mcp tool calls
 
 A tenant can have multiple guardrail groups (provider accounts). Each guardrail group can have multiple guardrail integrations. A guardrail integration is referred as `{groupName}/{integrationName}`.
 
+## Contents
+- Fetching existing guardrails configurations
+- Creating Guardrail Config Groups (Write Flow)
+- Creating/Updating Guardrails Config (Write Flow)
+
 ## Fetching existing guardrails configurations
 
 Use the `get_gateway_config` tool with `type: gateway-guardrails-config` to get the guardrail config manifest. The response is shaped like:
@@ -104,13 +109,9 @@ A guardrail config group is a provider account that holds one or more guardrail 
 1. Use `ask_user_question` to ask the user which guardrail type they want to add (options come from the schema — e.g. `integration/guardrail-config/aws-bedrock`, `integration/guardrail-config/tfy-pii`, `integration/guardrail-config/azure-content-safety`, etc.).
 2. If the selected type has multiple auth methods, ask the user which to use. Collect required credentials.
 
-### Phase 3: Build and Validate
+### Phase 3: Validate and Apply
 
-1. Build the manifest following the JSON schema strictly. Write it to a file.
-2. Run `python scripts/validate_schema.py --file-path <manifest.yaml>` to validate. Fix and repeat until valid.
-3. Call `apply_manifest` directly as a tool (NOT from code mode) with `dryRun: true`.
-4. If dry-run fails, fix and retry.
-5. Once dry-run passes, call `apply_manifest` directly as a tool (NOT from code mode) without dry-run to create the guardrail group.
+Build the manifest → write to file → `python scripts/validate_schema.py --file-path <manifest.yaml>` → `apply_manifest` with `dryRun: true` → fix if needed → `apply_manifest` without dry-run.
 
 ### Manifest Structure
 
@@ -142,11 +143,8 @@ integrations:
 
 - [ ] Did I call `get_manifest_json_schema` with type `provider-account/guardrail-config-group`?
 - [ ] Did I ask the user which guardrail type and auth method to use?
-- [ ] Did I validate with `scripts/validate_schema.py` before dry-running?
-- [ ] Did I dry-run with `apply_manifest` (dryRun: true) before applying?
-- [ ] Did I call `apply_manifest` directly as a tool (not from sandbox/code mode)?
 
-## Creating/Updating Guardrails Config Policy (Write Flow)
+## Creating/Updating Guardrails Config (Write Flow)
 
 The guardrails config (type `gateway-guardrails-config`) defines **when** guardrail integrations are applied.
 
@@ -157,13 +155,9 @@ The guardrails config (type `gateway-guardrails-config`) defines **when** guardr
 1. Call `get_manifest_json_schema` with type `gateway-guardrails-config`.
 2. Call `get_gateway_config` with `type: gateway-guardrails-config` to fetch the existing config. New rules must be merged with existing ones — never replace. Note the `name` field from the existing config — you will need it.
 
-### Phase 2: Build and Validate
+### Phase 2: Build and Apply
 
-1. Build the complete manifest. **You MUST include the `name` field** from the existing config at the top level. Write it to a file.
-2. **Do NOT run `validate_schema.py`** — the guardrails config schema uses `extra = forbid` and rejects the `name` field, so local validation will fail. Use dry-run as the sole validation step.
-3. Call `apply_manifest` directly as a tool (NOT from code mode) with `dryRun: true`.
-4. If dry-run fails, fix and retry.
-5. Once dry-run passes, call `apply_manifest` directly as a tool (NOT from code mode) without dry-run to update the config.
+Build the manifest (include `name` from existing config) → write to file → skip `validate_schema.py` (schema uses `extra = forbid`, rejects `name`) → `apply_manifest` with `dryRun: true` → fix if needed → `apply_manifest` without dry-run.
 
 ### Manifest Structure
 
@@ -208,13 +202,5 @@ rules:
 - [ ] Did I include the `name` field in the manifest?
 - [ ] Are guardrail integrations referenced correctly in `groupName/integrationName` format?
 - [ ] Did I skip `validate_schema.py` (it rejects the required `name` field)?
-- [ ] Did I dry-run with `apply_manifest` (dryRun: true) before applying?
-- [ ] Did I call `apply_manifest` directly as a tool (not from sandbox/code mode)?
 
-## Searching Docs for Additional Information
-
-The content above covers common operations. For conceptual questions, setup guides, or anything not fully answered above, search the docs.
-
-Use `search_docs` to search for additional information about guardrails.
-
-Search terms: "configure guardrails", "guardrail integrations", "guardrail rules", "truefoundry guardrails", "azure pii guardrails", "content safety guardrails"
+For more info: `search_docs` with "configure guardrails", "guardrail integrations", "guardrail rules", "truefoundry guardrails".

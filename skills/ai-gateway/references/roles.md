@@ -5,6 +5,14 @@ description: Create and manage custom roles and role bindings for fine-grained a
 
 **Roles** define named sets of permissions that can be assigned to users, teams, or virtual accounts. TrueFoundry supports built-in roles and custom roles.
 
+## Contents
+- Access Control Strategy
+- Fetching Existing Roles
+- Creating Custom Roles (Write Flow)
+- Verified Permission Strings
+- Role Bindings (fetching, creating, deleting)
+- Checklists
+
 ## Access Control Strategy
 
 There are two ways to grant access in TrueFoundry:
@@ -12,7 +20,7 @@ There are two ways to grant access in TrueFoundry:
 1. **Custom role + tenant-scoped role binding** — for granting broad permissions across the entire tenant (e.g., "this user can create provider accounts and MCP servers"). Create a custom role with the permissions needed, then bind it at the tenant level.
 2. **Collaborators on the entity** — for granting access to a *specific* resource (e.g., "this user can manage this particular provider account"). Add the user or team as a collaborator in the entity's manifest, or add them to a team that already has access.
 
-> **When to use which:**
+> **Note**: When to use which:
 > - Need to grant someone broad platform-level capabilities? → Custom role + tenant binding
 > - Need to give someone access to a specific provider account, MCP server, workspace, etc.? → Add them as a collaborator on that entity, or add them to an appropriate team
 
@@ -20,7 +28,11 @@ There are two ways to grant access in TrueFoundry:
 
 Use the `list_roles` tool to get all roles (built-in and custom).
 
-> **Note on `list_roles` output:** Built-in roles have various `resourceType` values (e.g., `provider-account`, `workspace`, `cluster`) and permissions in `SCREAMING_SNAKE_CASE` format (e.g., `MANAGE_PROVIDER_ACCOUNT`). This is the **internal storage format** — do NOT copy it. When creating custom roles via manifest, you MUST use `resourceType: tenant` and `{resource-type}:{ActionInCamelCase}` format as documented below.
+Each role in the response has two permission representations:
+- `manifest.permissions`: `["account:ReadAccount", "cluster:ReadCluster"]` — **this is the correct format** to use when creating roles
+- `permissionSetsV2[].permissions`: `["READ_ACCOUNT", "READ_CLUSTER"]` — internal expanded format, do NOT copy this
+
+> **CRITICAL**: When creating custom roles, always use the `{resource-type}:{ActionInCamelCase}` format (as seen in `manifest.permissions`). Never use the `SCREAMING_SNAKE_CASE` format from `permissionSetsV2`.
 
 ## Creating Custom Roles (Write Flow)
 
@@ -34,13 +46,9 @@ Use the `list_roles` tool to get all roles (built-in and custom).
 2. Use the verified permission reference table below to map user intent → permission strings.
 3. If the needed permission is not in the table, use `search_docs` with terms like "role permissions", "access control permissions list".
 
-### Phase 3: Build and Validate
+### Phase 3: Validate and Apply
 
-1. Build the manifest following the JSON schema strictly. Write it to a file.
-2. Run `python scripts/validate_schema.py --file-path <manifest.yaml>` to validate. Fix and repeat until valid.
-3. Call `apply_manifest` directly as a tool (NOT from code mode) with `dryRun: true`.
-4. If dry-run fails, fix and retry.
-5. Once dry-run passes, call `apply_manifest` directly as a tool (NOT from code mode) without dry-run.
+Build the manifest → write to file → `python scripts/validate_schema.py --file-path <manifest.yaml>` → `apply_manifest` with `dryRun: true` → fix if needed → `apply_manifest` without dry-run.
 
 ### Manifest Structure
 
@@ -249,17 +257,16 @@ permissions:
 
 **Role Bindings** assign roles to subjects (users, teams, virtual accounts, or external identities). After creating a custom role, you need a role binding to actually grant it to someone.
 
-> **Important:** For custom roles, role bindings are always **tenant-scoped** — the binding grants the role's permissions across the entire tenant. For granting access to a *specific* resource (e.g., one particular provider account), use **collaborators** on the entity's manifest instead.
+> **Note**: For custom roles, role bindings are always **tenant-scoped** — the binding grants the role's permissions across the entire tenant. For granting access to a *specific* resource, use **collaborators** on the entity's manifest instead.
 
 ## Fetching Existing Role Bindings
 
 Use the `list_role_bindings` tool to get all role bindings. To check if a specific role binding already exists, use `check_role_binding_exists` with the binding name.
 
-> **Note:** `list_role_bindings` may fail with a validation error due to response schema mismatches (e.g., some bindings have `type: 'inline'`). If it fails, proceed without listing — use `check_role_binding_exists` to check a specific binding by name, or just create/update the binding directly (it's idempotent by name).
 
 ## Creating / Updating Role Bindings (Write Flow)
 
-> **Important:** Role bindings do NOT use `get_manifest_json_schema`, `validate_schema.py`, or `apply_manifest`. Use the `create_or_update_role_binding` tool directly — its input body defines the schema.
+> **CRITICAL**: Role bindings do NOT use `get_manifest_json_schema`, `validate_schema.py`, or `apply_manifest`. Use the `create_or_update_role_binding` tool directly.
 
 ### Phase 1: Gather Requirements
 
@@ -271,9 +278,9 @@ Use the `list_role_bindings` tool to get all role bindings. To check if a specif
 ### Phase 2: Create or Update
 
 1. Build the role binding payload following the manifest structure below.
-2. Call `create_or_update_role_binding` directly as a tool (NOT from code mode) with `dryRun: true`.
+2. Call `create_or_update_role_binding` directly as a tool (not from sandbox) with `dryRun: true`.
 3. If dry-run fails, fix and retry.
-4. Once dry-run passes, call `create_or_update_role_binding` directly as a tool (NOT from code mode) without dry-run.
+4. Once dry-run passes, call `create_or_update_role_binding` directly as a tool (not from sandbox) without dry-run.
 
 ### Manifest Structure
 
@@ -305,7 +312,7 @@ permissions:
 
 ```yaml
 type: role-binding
-name: alice-gateway-config-creator
+name: alice-gateway-config-creatorm
 subjects:
   - type: user
     name: alice@example.com
@@ -341,23 +348,14 @@ Use the `delete_role_binding` tool with the role binding ID. First use `list_rol
 - [ ] Is `resourceType` set to `tenant` (NOT `provider-account`, `workspace`, etc.)?
 - [ ] Are all permission strings in `{resource-type}:{ActionInCamelCase}` format (NOT SCREAMING_SNAKE_CASE)?
 - [ ] For Global Settings, did I use prefix `settings` (not `global-settings`)?
-- [ ] Did I validate with `scripts/validate_schema.py` before dry-running?
-- [ ] Did I dry-run with `apply_manifest` (dryRun: true) before applying?
-- [ ] Did I call `apply_manifest` directly as a tool (not from sandbox/code mode)?
 
 ### Role Binding (assigning the role)
 - [ ] Did I determine the correct role name (custom or built-in) from `list_roles`?
 - [ ] Does each subject have a valid `type` (`user`, `team`, `virtualaccount`, or `external-identity`)?
 - [ ] For `user` subjects, is `name` an email address?
 - [ ] Is `resourceType` set to `tenant` and `resourceFqn` set to the tenant name?
-- [ ] Did I dry-run with `create_or_update_role_binding` (dryRun: true) before applying?
-- [ ] Did I call `create_or_update_role_binding` directly as a tool (not from sandbox/code mode)?
 
 ### Resource-Specific Access (no role binding needed)
 - [ ] Did I add the user/team as a **collaborator** on the entity's manifest instead of creating a role binding?
-- [ ] Did I use `apply_manifest` to update the entity with the new collaborator?
 
-## Searching Docs for Additional Information
-
-Use `search_docs` to search for additional information about roles, permissions, and role bindings.
-Search terms: "custom role permissions", "role manifest", "role binding", "assign role to user", "access control", "grant workspace access"
+For more info: `search_docs` with "custom role permissions", "role binding", "assign role to user", "access control".

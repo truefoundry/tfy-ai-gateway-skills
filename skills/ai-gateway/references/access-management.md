@@ -67,9 +67,4 @@ Virtual accounts support:
 
 Roles are assigned per user. Use `search_docs` for detailed permission tables.
 
-## Searching Docs for Additional Information
-
-The content above covers common operations. For conceptual questions, setup guides, or anything not fully answered above, search the docs.
-
-Use `search_docs` to search for additional information about access management.
-Search terms: "authentication PAT VAT", "virtual account management", "access control provider account", "team management", "external identity", "user roles permissions", "token rotation", "secret store sync"
+For more info: `search_docs` with "authentication PAT VAT", "virtual account management", "access control provider account", "user roles permissions".

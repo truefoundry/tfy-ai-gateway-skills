@@ -79,13 +79,9 @@ To inspect a single virtual-model account by id, use `get_provider_account`.
    - Whether targets should be fallback candidates
 2. Verify target models exist by calling `list_provider_accounts` with `includeModelProviders: true` and confirming each `accountName/modelName` is present.
 
-### Phase 3: Build and Validate
+### Phase 3: Validate and Apply
 
-1. Build the manifest following the JSON schema strictly. Write it to a file.
-2. Run `python scripts/validate_schema.py --file-path <manifest.yaml>` to validate. Fix and repeat until valid.
-3. Call `apply_manifest` directly as a tool (NOT from code mode) with `dryRun: true`.
-4. If dry-run fails, fix and retry.
-5. Once dry-run passes, call `apply_manifest` directly as a tool (NOT from code mode) without dry-run to create the virtual model account.
+Build the manifest → write to file → `python scripts/validate_schema.py --file-path <manifest.yaml>` → `apply_manifest` with `dryRun: true` → fix if needed → `apply_manifest` without dry-run.
 
 ### Manifest Structure
 
@@ -117,13 +113,5 @@ integrations:
 - [ ] Did I ask the user which routing strategy to use?
 - [ ] Did I verify target models exist via `list_provider_accounts`?
 - [ ] Are all target models referenced correctly in `accountName/modelName` format?
-- [ ] Did I validate with `scripts/validate_schema.py` before dry-running?
-- [ ] Did I dry-run with `apply_manifest` (dryRun: true) before applying?
-- [ ] Did I call `apply_manifest` directly as a tool (not from sandbox/code mode)?
 
-## Searching Docs for Additional Information
-
-The content above covers common operations. For conceptual questions, setup guides, or anything not fully answered above, search the docs.
-
-Use `search_docs` to search for additional information about virtual models.
-Search terms: "virtual models", "weight based routing", "latency based routing", "priority based routing", "model load balancing", "model fallback"
+For more info: `search_docs` with "virtual models", "weight based routing", "latency based routing", "model fallback".

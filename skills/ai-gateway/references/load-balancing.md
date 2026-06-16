@@ -67,10 +67,4 @@ Always suggest using **Virtual Models** instead of this policy.
 2. Use `python scripts/validate_schema.py --file-path <path-to-manifest>` to validate the manifest.
 3. Repeat the process until the manifest is valid.
 
-## Searching Docs for Additional Information
-
-The content above covers common operations. For conceptual questions, setup guides, or anything not fully answered above, search the docs.
-
-Use `search_docs` to search for additional information about Gateway load balancing and virtual models.
-
-Search terms: "Gateway load balancing", "virtual models", "weight based routing", "latency based routing", "priority based routing", "model fallback"
+For more info: `search_docs` with "Gateway load balancing", "virtual models", "weight based routing", "model fallback".

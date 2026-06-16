@@ -19,13 +19,9 @@ Use the `list_virtual_accounts` tool to get the list of all virtual accounts. Us
 
 1. A virtual account must have at least one permission assigned. Use `ask_user_question` to ask the user what permissions this VA should have (role, resource, resource type).
 
-### Phase 3: Build and Validate
+### Phase 3: Validate and Apply
 
-1. Build the manifest following the JSON schema strictly. Write it to a file.
-2. Run `python scripts/validate_schema.py --file-path <manifest.yaml>` to validate. Fix and repeat until valid.
-3. Call `apply_manifest` directly as a tool (NOT from code mode) with `dryRun: true`.
-4. If dry-run fails, fix and retry.
-5. Once dry-run passes, call `apply_manifest` directly as a tool (NOT from code mode) without dry-run to create the virtual account.
+Build the manifest → write to file → `python scripts/validate_schema.py --file-path <manifest.yaml>` → `apply_manifest` with `dryRun: true` → fix if needed → `apply_manifest` without dry-run.
 
 ### Manifest Structure
 
@@ -55,11 +51,5 @@ token_type: <jwt>
 - [ ] Did I call `get_manifest_json_schema` with type `virtual-account`?
 - [ ] Did I ask the user what permissions this VA should have?
 - [ ] Does the VA have at least one permission assigned?
-- [ ] Did I validate with `scripts/validate_schema.py` before dry-running?
-- [ ] Did I dry-run with `apply_manifest` (dryRun: true) before applying?
-- [ ] Did I call `apply_manifest` directly as a tool (not from sandbox/code mode)?
 
-## Searching Docs for Additional Information
-
-Use `search_docs` to search for additional information about virtual accounts.
-Search terms: "virtual account creation", "virtual account token", "VAT rotation", "virtual account permissions", "secret store sync"
+For more info: `search_docs` with "virtual account creation", "virtual account token", "VAT rotation", "virtual account permissions".

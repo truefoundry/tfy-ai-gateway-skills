@@ -7,6 +7,11 @@ description: Model integrations connect vendor models to the Gateway; manifests 
 
 A tenant can have multiple model accounts (provider accounts). Each account can have multiple model integrations. A model integration is referred as `{accountName}/{integrationName}`.
 
+## Contents
+- Fetching existing model configurations
+- Querying supported models with `list_providers`
+- Creating Model Provider Accounts (Write Flow)
+
 ## Fetching existing model configurations
 
 Use the `list_provider_accounts` tool with `includeModelProviders: true` (and other `include*` flags set to `false` to filter out non-model accounts) to list model provider accounts along with their model integrations. The response shape is:
@@ -104,13 +109,9 @@ ModelType enum: `chat`, `completion`, `embedding`, `realtime`, `rerank`, `audio_
    - **All other modes** (`realtime`, `rerank`, `audio_transcription`, `audio_translation`, `text_to_speech`, `moderation`, `image`) → do NOT add a `cost` field at all (omitting it disables cost tracking)
    - Do NOT manually copy cost values from `list_providers` output. Only add custom cost fields if the user explicitly provides their own pricing.
 
-### Phase 3: Build and Validate
+### Phase 3: Validate and Apply
 
-1. Build the manifest following the JSON schema strictly. Write it to a file.
-2. Run `python scripts/validate_schema.py --file-path <manifest.yaml>` to validate. Fix and repeat until valid.
-3. Call `apply_manifest` directly as a tool (NOT from code mode) with `dryRun: true`.
-4. If dry-run fails, fix and retry.
-5. Once dry-run passes, call `apply_manifest` directly as a tool (NOT from code mode) without dry-run to create the provider account.
+Build the manifest → write to file → `python scripts/validate_schema.py --file-path <manifest.yaml>` → `apply_manifest` with `dryRun: true` → fix if needed → `apply_manifest` without dry-run.
 
 ### Manifest Structure
 
@@ -141,13 +142,5 @@ integrations:
 - [ ] For `realtime`/`audio_transcription`/`audio_translation`/`text_to_speech` modes, is the integration `name` set to exactly the `model_id`?
 - [ ] Did I add `cost: metric: public_cost` ONLY for models with mode `chat`, `completion`, `embedding`, or `responses`?
 - [ ] Did I omit the `cost` field entirely for all other modes (`realtime`, `rerank`, `audio_transcription`, `audio_translation`, `text_to_speech`, `moderation`, `image`)?
-- [ ] Did I validate with `scripts/validate_schema.py` before dry-running?
-- [ ] Did I dry-run with `apply_manifest` (dryRun: true) before applying?
-- [ ] Did I call `apply_manifest` directly as a tool (not from sandbox/code mode)?
 
-## Searching docs for additional information
-
-The content above covers common operations. For conceptual questions, setup guides, or anything not fully answered above, search the docs.
-
-Use `search_docs` to search for additional information about models.
-Search terms: "supported model providers", "model integrations"
+For more info: `search_docs` with "supported model providers", "model integrations".
