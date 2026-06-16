@@ -3,13 +3,26 @@ name: roles
 description: Create and manage custom roles and role bindings for fine-grained access control.
 ---
 
-**Roles** define named sets of permissions that can be assigned to users, teams, or virtual accounts. TrueFoundry supports built-in roles and custom roles. Custom roles let you grant exactly the permissions needed — no more, no less.
+**Roles** define named sets of permissions that can be assigned to users, teams, or virtual accounts. TrueFoundry supports built-in roles and custom roles.
+
+## Access Control Strategy
+
+There are two ways to grant access in TrueFoundry:
+
+1. **Custom role + tenant-scoped role binding** — for granting broad permissions across the entire tenant (e.g., "this user can create provider accounts and MCP servers"). Create a custom role with the permissions needed, then bind it at the tenant level.
+2. **Collaborators on the entity** — for granting access to a *specific* resource (e.g., "this user can manage this particular provider account"). Add the user or team as a collaborator in the entity's manifest, or add them to a team that already has access.
+
+> **When to use which:**
+> - Need to grant someone broad platform-level capabilities? → Custom role + tenant binding
+> - Need to give someone access to a specific provider account, MCP server, workspace, etc.? → Add them as a collaborator on that entity, or add them to an appropriate team
 
 ## Fetching Existing Roles
 
-Use the `list_roles` tool to get all roles (built-in and custom). If you need to inspect a specific role's permissions, look for it in the response by name.
+Use the `list_roles` tool to get all roles (built-in and custom).
 
-## Creating / Updating Roles (Write Flow)
+> **Note on `list_roles` output:** Built-in roles have various `resourceType` values (e.g., `provider-account`, `workspace`, `cluster`) and permissions in `SCREAMING_SNAKE_CASE` format (e.g., `MANAGE_PROVIDER_ACCOUNT`). This is the **internal storage format** — do NOT copy it. When creating custom roles via manifest, you MUST use `resourceType: tenant` and `{resource-type}:{ActionInCamelCase}` format as documented below.
+
+## Creating Custom Roles (Write Flow)
 
 ### Phase 1: Get Schema
 
@@ -36,7 +49,7 @@ type: role
 name: <unique-role-name>           # lowercase, 3-35 chars, letters/digits/hyphens
 displayName: <Human Readable Name>
 description: <What this role is for>
-resourceType: tenant               # MUST be "tenant" for tenant-wide roles
+resourceType: tenant               # MUST be "tenant" for custom roles
 permissions:
   - <resource-type>:<ActionInCamelCase>
   - <resource-type>:<ActionInCamelCase>
@@ -44,7 +57,7 @@ permissions:
 
 ### Critical Rules
 
-- `resourceType` MUST be `tenant`. Using `""` or `"platform"` causes `"Resource type is not supported"`.
+- `resourceType` MUST be `tenant` for custom roles. Do NOT use `provider-account`, `workspace`, `cluster`, or any other resource type — those are for built-in roles only. Using anything other than `tenant` causes `"Resource type is not supported"`.
 - Permission strings MUST follow the format `{resource-type}:{ActionInCamelCase}` (e.g., `provider-account:CreateProviderAccount`). SCREAMING_SNAKE_CASE (e.g., `CREATE_PROVIDER_ACCOUNT`) or no-prefix formats are **invalid** and will be rejected by dry-run.
 - `name` pattern: `^[a-z][a-z0-9\-]{1,33}[a-z0-9]$` (starts with letter, ends with letter/digit, 3–35 chars).
 - **Global Settings** resource prefix is `settings` — NOT `global-settings`.
@@ -234,11 +247,15 @@ permissions:
 
 ## Role Bindings
 
-**Role Bindings** connect subjects (users, teams, virtual accounts, or external identities) to roles on specific resources. While a **Role** defines *what* permissions exist, a **Role Binding** assigns *who* gets *which* role on *which* resource.
+**Role Bindings** assign roles to subjects (users, teams, virtual accounts, or external identities). After creating a custom role, you need a role binding to actually grant it to someone.
+
+> **Important:** For custom roles, role bindings are always **tenant-scoped** — the binding grants the role's permissions across the entire tenant. For granting access to a *specific* resource (e.g., one particular provider account), use **collaborators** on the entity's manifest instead.
 
 ## Fetching Existing Role Bindings
 
-Use the `list_role_bindings` tool to get all role bindings in the current account. Filter by `name` or `id` using query parameters. To check if a specific role binding already exists, use `check_role_binding_exists` with the binding name.
+Use the `list_role_bindings` tool to get all role bindings. To check if a specific role binding already exists, use `check_role_binding_exists` with the binding name.
+
+> **Note:** `list_role_bindings` may fail with a validation error due to response schema mismatches (e.g., some bindings have `type: 'inline'`). If it fails, proceed without listing — use `check_role_binding_exists` to check a specific binding by name, or just create/update the binding directly (it's idempotent by name).
 
 ## Creating / Updating Role Bindings (Write Flow)
 
@@ -248,8 +265,8 @@ Use the `list_role_bindings` tool to get all role bindings in the current accoun
 
 1. Ask the user:
    - **Who** should get access? (user email, team name, virtual account name, or external identity name)
-   - **What role** should they get? Call `list_roles` to find valid role names.
-   - **On which resource?** (resource type + resource FQN). Verify the resource exists by listing resources of that type (e.g., `list_workspaces`, `list_clusters`).
+   - **What role** should they get? (the custom role name you created, or a built-in role name from `list_roles`)
+2. Get the **tenant name** — this is the `resourceFqn` for tenant-scoped bindings. Use `get_me` or the tenant context to determine it.
 
 ### Phase 2: Create or Update
 
@@ -267,9 +284,9 @@ subjects:
   - type: <subject-type>           # user | team | virtualaccount | external-identity
     name: <subject-name>           # email for user; name for team/virtualaccount/external-identity
 permissions:
-  - resourceType: <resource-type>  # cluster, workspace, secret-group, etc.
-    resourceFqn: <resource-fqn>    # FQN of the specific resource
-    role: <role-name>              # name of the role to assign
+  - resourceType: tenant           # always "tenant" for custom role bindings
+    resourceFqn: <tenant-name>     # the tenant name
+    role: <role-name>              # name of the custom role to assign
 ```
 
 ### Critical Rules
@@ -281,66 +298,64 @@ permissions:
 - Subject `type` MUST be one of: `user`, `team`, `virtualaccount`, `external-identity`. Any other value is rejected.
 - For subject type `user`, `name` is the user's **email address**. For `team`, `virtualaccount`, and `external-identity`, `name` is the entity's name.
 - The `role` in each permission MUST match an existing role name (built-in or custom). Use `list_roles` to verify.
-- The `resourceType` in each permission MUST match the role's own `resourceType`. A workspace role cannot be bound to a cluster resource.
-- The `resourceFqn` MUST be the FQN of an existing resource. Use list tools to find the correct FQN.
-- For tenant-scoped roles (e.g., `tenant-admin`), `resourceType` is `tenant` and `resourceFqn` is the tenant name.
+- For custom roles, `resourceType` is `tenant` and `resourceFqn` is the tenant name.
 - Matching is by `name` — if a role binding with the same name exists, it is updated. Otherwise a new one is created.
 
-## Example: Grant Workspace Editor to a User
+## Example: Assign Custom Role to a User
 
 ```yaml
 type: role-binding
-name: alice-dev-workspace-editor
+name: alice-gateway-config-creator
 subjects:
   - type: user
     name: alice@example.com
 permissions:
-  - resourceType: workspace
-    resourceFqn: my-cluster:dev-workspace
-    role: workspace-editor
+  - resourceType: tenant
+    resourceFqn: my-tenant
+    role: gateway-config-creator
 ```
 
-## Example: Grant Multiple Roles to a Team
+## Example: Assign Custom Role to a Team
 
 ```yaml
 type: role-binding
-name: backend-team-access
+name: backend-team-gateway-creator
 subjects:
   - type: team
     name: backend-team
 permissions:
-  - resourceType: workspace
-    resourceFqn: my-cluster:staging-workspace
-    role: workspace-admin
-  - resourceType: secret-group
-    resourceFqn: staging-secrets
-    role: secret-group-editor
+  - resourceType: tenant
+    resourceFqn: my-tenant
+    role: gateway-config-creator
 ```
 
 ## Deleting a Role Binding
 
-Use the `delete_role_binding` tool with the role binding ID. First use `list_role_bindings` to find the binding by name, then delete by its `id`.
+Use the `delete_role_binding` tool with the role binding ID. First use `list_role_bindings` or `check_role_binding_exists` to find the binding, then delete by its `id`.
 
 ## Checklists
 
-### Role Creation
+### Custom Role Creation
+- [ ] Did I confirm no built-in role covers the user's needs?
 - [ ] Did I call `get_manifest_json_schema` with type `role`?
-- [ ] Is `resourceType` set to `tenant`?
-- [ ] Are all permission strings in `{resource-type}:{ActionInCamelCase}` format?
+- [ ] Is `resourceType` set to `tenant` (NOT `provider-account`, `workspace`, etc.)?
+- [ ] Are all permission strings in `{resource-type}:{ActionInCamelCase}` format (NOT SCREAMING_SNAKE_CASE)?
 - [ ] For Global Settings, did I use prefix `settings` (not `global-settings`)?
 - [ ] Did I validate with `scripts/validate_schema.py` before dry-running?
 - [ ] Did I dry-run with `apply_manifest` (dryRun: true) before applying?
 - [ ] Did I call `apply_manifest` directly as a tool (not from sandbox/code mode)?
 
-### Role Binding
-- [ ] Did I call `list_roles` to verify the role name exists?
+### Role Binding (assigning the role)
+- [ ] Did I determine the correct role name (custom or built-in) from `list_roles`?
 - [ ] Does each subject have a valid `type` (`user`, `team`, `virtualaccount`, or `external-identity`)?
 - [ ] For `user` subjects, is `name` an email address?
-- [ ] Does each permission's `role` match an existing role from `list_roles`?
-- [ ] Does each permission's `resourceType` match the role's resource type?
-- [ ] Does each permission's `resourceFqn` point to an existing resource?
+- [ ] Is `resourceType` set to `tenant` and `resourceFqn` set to the tenant name?
 - [ ] Did I dry-run with `create_or_update_role_binding` (dryRun: true) before applying?
 - [ ] Did I call `create_or_update_role_binding` directly as a tool (not from sandbox/code mode)?
+
+### Resource-Specific Access (no role binding needed)
+- [ ] Did I add the user/team as a **collaborator** on the entity's manifest instead of creating a role binding?
+- [ ] Did I use `apply_manifest` to update the entity with the new collaborator?
 
 ## Searching Docs for Additional Information
 
