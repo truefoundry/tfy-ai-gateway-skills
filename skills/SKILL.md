@@ -68,6 +68,8 @@ Do NOT call list tools to look up the collaborator structure — use this table 
 Critical tool-call requirements (do NOT skip these):
 - For **MCP servers with OAuth**: you MUST call `get_mcp_server_oauth_config` to get the authorization server metadata before building the manifest.
 - For **model provider accounts**: you MUST call `list_providers` to get the catalog of supported models and regions before building the manifest. NEVER use your own knowledge for model names, IDs, or supported modes — only use what `list_providers` returns.
+- For **model integrations**: `cost: metric: public_cost` ONLY for `chat`, `completion`, `embedding`, `responses` modes. Omit `cost` entirely for all other modes.
+- For **model integrations**: integration `name` MUST equal `model_id` for `realtime`, `audio_transcription`, `audio_translation`, `text_to_speech` modes.
 
 > **CRITICAL**: Tools that create, update, or delete anything (e.g. `apply_manifest`) MUST be called directly as tool calls — never from sandbox. They need to go through the user approval flow. Read-only tools can be called from sandbox.
 
