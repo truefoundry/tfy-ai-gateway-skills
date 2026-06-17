@@ -107,22 +107,9 @@ The available filters, retention, and export options are documented — `search_
 
 ## UI-First Guidance
 
-When a user asks how to create, configure, or integrate any entity (model, virtual model, MCP server, guardrail, policy, service, job, etc.), **default to UI-based steps**:
-
-1. Use `search_docs` to find the relevant UI guide for that entity.
-2. Walk the user through the UI steps (navigation path, fields to fill, buttons to click).
-3. Link to the docs page for reference.
-
-**Only provide YAML manifests and `tfy apply` instructions when**:
-- The user explicitly asks for YAML, manifests, programmatic setup, or CI/CD integration.
-- The user mentions `tfy apply`, CLI, or automation.
-- The user is clearly working in a code/infrastructure-as-code context.
-
-This applies to both AI Gateway entities and AI Engineering deployments.
+When a user asks to create, configure, or integrate any entity, **default to UI-based steps**: use `search_docs` to find the UI guide, walk through the steps, and link to docs. Only provide YAML / `tfy apply` when the user explicitly asks for manifests, CLI, programmatic setup, or CI/CD.
 
 ## Applying Manifests (YAML / CLI)
-
-> **When to use**: Only when the user explicitly asks for YAML, manifests, `tfy apply`, CLI, or programmatic/CI-CD setup. For interactive setup, guide the user through the UI first (see above).
 
 Every entity in the platform — gateway models, virtual models, MCP servers, guardrail policies, services, jobs, workflows — is described by a YAML manifest with a `type` field. The same workflow applies to all of them:
 
