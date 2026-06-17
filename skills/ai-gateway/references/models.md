@@ -68,27 +68,36 @@ Use `list_providers` for:
 - **Checking provider support** — when asked "which providers do you support?", "which providers are available?", list the top-level `type` / `label` entries from the response.
 - **Building provider account manifests** — when creating a provider account (write flow), use this data to present available models, get the correct `model_id` values, and determine available regions.
 
-The response is an array of providers. Each provider has integrations with a `metadata` object keyed by `model_id`:
+The response is `{ "data": [...] }` — an object with a `data` array. Each element in `data` is a provider:
 
 ```yaml
-- type: provider-account/openai
-  label: OpenAI
-  integrations:
-    - type: integration/model/openai
-      metadata:
-        gpt-4o:
-          model: gpt-4o              # model_id to use in manifests
-          mode: chat                 # see modes below
-          costs:
-            - input_cost_per_token: 0.0000025
-              output_cost_per_token: 0.00001
-              region: "*"            # "*" = all regions; otherwise region-specific
-          status: active
-        # ...more models
-# ...more providers
+{
+  "data": [
+    {
+      "type": "provider-account/openai",    # use this to filter — NOT "name"
+      "label": "OpenAI",
+      "integrations": [
+        {
+          "type": "integration/model/openai",
+          "metadata": {                      # keys are model_id strings
+            "gpt-4o": {
+              "model": "gpt-4o",            # model_id to use in manifests
+              "mode": "chat",               # determines cost and naming rules
+              "costs": [
+                { "input_cost_per_token": 0.0000025, "output_cost_per_token": 0.00001, "region": "*" }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
 ```
 
-Key fields: `model` (model_id for manifests), `mode`, `costs[]` (per region), `status`.
+**How to find a provider:** access `result["data"]`, then filter by `type` field (e.g. `type == "provider-account/openai"`). Providers do NOT have a `name` field — do not filter by `name`.
+**How to get models:** `provider["integrations"][0]["metadata"]` — this is a dict keyed by `model_id`.
+**Key fields per model:** `model` (model_id for manifests), `mode` (determines cost/naming rules), `costs[]` (per region).
 ModelType enum: `chat`, `completion`, `embedding`, `realtime`, `rerank`, `audio_transcription`, `audio_translation`, `text_to_speech`, `moderation`, `image`, `responses`.
 
 ## Creating Model Provider Accounts (Write Flow)
@@ -101,7 +110,7 @@ ModelType enum: `chat`, `completion`, `embedding`, `realtime`, `rerank`, `audio_
 
 1. If the schema shows multiple authentication methods, use `ask_user_question` to ask the user which auth method to use.
 2. You **MUST** call `list_providers` to get the supported models, pricing, and regions for the selected provider. NEVER use your own knowledge for model names, IDs, or modes — only use what `list_providers` returns. Your training data is outdated; `list_providers` is the source of truth.
-3. The `list_providers` response is very large (200K+ lines). After calling it, filter by the provider `type` (e.g. `provider-account/openai`) to find the relevant entry, then extract models from its `integrations[0].metadata`. Every provider has models — if you think you found none, you are parsing the response wrong. Re-examine it.
+3. The `list_providers` response is very large (200K+ lines). Call it from sandbox, save to a file, then parse. Access `result["data"]` to get the providers array, then filter by `type` field (NOT `name` — providers don't have a `name` field). Extract models from `provider["integrations"][0]["metadata"]`. Every provider has models — if you find none, your filter is wrong.
 4. **Filter models by region** — from the `list_providers` response, only include models that have a cost entry matching the user's selected region (or `region: "*"`). Do NOT add models unavailable in the chosen region.
 5. Do NOT dump the full model list to the user — it can be very large. Ask the user which models they want to add (by name or type) and look them up in the `list_providers` response.
 6. **Naming rule**: For `realtime`, `audio_transcription`, `audio_translation`, `text_to_speech` modes, integration `name` MUST equal `model_id`. For all other modes, any descriptive name works.
@@ -126,11 +135,20 @@ collaborators:
     subject: team:everyone
 region: <region>
 integrations:
-  - name: <integration-name>            # for realtime/audio_transcription/text_to_speech: MUST equal model_id
+  # Example: chat model (MUST have cost with public_cost)
+  - name: <integration-name>
     type: <integration/model/provider>
     model_id: <provider-model-id>
     model_types:
-      - <chat|completion|embedding|realtime|rerank|audio_transcription|audio_translation|text_to_speech|moderation|image|responses>
+      - chat
+    cost:
+      metric: public_cost
+  # Example: realtime model (NO cost field, name MUST equal model_id)
+  - name: <model-id>
+    type: <integration/model/provider>
+    model_id: <model-id>
+    model_types:
+      - realtime
 ```
 
 ### Checklist
