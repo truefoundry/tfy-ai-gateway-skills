@@ -101,12 +101,13 @@ ModelType enum: `chat`, `completion`, `embedding`, `realtime`, `rerank`, `audio_
 
 1. If the schema shows multiple authentication methods, use `ask_user_question` to ask the user which auth method to use.
 2. You **MUST** call `list_providers` to get the supported models, pricing, and regions for the selected provider. NEVER use your own knowledge for model names, IDs, or modes — only use what `list_providers` returns. Your training data is outdated; `list_providers` is the source of truth.
-3. **Filter models by region** — from the `list_providers` response, only include models that have a cost entry matching the user's selected region (or `region: "*"`). Do NOT add models unavailable in the chosen region.
-4. Do NOT dump the full model list to the user — it can be very large. Ask the user which models they want to add (by name or type) and look them up in the `list_providers` response.
-5. **Naming rule**: For `realtime`, `audio_transcription`, `audio_translation`, `text_to_speech` modes, integration `name` MUST equal `model_id`. For all other modes, any descriptive name works.
-6. **Pricing rule — follow strictly per model type:**
+3. The `list_providers` response is very large (200K+ lines). After calling it, filter by the provider `type` (e.g. `provider-account/openai`) to find the relevant entry, then extract models from its `integrations[0].metadata`. Every provider has models — if you think you found none, you are parsing the response wrong. Re-examine it.
+4. **Filter models by region** — from the `list_providers` response, only include models that have a cost entry matching the user's selected region (or `region: "*"`). Do NOT add models unavailable in the chosen region.
+5. Do NOT dump the full model list to the user — it can be very large. Ask the user which models they want to add (by name or type) and look them up in the `list_providers` response.
+6. **Naming rule**: For `realtime`, `audio_transcription`, `audio_translation`, `text_to_speech` modes, integration `name` MUST equal `model_id`. For all other modes, any descriptive name works.
+7. **Pricing rule — follow strictly per model type:**
    - **`chat`, `completion`, `embedding`, `responses`** → add `cost:` with `metric: public_cost` to enable public pricing
-   - **All other modes** (`realtime`, `rerank`, `audio_transcription`, `audio_translation`, `text_to_speech`, `moderation`, `image`) → do NOT add a `cost` field at all (omitting it disables cost tracking)
+   - **All other modes** (`realtime`, `rerank`, `audio_transcription`, `audio_translation`, `text_to_speech`, `moderation`, `image`) → the `cost` field MUST NOT be present. Do not add it, do not set it to null, do not set it to empty — omit it entirely.
    - Do NOT manually copy cost values from `list_providers` output. Only add custom cost fields if the user explicitly provides their own pricing.
 
 ### Phase 3: Validate and Apply
@@ -140,7 +141,8 @@ integrations:
 - [ ] Did I call `list_providers` and filter models to only those available in the selected region?
 - [ ] Did I avoid dumping the full model list and instead ask the user which models they want?
 - [ ] For `realtime`/`audio_transcription`/`audio_translation`/`text_to_speech` modes, is the integration `name` set to exactly the `model_id`?
-- [ ] Did I add `cost: metric: public_cost` ONLY for models with mode `chat`, `completion`, `embedding`, or `responses`?
-- [ ] Did I omit the `cost` field entirely for all other modes (`realtime`, `rerank`, `audio_transcription`, `audio_translation`, `text_to_speech`, `moderation`, `image`)?
+- [ ] Did I add `cost: metric: public_cost` ONLY for `chat`, `completion`, `embedding`, `responses` modes?
+- [ ] Did I completely omit the `cost` field (not present at all) for every other mode?
+- [ ] Did every model I added come from the `list_providers` response (not from my own knowledge)?
 
 For more info: `search_docs` with "supported model providers", "model integrations".
