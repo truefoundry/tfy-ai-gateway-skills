@@ -56,7 +56,7 @@ rules:
     unit: <requests_per_minute|requests_per_hour|requests_per_day|tokens_per_minute|tokens_per_hour|tokens_per_day>
     when:
       subjects:
-        - <user:email or team:name>
+        - <user:email or team:name or virtualaccount:name>
       models:
         - <account-name/model-name>
       metadata:

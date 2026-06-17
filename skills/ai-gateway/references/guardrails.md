@@ -115,6 +115,8 @@ Build the manifest → write to file → `python scripts/validate_schema.py --fi
 
 ### Manifest Structure
 
+> **CRITICAL**: The field for guardrail entries is `integrations` — NOT `guardrail_configs`. The agent frequently gets this wrong.
+
 ```yaml
 name: <unique-group-name>
 type: provider-account/guardrail-config-group
@@ -123,7 +125,7 @@ collaborators:
     subject: user:<current-user-email>  # from get_me
   - role_id: provider-account-access
     subject: team:everyone
-integrations:
+integrations:                             # NOT guardrail_configs
   - name: <integration-name>
     type: <integration/guardrail-config/type>
     config:
@@ -161,20 +163,22 @@ Build the manifest (include `name` from existing config) → write to file → s
 
 ### Manifest Structure
 
+> **CRITICAL**: Every rule MUST have a `when.target` — without it the rule has no effect. Use `model` with `values: ["*"]` to apply to all models. Subject types are: `user:<email>`, `team:<name>`, `virtualaccount:<name>`.
+
 ```yaml
 name: <config-name>
 type: gateway-guardrails-config
 rules:
   - id: <unique-rule-id>
     when:
-      target:
+      target:                              # REQUIRED — rule does nothing without a target
         operator: or
         conditions:
           model:
             values:
-              - <account-name/model-name or * for all>
+              - "*"                        # all models, or specific: account-name/model-name
             condition: in
-          mcpServers:
+          mcpServers:                      # optional — omit if not targeting MCP
             values:
               - <mcp-server-name or serverName:toolName>
             condition: in
@@ -182,7 +186,7 @@ rules:
         operator: and
         conditions:
           in:
-            - <user:email or team:name>
+            - <user:email or team:name or virtualaccount:name>
           not_in:
             - <user:email or team:name>
     llm_input_guardrails:
@@ -200,7 +204,9 @@ rules:
 - [ ] Did I call `get_manifest_json_schema` with type `gateway-guardrails-config`?
 - [ ] Did I fetch the existing guardrails config and merge rules (not replace)?
 - [ ] Did I include the `name` field in the manifest?
+- [ ] Does every rule have a `when.target` with at least one condition (`model` or `mcpServers`)?
 - [ ] Are guardrail integrations referenced correctly in `groupName/integrationName` format?
+- [ ] Did I use `virtualaccount` (no hyphen) for VA subjects?
 - [ ] Did I skip `validate_schema.py` (it rejects the required `name` field)?
 
 For more info: `search_docs` with "configure guardrails", "guardrail integrations", "guardrail rules", "truefoundry guardrails".

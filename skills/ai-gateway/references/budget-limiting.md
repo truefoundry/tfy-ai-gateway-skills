@@ -65,7 +65,7 @@ rules:
     unit: <cost_per_day|cost_per_month|cost_per_hour>
     when:
       subjects:
-        - <user:email or team:name>
+        - <user:email or team:name or virtualaccount:name>
       models:
         - <account-name/model-name>
       metadata:
