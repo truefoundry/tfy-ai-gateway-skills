@@ -33,7 +33,9 @@ createdAt: ...
 updatedAt: ...
 ```
 
-## Generating Valid Manifests for Rate Limiting
+## Generating Valid Manifests for Rate Limiting (YAML / CLI)
+
+> **When to use**: Only when the user explicitly asks for YAML, manifests, `tfy apply`, CLI, or programmatic/CI-CD setup. For interactive setup, guide the user through the UI instead (see "UI-First Guidance" in SKILL.md).
 
 ### Phase 1: Research Rate Limit Config Schema
 
