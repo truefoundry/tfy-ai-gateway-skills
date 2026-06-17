@@ -91,7 +91,9 @@ pagination:
 
 To inspect a single guardrail config group by id, use `get_provider_account`.
 
-## Generating Valid Manifests for Guardrail Usage
+## Generating Valid Manifests for Guardrail Usage (YAML / CLI)
+
+> **When to use**: Only when the user explicitly asks for YAML, manifests, `tfy apply`, CLI, or programmatic/CI-CD setup. For interactive setup, guide the user through the UI instead (see "UI-First Guidance" in SKILL.md).
 
 ### Phase 1: Research Guardrail Integrations
 

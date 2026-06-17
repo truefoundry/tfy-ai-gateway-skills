@@ -45,7 +45,9 @@ updatedAt: ...
 Use `search_docs` to get updated understanding about budget config.
 Search terms: "gateway budget rules", "gateway budget alerts", "budget limits", "spend limits"
 
-## Generating Valid Manifests for Budget Limiting
+## Generating Valid Manifests for Budget Limiting (YAML / CLI)
+
+> **When to use**: Only when the user explicitly asks for YAML, manifests, `tfy apply`, CLI, or programmatic/CI-CD setup. For interactive setup, guide the user through the UI instead (see "UI-First Guidance" in SKILL.md).
 
 ### Phase 1: Fetch existing budget config.
 

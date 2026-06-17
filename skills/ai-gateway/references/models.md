@@ -54,7 +54,9 @@ The identifier `my-openai-account/gpt-4o` refers to the `gpt-4o` integration und
 
 To inspect a single provider account by id, use `get_provider_account`.
 
-## Generating Valid Manifests for Model Integrations and Model Provider Accounts
+## Generating Valid Manifests for Model Integrations and Model Provider Accounts (YAML / CLI)
+
+> **When to use**: Only when the user explicitly asks for YAML, manifests, `tfy apply`, CLI, or programmatic/CI-CD setup. For interactive setup, guide the user through the UI instead (see "UI-First Guidance" in SKILL.md).
 
 ### Phase 1: Research Model Integration Schema
 
