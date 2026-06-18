@@ -44,7 +44,7 @@ updatedAt: ...
 
 ### Phase 2: Build and Apply
 
-Build the manifest (include `name` from existing config) → write to file → skip `validate_schema.py` (schema uses `extra = forbid`, rejects `name`) → `apply_manifest` with `dryRun: true` → fix if needed → `apply_manifest` without dry-run.
+Build the manifest as a **JSON object** (not YAML, include `name` from existing config) → call `validate_manifest` with type and JSON body → fix if needed → call `apply_manifest` with JSON body.
 
 ### Manifest Structure
 
@@ -71,6 +71,6 @@ rules:
 - [ ] Did I call `get_manifest_json_schema` with type `gateway-rate-limiting-config`?
 - [ ] Did I fetch the existing config and merge rules (not replace)?
 - [ ] Did I include the `name` field in the manifest?
-- [ ] Did I skip `validate_schema.py` (it rejects the required `name` field)?
+- [ ] Did I call `validate_manifest` before applying?
 
 For more info: `search_docs` with "Gateway Rate Limit Rules", "rate limiting", "token limits".

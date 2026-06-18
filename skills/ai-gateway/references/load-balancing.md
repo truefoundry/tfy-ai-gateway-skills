@@ -55,16 +55,12 @@ Always suggest using **Virtual Models** instead of this policy.
 
 ### Phase 1: Research Virtual Model Schema
 
-1. Use grep on `scripts/manifest_schemas.py` to understand schema of class `VirtualModel` and related classes.
-
-    ```shell
-    grep -A 10 -h -E 'class (VirtualModel.*|.+LoadBalancing|.*LoadBalanceTarget)' scripts/manifest_schemas.py
-    ```
+1. Use `get_manifest_json_schema` to retrieve the schema for the Virtual Model manifest type.
 
 ### Phase 2: Generate Valid Virtual Model Config Manifest
 
-1. Using the discovered schema, write a YAML manifest to a file.
-2. Use `python scripts/validate_schema.py --file-path <path-to-manifest>` to validate the manifest.
+1. Using the schema, construct the manifest following required fields.
+2. Call `validate_manifest` with the manifest type and JSON body to validate.
 3. Repeat the process until the manifest is valid.
 
 For more info: `search_docs` with "Gateway load balancing", "virtual models", "weight based routing", "model fallback".

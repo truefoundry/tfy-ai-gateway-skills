@@ -17,11 +17,12 @@ Use the `list_virtual_accounts` tool to get the list of all virtual accounts. Us
 
 ### Phase 2: Determine Permissions
 
-1. A virtual account must have at least one permission assigned. Use `ask_user_question` to ask the user what permissions this VA should have (role, resource, resource type).
+1. A virtual account MUST have at least one permission — it cannot exist with zero permissions. Use `ask_user_question` to ask the user what permissions this VA should have (role, resource, resource type).
+2. **When updating/revoking permissions**: if removing a permission would leave the VA with zero permissions, do NOT proceed. Inform the user that a VA cannot have empty permissions — they must either keep at least one permission or delete the VA entirely.
 
 ### Phase 3: Validate and Apply
 
-Build the manifest → write to file → `python scripts/validate_schema.py --file-path <manifest.yaml>` → `apply_manifest` with `dryRun: true` → fix if needed → `apply_manifest` without dry-run.
+Build the manifest as a **JSON object** (not YAML) → call `validate_manifest` with type and JSON body → fix if needed → call `apply_manifest` with JSON body.
 
 ### Manifest Structure
 
@@ -51,5 +52,6 @@ token_type: <jwt>
 - [ ] Did I call `get_manifest_json_schema` with type `virtual-account`?
 - [ ] Did I ask the user what permissions this VA should have?
 - [ ] Does the VA have at least one permission assigned?
+- [ ] If revoking permissions, did I verify the VA won't end up with zero permissions?
 
 For more info: `search_docs` with "virtual account creation", "virtual account token", "VAT rotation", "virtual account permissions".

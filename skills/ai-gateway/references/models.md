@@ -121,7 +121,7 @@ ModelType enum: `chat`, `completion`, `embedding`, `realtime`, `rerank`, `audio_
 
 ### Phase 3: Validate and Apply
 
-Build the manifest → write to file → `python scripts/validate_schema.py --file-path <manifest.yaml>` → `apply_manifest` with `dryRun: true` → fix if needed → `apply_manifest` without dry-run.
+Build the manifest as a **JSON object** (not YAML) → call `validate_manifest` with type and JSON body → fix if needed → call `apply_manifest` with JSON body.
 
 ### Manifest Structure
 

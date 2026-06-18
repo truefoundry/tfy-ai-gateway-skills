@@ -111,7 +111,7 @@ A guardrail config group is a provider account that holds one or more guardrail 
 
 ### Phase 3: Validate and Apply
 
-Build the manifest → write to file → `python scripts/validate_schema.py --file-path <manifest.yaml>` → `apply_manifest` with `dryRun: true` → fix if needed → `apply_manifest` without dry-run.
+Build the manifest as a **JSON object** (not YAML) → call `validate_manifest` with type and JSON body → fix if needed → call `apply_manifest` with JSON body.
 
 ### Manifest Structure
 
@@ -159,7 +159,7 @@ The guardrails config (type `gateway-guardrails-config`) defines **when** guardr
 
 ### Phase 2: Build and Apply
 
-Build the manifest (include `name` from existing config) → write to file → skip `validate_schema.py` (schema uses `extra = forbid`, rejects `name`) → `apply_manifest` with `dryRun: true` → fix if needed → `apply_manifest` without dry-run.
+Build the manifest as a **JSON object** (not YAML, include `name` from existing config) → call `validate_manifest` with type and JSON body → fix if needed → call `apply_manifest` with JSON body.
 
 ### Manifest Structure
 
@@ -207,6 +207,6 @@ rules:
 - [ ] Does every rule have a `when.target` with at least one condition (`model` or `mcpServers`)?
 - [ ] Are guardrail integrations referenced correctly in `groupName/integrationName` format?
 - [ ] Did I use `virtualaccount` (no hyphen) for VA subjects?
-- [ ] Did I skip `validate_schema.py` (it rejects the required `name` field)?
+- [ ] Did I call `validate_manifest` before applying?
 
 For more info: `search_docs` with "configure guardrails", "guardrail integrations", "guardrail rules", "truefoundry guardrails".

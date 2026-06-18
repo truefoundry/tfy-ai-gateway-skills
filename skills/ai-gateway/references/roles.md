@@ -47,7 +47,7 @@ Each role in the response has two permission representations:
 
 ### Phase 3: Validate and Apply
 
-Build the manifest → write to file → `python scripts/validate_schema.py --file-path <manifest.yaml>` → `apply_manifest` with `dryRun: true` → fix if needed → `apply_manifest` without dry-run.
+Build the manifest as a **JSON object** (not YAML) → call `validate_manifest` with type and JSON body → fix if needed → call `apply_manifest` with JSON body.
 
 ### Manifest Structure
 
@@ -65,11 +65,11 @@ permissions:
 ### Critical Rules
 
 - `resourceType` MUST be `tenant` for custom roles. Do NOT use `provider-account`, `workspace`, `cluster`, or any other resource type — those are for built-in roles only. Using anything other than `tenant` causes `"Resource type is not supported"`.
-- Permission strings MUST follow the format `{resource-type}:{ActionInCamelCase}` (e.g., `provider-account:CreateProviderAccount`). SCREAMING_SNAKE_CASE (e.g., `CREATE_PROVIDER_ACCOUNT`) or no-prefix formats are **invalid** and will be rejected by dry-run.
+- Permission strings MUST follow the format `{resource-type}:{ActionInCamelCase}` (e.g., `provider-account:CreateProviderAccount`). SCREAMING_SNAKE_CASE (e.g., `CREATE_PROVIDER_ACCOUNT`) or no-prefix formats are **invalid** and will be rejected.
 - `name` pattern: `^[a-z][a-z0-9\-]{1,33}[a-z0-9]$` (starts with letter, ends with letter/digit, 3–35 chars).
 - **Global Settings** resource prefix is `settings` — NOT `global-settings`.
 
-## Verified Permission Strings (All Validated via Dry-Run)
+## Verified Permission Strings
 
 Format: `{resource-type}:{ActionInCamelCase}`
 

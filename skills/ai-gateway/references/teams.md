@@ -19,7 +19,7 @@ Use the `list_teams` tool to get the list of all teams. Use `get_team` to inspec
 
 ### Phase 2: Build and Apply
 
-Collect team name and member emails → build the manifest → write to file → `python scripts/validate_schema.py --file-path <manifest.yaml>` → `apply_manifest` with `dryRun: true` → fix if needed → `apply_manifest` without dry-run.
+Collect team name and member emails → build the manifest as a **JSON object** (not YAML) → call `validate_manifest` with type and JSON body → fix if needed → call `apply_manifest` with JSON body.
 
 ### Manifest Structure
 
