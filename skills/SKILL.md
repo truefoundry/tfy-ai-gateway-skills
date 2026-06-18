@@ -131,6 +131,13 @@ Each integration can be scoped to specific users and teams who can view/use it.
 
 For provider-specific setup steps, supported services per provider, and troubleshooting → https://www.truefoundry.com/docs/integrations-overview, then `search_docs` for the per-provider page (e.g. `integration-provider-aws`, `github-integration-set-up`).
 
+## Resource FQNs
+
+When a field requires an FQN (Fully Qualified Name), do NOT guess or construct it manually.
+
+- **Tenant**: FQN = tenant name (from `get_me` → `tenantName`)
+- **Everything else**: list the entity first and use the `fqn` field from the response.
+
 ## Users, Teams, and Virtual Accounts
 
 Identity concepts are shared across both products:
