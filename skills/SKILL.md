@@ -36,7 +36,7 @@ When creating or modifying Gateway entities (models, MCP servers, virtual models
 3. **Fetch existing state when needed** — for gateway configs (rate limiting, budget, guardrails), always fetch the existing config first. Your new rules must be merged with existing rules, never replace them.
 4. **Construct the manifest** — write a YAML manifest to a file, following the JSON schema strictly. **Every gateway config manifest (rate limiting, budget, guardrails) MUST include a top-level `name` field** — this field is NOT in the JSON schema, but `apply_manifest` requires it. Get the name from the existing config fetched in step 3.
 5. **Validate locally** — run `python scripts/validate_schema.py --file-path <manifest.yaml>` to check structure. Fix and repeat until valid. **Exception**: skip this step for gateway config types (rate limiting, budget, guardrails) — their schemas use `extra = forbid` and reject the required `name` field. For those, rely on dry-run (step 6) for validation.
-6. **Dry-run** — call `apply_manifest` with `dryRun: true` to validate against the live platform.
+6. **Dry-run** — call `apply_manifest` with `dryRun: true` to validate against the live platform. The `apply_manifest` tool takes a **JSON** body — do NOT pass YAML. Convert the YAML manifest to JSON before calling.
 7. **Apply** — once dry-run passes, call `apply_manifest` without dry-run to create/update the entity. `apply_manifest` is idempotent — calling it with the same `name` updates the existing entity rather than creating a duplicate.
 
 Collaborators — **MANDATORY** for every entity that supports them (models, virtual models, guardrails, MCP servers):
