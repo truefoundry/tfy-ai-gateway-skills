@@ -37,7 +37,7 @@ When creating or modifying Gateway entities (models, MCP servers, virtual models
 5. **Validate** — call `validate_manifest` with the manifest type and JSON body. Fix any errors and re-validate until it passes.
 6. **Apply** — call `apply_manifest` with the JSON body to create/update the entity. `apply_manifest` is idempotent — calling it with the same `name` updates the existing entity rather than creating a duplicate.
 
-> **CRITICAL**: Both `validate_manifest` and `apply_manifest` take a **JSON** object — NOT YAML, NOT a string. The manifest examples in reference files are shown in YAML for readability, but you MUST convert to JSON before passing to these tools.
+> **CRITICAL**: Both `validate_manifest` and `apply_manifest` take a **JSON** object — NOT YAML, NOT a string. The manifest examples in reference files are shown in YAML for readability, but you MUST convert to JSON before passing to these tools. Do NOT pass `dryRun: true` to `apply_manifest` — validation is already handled by `validate_manifest`.
 
 Collaborators — **MANDATORY** for every entity that supports them (models, virtual models, guardrails, MCP servers):
 - Call `get_me` to resolve the current user's identity.
@@ -87,7 +87,7 @@ For deploying services, jobs, notebooks, etc. — use `get_manifest_json_schema`
 For anything not covered by the reference files, search the docs. **Never make up an answer** — if the docs don't confirm it, say so.
 
 - `search_docs` — find relevant doc pages.
-- `extract` — pull specific info out of a known docs URL.
+- `extract_text` — pull specific info out of a known docs URL.
 
 ## Resolving ambiguous references
 
