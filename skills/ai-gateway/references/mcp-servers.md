@@ -52,7 +52,7 @@ Search for the user's requested MCP server by name in this order:
 
 1. **`tfyManaged`** — TrueFoundry-managed servers. These are fully hosted by TrueFoundry — no URL, auth, or config needed from the user. Each entry has a `tfyManagedMcpManifest` with `type: "mcp-server/tfy-managed"` and a `server_identifier`.
 
-2. **`integrations`** — Known remote MCP servers with pre-filled URLs and auth type info. Each entry has `url`, and optionally `auth_data` with the auth type (`oauth2`, `header`, or none).
+2. **`integrations`** — Known remote MCP servers with pre-filled URLs and auth type info. Each entry has `url`, and optionally `auth_data` with the auth type (`oauth2`, `header`, or none). For OAuth2 integrations, you'll still need to collect `client_id` and `client_secret` from the user (unless the server supports Dynamic Client Registration).
 
 3. **Not found in catalogue** — Search online. Prefer remote (HTTP/SSE) servers first; only fall back to stdio if no remote endpoint exists.
 
@@ -83,7 +83,7 @@ No auth config needed — TrueFoundry manages everything.
 Use the `url` from the catalogue. Check the `auth_data` field to determine the auth type:
 
 - **No `auth_data`** → no auth needed. Build a simple remote manifest.
-- **`auth_data.type: "oauth2"`** → Call `get_mcp_server_oauth_config` with the MCP server's URL to get the full OAuth metadata (authorization_url, token_url, scopes, etc.). Use these values in the manifest `auth_data`.
+- **`auth_data.type: "oauth2"`** → Call `get_mcp_server_oauth_config` with the MCP server's URL to get OAuth metadata (authorization_url, token_url, scopes, etc.). Check if the metadata includes `registration_endpoint` — if yes, Dynamic Client Registration (DCR) is supported and `client_id`/`client_secret` are not needed. If no `registration_endpoint`, ask the user for their `client_id` and `client_secret` (they'll need to register an OAuth app with the provider first).
 - **`auth_data.type: "header"`** → The catalogue shows the header keys with placeholder values (e.g. `"Authorization": "Bearer YOUR_API_KEY"`). Ask the user for the actual secret values.
 
 ```yaml
@@ -97,11 +97,21 @@ collaborators:
   - role_id: mcp-server-user
     subject: team:everyone
 auth_data:
-  # For oauth2:
+  # For oauth2 (without DCR — client_id and client_secret required):
   type: oauth2
   grant_type: authorization_code
   authorization_url: <from-oauth-metadata>
   token_url: <from-oauth-metadata>
+  client_id: <from-user>
+  client_secret: <from-user>
+  jwt_source: access_token
+  scopes: [<from-oauth-metadata>]
+  # For oauth2 (with DCR — no client_id/client_secret needed):
+  type: oauth2
+  grant_type: authorization_code
+  authorization_url: <from-oauth-metadata>
+  token_url: <from-oauth-metadata>
+  registration_endpoint: <from-oauth-metadata>
   jwt_source: access_token
   scopes: [<from-oauth-metadata>]
   # For header:
@@ -117,7 +127,7 @@ auth_data:
 
 **If remote:**
 - Ask the user which auth type they want (no auth, OAuth 2.0, API Key/Header).
-- If OAuth 2.0: call `get_mcp_server_oauth_config` with the server URL to get the full metadata.
+- If OAuth 2.0: call `get_mcp_server_oauth_config` with the server URL to get metadata. If no `registration_endpoint` in the response, ask the user for `client_id` and `client_secret`.
 - If header-based: ask user for header key/value.
 - Build the manifest same as Path B.
 
@@ -140,14 +150,14 @@ collaborators:
 
 ### Step 3: Validate and Apply
 
-Build the manifest as a **JSON object** (not YAML) → call `validate_manifest` with type and JSON body → fix if needed → call `apply_manifest` with JSON body.
+Build the manifest as JSON → pass to `validate_manifest` → fix if needed → pass to `apply_manifest`.
 
 ### Checklist
 
 - [ ] Did I call `list_mcp_catalogue` first to check if the server is TFY-managed or a known integration?
 - [ ] Did I call `get_manifest_json_schema` with the correct type?
 - [ ] Did I use the TFY-managed path if the server was in `tfyManaged`?
-- [ ] For OAuth2, did I call `get_mcp_server_oauth_config` to get the full metadata?
+- [ ] For OAuth2, did I call `get_mcp_server_oauth_config` and check if DCR is supported? If not, did I ask for `client_id`/`client_secret`?
 - [ ] For header auth, did I ask the user for the actual secret values?
 - [ ] Did I add collaborators (current user as manager, team:everyone as access)?
 - [ ] Did I call `validate_manifest` before `apply_manifest`?

@@ -60,7 +60,7 @@ Always suggest using **Virtual Models** instead of this policy.
 ### Phase 2: Generate Valid Virtual Model Config Manifest
 
 1. Using the schema, construct the manifest following required fields.
-2. Call `validate_manifest` with the manifest type and JSON body to validate.
+2. Pass the manifest to `validate_manifest` to validate.
 3. Repeat the process until the manifest is valid.
 
 For more info: `search_docs` with "Gateway load balancing", "virtual models", "weight based routing", "model fallback".

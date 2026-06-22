@@ -47,7 +47,7 @@ Each role in the response has two permission representations:
 
 ### Phase 3: Validate and Apply
 
-Build the manifest as a **JSON object** (not YAML) → call `validate_manifest` with type and JSON body → fix if needed → call `apply_manifest` with JSON body.
+Build the manifest as JSON → pass to `validate_manifest` → fix if needed → pass to `apply_manifest`.
 
 ### Manifest Structure
 

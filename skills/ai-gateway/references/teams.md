@@ -19,7 +19,7 @@ Use the `list_teams` tool to get the list of all teams. Use `get_team` to inspec
 
 ### Phase 2: Build and Apply
 
-Collect team name and member emails → build the manifest as a **JSON object** (not YAML) → call `validate_manifest` with type and JSON body → fix if needed → call `apply_manifest` with JSON body.
+Collect team name and member emails → build the manifest as JSON → pass to `validate_manifest` → fix if needed → pass to `apply_manifest`.
 
 ### Manifest Structure
 

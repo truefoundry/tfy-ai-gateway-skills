@@ -111,7 +111,7 @@ A guardrail config group is a provider account that holds one or more guardrail 
 
 ### Phase 3: Validate and Apply
 
-Build the manifest as a **JSON object** (not YAML) → call `validate_manifest` with type and JSON body → fix if needed → call `apply_manifest` with JSON body.
+Build the manifest as JSON → pass to `validate_manifest` → fix if needed → pass to `apply_manifest`.
 
 ### Manifest Structure
 
@@ -159,7 +159,7 @@ The guardrails config (type `gateway-guardrails-config`) defines **when** guardr
 
 ### Phase 2: Build and Apply
 
-Build the manifest as a **JSON object** (not YAML, include `name` from existing config) → call `validate_manifest` with type and JSON body → fix if needed → call `apply_manifest` with JSON body.
+Build the manifest as JSON (include `name` from existing config) → pass to `validate_manifest` → fix if needed → pass to `apply_manifest`.
 
 ### Manifest Structure
 
