@@ -30,20 +30,21 @@ Do not answer from memory. TrueFoundry's platform (APIs, schemas, supported mode
 
 When creating or modifying Gateway entities (models, MCP servers, virtual models, guardrails, rate limits, budgets, teams, virtual accounts, roles), follow this workflow:
 
-1. **Get the JSON schema** — use `get_manifest_json_schema` to retrieve the schema for the entity type you want to create/modify. This is the source of truth for required and optional fields.
-2. **Ask user for required inputs** — use `ask_user_question` to collect decisions (auth method, permissions, etc.) when multiple options exist. Never guess — always confirm.
-3. **Fetch existing state when needed** — for gateway configs (rate limiting, budget, guardrails), always fetch the existing config first. Your new rules must be merged with existing rules, never replace them.
-4. **Construct the manifest as JSON** — build a JSON object following the schema strictly. **Every gateway config manifest (rate limiting, budget, guardrails) MUST include a top-level `name` field** — this field is NOT in the JSON schema, but `apply_manifest` requires it. Get the name from the existing config fetched in step 3.
-5. **Validate** — call `validate_manifest` with the manifest type and JSON body. Fix any errors and re-validate until it passes.
-6. **Apply** — call `apply_manifest` with the JSON body to create/update the entity. `apply_manifest` is idempotent — calling it with the same `name` updates the existing entity rather than creating a duplicate.
+1. **Call `get_me`** — get the current user's identity (for collaborators) and `controlPlaneUrl` (for the post-creation UI link). Always call this first in any write flow.
+2. **Get the JSON schema** — use `get_manifest_json_schema` to retrieve the schema for the entity type you want to create/modify. This is the source of truth for required and optional fields.
+3. **Ask user for required inputs** — use `ask_user_question` to collect decisions (auth method, permissions, etc.) when multiple options exist. Never guess — always confirm.
+4. **Fetch existing state when needed** — for gateway configs (rate limiting, budget, guardrails), always fetch the existing config first. Your new rules must be merged with existing rules, never replace them.
+5. **Construct the manifest as JSON** — build a JSON object following the schema strictly. **Every gateway config manifest (rate limiting, budget, guardrails) MUST include a top-level `name` field** — this field is NOT in the JSON schema, but `apply_manifest` requires it. Get the name from the existing config fetched in step 4.
+6. **Validate** — call `validate_manifest` with the manifest type and JSON body. Fix any errors and re-validate until it passes.
+7. **Apply** — call `apply_manifest` with the JSON body to create/update the entity. `apply_manifest` is idempotent — calling it with the same `name` updates the existing entity rather than creating a duplicate.
+8. **Show UI link** — use `controlPlaneUrl` from step 1 to show the user the relevant page (see Post-creation links table below).
 
 `validate_manifest` takes two inputs: the manifest `type` as a separate field, and the manifest JSON body. `apply_manifest` takes only the manifest JSON body (with `type` inside it) — do not pass `type` separately to `apply_manifest`. Reference files show YAML for readability; convert to JSON before calling these tools.
 
-Collaborators — **MANDATORY** for every entity that supports them (models, virtual models, guardrails, MCP servers):
-- Call `get_me` to resolve the current user's identity.
-- Every manifest MUST include collaborators. Never omit them.
-- Always add the current user (from `get_me`) as **manager**.
-- Always add `team:everyone` as **access**.
+Collaborators — required for every entity that supports them (models, virtual models, guardrails, MCP servers):
+- Use the current user from `get_me` (step 1) as **manager**.
+- Add `team:everyone` as **access**.
+- Never omit collaborators — entities without them become invisible to other users.
 - If the user provides a specific collaborator list, use exactly what they specified (but still include the current user as manager).
 
 Each collaborator has two fields: `role_id` and `subject`.
@@ -122,7 +123,7 @@ Secrets are stored in **Secret Groups** and referenced by FQN: `tfy-secret://<ow
 
 ## UI Links via `controlPlaneUrl`
 
-`get_me` returns `controlPlaneUrl` — the base URL for the customer's TrueFoundry dashboard. Show UI links in two situations:
+Call `get_me` and use the exact `controlPlaneUrl` value from the response as the base URL. Never guess or construct the domain yourself — it varies per tenant. Show UI links in two situations:
 - **After creating/modifying an entity** — so the user can verify and manage it
 - **When the agent cannot perform an operation** — so the user can do it in the UI instead
 
@@ -221,7 +222,7 @@ For column names and query patterns → read `ai-gateway/references/observabilit
 ## Checklist Before Responding to a Gateway Question
 
 - [ ] Did I search docs (`search_docs`) for conceptual or "how does X work" questions?
-- [ ] Did I resolve the user's identity with `get_me` when the query uses "my"/"I"/"mine"?
+- [ ] Did I call `get_me` (for identity, collaborators, AND `controlPlaneUrl`)?
 - [ ] Did I look up entities (model, MCP server, team, VA) by name before assuming they don't exist?
 - [ ] Did I explore the entities and configurations related to the question?
 - [ ] Did I analyze the queried data before arriving at conclusions?
