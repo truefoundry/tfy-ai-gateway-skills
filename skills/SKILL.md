@@ -81,7 +81,7 @@ For deploying services, jobs, notebooks, etc. — use `get_manifest_json_schema`
 For anything not covered by the reference files, search the docs. **Never make up an answer** — if the docs don't confirm it, say so.
 
 - `search_docs` — find relevant doc pages.
-- `extract_text` — pull specific info out of a known docs URL.
+- `get_section_content` — pull specific info out of a known docs URL.
 
 ## Resolving ambiguous references
 
@@ -191,10 +191,9 @@ The following table lists the file path for each entity and policy which describ
 | Rate Limiting Policy                                         | `ai-gateway/references/rate-limiting.md`        |
 | Budget Limiting Policy                                       | `ai-gateway/references/budget-limiting.md`      |
 | Load Balancing Policy (Deprecated)                           | `ai-gateway/references/load-balancing.md`       |
-| Users, Teams, Virtual Accounts and Access Control            | `ai-gateway/references/access-management.md`    |
+| Users, Teams, VAs, Roles and Access Control                  | `ai-gateway/references/access-management.md`    |
 | Teams (Create/Manage)                                        | `ai-gateway/references/teams.md`                |
 | Virtual Accounts (Create/Manage)                             | `ai-gateway/references/virtual-accounts.md`     |
-| Roles (Create/Manage)                                        | `ai-gateway/references/roles.md`                |
 | Personal Access Tokens (Create)                              | `ai-gateway/references/personal-access-tokens.md` |
 
 ## Querying Gateway Usage Data
