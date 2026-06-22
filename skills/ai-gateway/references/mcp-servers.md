@@ -9,7 +9,8 @@ description: Deploy and connect MCP Servers to the AI Gateway to provide tools t
 - Fetching existing MCP servers
 - Creating MCP Servers (Write Flow)
   - Step 1: Check the MCP Catalogue
-  - Step 2: Build the manifest based on source
+  - Step 2: Build the manifest based on source (TFY Managed / Integration / Online search / OpenAPI)
+  - When to direct the user to the UI
   - Step 3: Validate and Apply
 
 ## Fetching existing MCP servers
@@ -147,6 +148,30 @@ collaborators:
   - role_id: mcp-server-user
     subject: team:everyone
 ```
+
+#### Path D: OpenAPI Spec
+
+If the user has an OpenAPI spec URL for their service, create an `mcp-server/openapi` type server. Call `get_manifest_json_schema` with type `mcp-server/openapi` for the full schema.
+
+```yaml
+type: mcp-server/openapi
+name: <unique-name>
+description: <description>
+openapi_spec_url: <url-to-openapi-spec>
+collaborators:
+  - role_id: mcp-server-manager
+    subject: user:<current-user-email>
+  - role_id: mcp-server-user
+    subject: team:everyone
+```
+
+### When to direct the user to the UI
+
+The agent can create MCP servers from an OpenAPI spec **URL** (Path D above), but cannot create them by pasting raw OpenAPI spec JSON directly — the API doesn't accept inline spec content. If the user wants to create an MCP server by pasting the spec JSON, direct them to the UI:
+```
+{controlPlaneUrl}/llm-gateway/mcp-servers
+```
+Get `controlPlaneUrl` from `get_me`. The UI supports creating MCP servers of all types including pasting OpenAPI specs directly.
 
 ### Step 3: Validate and Apply
 

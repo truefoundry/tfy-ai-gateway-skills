@@ -120,6 +120,53 @@ For AI Engineering RBAC → https://www.truefoundry.com/docs/collaboration-and-a
 
 Secrets are stored in **Secret Groups** and referenced by FQN: `tfy-secret://<owner>:<secret-group>:<secret-key>`. The platform resolves at runtime. For details → https://www.truefoundry.com/docs/manage-secrets.
 
+## UI Links via `controlPlaneUrl`
+
+`get_me` returns `controlPlaneUrl` — the base URL for the customer's TrueFoundry dashboard. Show UI links in two situations:
+- **After creating/modifying an entity** — so the user can verify and manage it
+- **When the agent cannot perform an operation** — so the user can do it in the UI instead
+
+### Post-creation links
+
+After a successful `apply_manifest`, show the user the relevant page:
+
+| Entity created/modified | Link |
+|---|---|
+| Model provider account | `{controlPlaneUrl}/llm-gateway/models?provider={accountName}` |
+| Virtual model | `{controlPlaneUrl}/llm-gateway/virtual-models` |
+| MCP server | `{controlPlaneUrl}/llm-gateway/mcp-servers` |
+| Rate limit / budget rule | `{controlPlaneUrl}/llm-gateway/settings` |
+| Guardrail config group | `{controlPlaneUrl}/guardrails/registry` |
+| Guardrail policy (rules) | `{controlPlaneUrl}/guardrails/policies` |
+| Team | `{controlPlaneUrl}/access-management?tab=teams` |
+| Virtual account | `{controlPlaneUrl}/access-management?tab=service-accounts` |
+| Role | `{controlPlaneUrl}/access-management?tab=custom-roles` |
+| PAT | `{controlPlaneUrl}/access-management?tab=personal-access-token` |
+
+### URL patterns
+
+- **Gateway entities**: `{controlPlaneUrl}/llm-gateway/{page}` — pages: `models`, `virtual-models`, `mcp-servers`, `settings`
+- **Guardrails**: `{controlPlaneUrl}/guardrails/{page}` — pages: `registry`, `policies`
+- **Monitoring metrics**: `{controlPlaneUrl}/monitoring/metrics?monitorTab={tab}&viewBy={view}`
+  - tab/view options: `metrics/modelName`, `mcp-metrics/mcpserver`, `guardrail-metrics/guardrails`, `routing-config/configs`, `cache-metrics/cache`, `agent-metrics/agent`
+- **Request traces**: `{controlPlaneUrl}/monitoring/request-traces`
+- **Data routing/access**: `{controlPlaneUrl}/monitoring/data-routing`, `.../data-access`
+- **Access management**: `{controlPlaneUrl}/access-management?tab={tab}` — tabs: `users`, `teams`, `personal-access-token`, `service-accounts`, `default-roles`, `custom-roles`
+
+### Filters (optional query param)
+
+Append `&filters={url-encoded-json}` to metrics or traces URLs to pre-filter:
+```
+{"rules":[{"field":"<fieldName>","value":"<value>","operator":"<op>"}]}
+```
+Common operators: `IN`, `STRING_CONTAINS`. Common fields: `userEmail`, `modelName`, `teamName`.
+
+Deep link to a specific trace:
+```
+{controlPlaneUrl}/monitoring/request-traces?filters={"rules":[{"field":"traceId","value":["<id>"],"operator":"IN"}]}
+```
+URL-encode the filters JSON when constructing links.
+
 # AI Gateway
 
 ## Entities and Policies
