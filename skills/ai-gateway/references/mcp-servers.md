@@ -3,13 +3,14 @@ name: mcp-servers
 description: Deploy and connect MCP Servers to the AI Gateway to provide tools to models and agents
 ---
 
-**MCP Servers** can be registered to MCP Gateway. MCP Servers can be of type `mcp-server/tfy-managed`, `mcp-server/remote`, `mcp-server/openapi`, or `mcp-server/stdio`.
+**MCP Servers** can be registered to MCP Gateway. MCP Servers can be of type `mcp-server/tfy-managed`, `mcp-server/remote`, `mcp-server/openapi`, `mcp-server/stdio`, or `mcp-server/virtual`.
 
 ## Contents
 - Fetching existing MCP servers
+- Listing tools for an MCP server
 - Creating MCP Servers (Write Flow)
   - Step 1: Check the MCP Catalogue
-  - Step 2: Build the manifest based on source (TFY Managed / Integration / Online search / OpenAPI)
+  - Step 2: Build the manifest based on source (TFY Managed / Integration / Online search / OpenAPI / Virtual)
   - When to direct the user to the UI
   - Step 3: Validate and Apply
 
@@ -35,6 +36,10 @@ pagination:
   offset: 0
   limit: 100
 ```
+
+## Listing tools for an MCP server
+
+Always use `list_mcp_server_tools` (pass `mcpServerId` — the server's `id` from `list_mcp_servers_admin`) whenever you need to know what tools an MCP server exposes. Returns the tool list on success. Throws an error if the server is not connected or misconfigured — the error message indicates the issue.
 
 ## Creating MCP Servers (Write Flow)
 
@@ -165,6 +170,33 @@ collaborators:
     subject: team:everyone
 ```
 
+#### Path E: Virtual MCP Server
+
+Use when the user wants to combine tools from multiple existing MCP servers into one, or expose only a subset of tools from a server. Call `get_manifest_json_schema` with type `mcp-server/virtual` for the full schema.
+
+Before building the manifest, call `list_mcp_server_tools` for each backing server to discover available tools, then ask the user which tools to include.
+
+```yaml
+type: mcp-server/virtual
+name: <unique-name>
+description: <description>
+mcp_servers:
+  - mcp_server_id: <id-of-backing-server-1>
+    tools:
+      - <tool-name-1>
+      - <tool-name-2>
+  - mcp_server_id: <id-of-backing-server-2>
+    tools:
+      - <tool-name-3>
+collaborators:
+  - role_id: mcp-server-manager
+    subject: user:<current-user-email>
+  - role_id: mcp-server-user
+    subject: team:everyone
+```
+
+`mcp_server_id` is the server's `id` from `list_mcp_servers_admin`. `tools` is the list of tool names to expose from that server.
+
 ### When to direct the user to the UI
 
 The agent can create MCP servers from an OpenAPI spec **URL** (Path D above), but cannot create them by pasting raw OpenAPI spec JSON directly — the API doesn't accept inline spec content. If the user wants to create an MCP server by pasting the spec JSON, direct them to the UI:
@@ -188,4 +220,4 @@ Build the manifest as JSON → pass to `validate_manifest` → fix if needed →
 - [ ] Did I call `validate_manifest` before `apply_manifest`?
 - [ ] Did I call `apply_manifest` directly (not from sandbox)?
 
-For more info: `search_docs` with "mcp gateway", "mcp server registry".
+For more info: `search_docs` with "mcp gateway", "mcp server registry", "virtual mcp server".

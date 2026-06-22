@@ -64,12 +64,13 @@ Each entity type has specific requirements for its write flow (e.g., which tools
 
 Tools that create, update, or delete anything (e.g. `apply_manifest`) go through the user approval flow — call them directly as tool calls, not from sandbox. Read-only tools can be called from sandbox.
 
-Key Gateway write tools:
+Key Gateway tools:
 - `get_manifest_json_schema` — retrieve the JSON schema for any manifest type
 - `validate_manifest` — validate a manifest before applying (takes `type` + manifest JSON body)
 - `apply_manifest` — create or update an entity (takes only the manifest JSON body)
 - `create_personal_access_token` — create a PAT for the current user
 - `list_roles` — list all roles (built-in and custom)
+- `list_mcp_server_tools` — get tools for an MCP server by `mcpServerId` (returns tools or throws error if server is not connected)
 - `ask_user_question` — collect structured choices from the user
 
 ### AI Engineering Entities
@@ -135,7 +136,7 @@ After a successful `apply_manifest`, show the user the relevant page:
 |---|---|
 | Model provider account | `{controlPlaneUrl}/llm-gateway/models?provider={accountName}` |
 | Virtual model | `{controlPlaneUrl}/llm-gateway/virtual-models` |
-| MCP server | `{controlPlaneUrl}/llm-gateway/mcp-servers` |
+| MCP server (including Virtual) | `{controlPlaneUrl}/llm-gateway/mcp-servers` |
 | Rate limit rule | `{controlPlaneUrl}/llm-gateway/settings?configTab=rate-limiting` |
 | Budget rule | `{controlPlaneUrl}/llm-gateway/settings?configTab=budget-limiting` |
 | Guardrail config group | `{controlPlaneUrl}/guardrails/registry` |
@@ -175,9 +176,9 @@ URL-encode the filters JSON when constructing links.
 
 > **Note**: `policy` and `configuration` are used interchangeably.
 
-- **Entities**: Models, Virtual Models, MCP Servers, Guardrail Integrations.
+- **Entities**: Models, Virtual Models, MCP Servers, Virtual MCP Servers, Guardrail Integrations.
   - Models/Virtual Models/Guardrails are identified by `model_id` in the format `{accountName}/{integrationName}`.
-  - MCP Servers are identified by their `name` (unique in a tenant).
+  - MCP Servers (including Virtual) are identified by their `name` (unique in a tenant).
 - **Policies**: Rate Limiting, Budget Limiting, Guardrails Config, Load Balancing (deprecated → use Virtual Models).
 
 The following table lists the file path for each entity and policy which describes how to fetch existing data and how to write new valid manifests:
@@ -186,7 +187,7 @@ The following table lists the file path for each entity and policy which describ
 | ------------------------------------------------------------ | ----------------------------------------------- |
 | Models                                                       | `ai-gateway/references/models.md`               |
 | Virtual Models                                               | `ai-gateway/references/virtual-models.md`       |
-| MCP Servers (Remote and Stdio)                               | `ai-gateway/references/mcp-servers.md`          |
+| MCP Servers (Remote, Stdio, and Virtual)                     | `ai-gateway/references/mcp-servers.md`          |
 | Guardrail Integrations and Guardrail Policy                  | `ai-gateway/references/guardrails.md`           |
 | Rate Limiting Policy                                         | `ai-gateway/references/rate-limiting.md`        |
 | Budget Limiting Policy                                       | `ai-gateway/references/budget-limiting.md`      |
