@@ -136,7 +136,8 @@ After a successful `apply_manifest`, show the user the relevant page:
 | Model provider account | `{controlPlaneUrl}/llm-gateway/models?provider={accountName}` |
 | Virtual model | `{controlPlaneUrl}/llm-gateway/virtual-models` |
 | MCP server | `{controlPlaneUrl}/llm-gateway/mcp-servers` |
-| Rate limit / budget rule | `{controlPlaneUrl}/llm-gateway/settings` |
+| Rate limit rule | `{controlPlaneUrl}/llm-gateway/settings?configTab=rate-limiting` |
+| Budget rule | `{controlPlaneUrl}/llm-gateway/settings?configTab=budget-limiting` |
 | Guardrail config group | `{controlPlaneUrl}/guardrails/registry` |
 | Guardrail policy (rules) | `{controlPlaneUrl}/guardrails/policies` |
 | Team | `{controlPlaneUrl}/access-management?tab=teams` |
