@@ -134,7 +134,7 @@ After a successful `apply_manifest`, show the user the relevant page:
 
 | Entity created/modified | Link |
 |---|---|
-| Model provider account | `{controlPlaneUrl}/llm-gateway/models?provider={accountName}` |
+| Model provider account | `{controlPlaneUrl}/llm-gateway/models?provider={providerName}` |
 | Virtual model | `{controlPlaneUrl}/llm-gateway/virtual-models` |
 | MCP server (including Virtual) | `{controlPlaneUrl}/llm-gateway/mcp-servers` |
 | Rate limit rule | `{controlPlaneUrl}/llm-gateway/settings?configTab=rate-limiting` |
