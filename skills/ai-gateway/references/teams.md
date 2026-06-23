@@ -9,7 +9,7 @@ Note: There is an implicit `everyone` team which includes all users in the tenan
 
 ## Fetching existing teams
 
-Use the `list_teams` tool to get the list of all teams. Use `get_team` to inspect a single team by name or ID.
+Use `list_teams_for_user` to get all teams. Use `get_team` to inspect a single team by name or ID. Use `list_team_members` and `list_team_managers` to get team membership.
 
 ## Creating Teams (Write Flow)
 

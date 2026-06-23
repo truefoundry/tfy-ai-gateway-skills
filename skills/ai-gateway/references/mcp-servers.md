@@ -16,9 +16,7 @@ description: Deploy and connect MCP Servers to the AI Gateway to provide tools t
 
 ## Fetching existing MCP servers
 
-> **CRITICAL**: Use only the admin tools for MCP servers — `list_mcp_servers_admin` (list all) and `get_mcp_server_admin` (get one by `id`). Do NOT use `list_mcp_servers` or `get_mcp_server`
-
-Use the `list_mcp_servers_admin` tool to get the list of all MCP servers. The response looks like:
+Use `list_mcp_servers_admin` to list all MCP servers and `get_mcp_server_admin` to get one by `id`. The response looks like:
 
 ```yaml
 data:

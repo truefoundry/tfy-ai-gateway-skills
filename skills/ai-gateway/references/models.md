@@ -82,7 +82,7 @@ The response is `{ "data": [...] }` — an object with a `data` array. Each elem
           "metadata": {                      # keys are model_id strings
             "gpt-4o": {
               "model": "gpt-4o",            # model_id to use in manifests
-              "mode": "chat",               # determines cost and naming rules
+              "mode": "chat",
               "costs": [
                 { "input_cost_per_token": 0.0000025, "output_cost_per_token": 0.00001, "region": "*" }
               ]
@@ -97,7 +97,8 @@ The response is `{ "data": [...] }` — an object with a `data` array. Each elem
 
 **How to find a provider:** access `result["data"]`, then filter by `type` field (e.g. `type == "provider-account/openai"`). Providers do NOT have a `name` field — do not filter by `name`.
 **How to get models:** `provider["integrations"][0]["metadata"]` — this is a dict keyed by `model_id`.
-**Key fields per model:** `model` (model_id for manifests), `mode` (determines cost/naming rules), `costs[]` (per region).
+**Key fields per model:** `model` (model_id for manifests), `mode`, `costs[]` (per-region availability + pricing).
+**`costs[]`:** Each entry has `region`. If the entry also has `input_cost_per_token` → public pricing exists for that region. If only `region` is present → model is available but has no public pricing.
 ModelType enum: `chat`, `completion`, `embedding`, `realtime`, `rerank`, `audio_transcription`, `audio_translation`, `text_to_speech`, `moderation`, `image`, `responses`.
 
 ## Creating Model Provider Accounts (Write Flow)
@@ -111,13 +112,10 @@ ModelType enum: `chat`, `completion`, `embedding`, `realtime`, `rerank`, `audio_
 
 1. If the schema shows multiple authentication methods, use `ask_user_question` to ask the user which auth method to use.
 3. The `list_providers` response is very large (200K+ lines). Call it from sandbox, save to a file, then parse. Access `result["data"]` to get the providers array, then filter by `type` field (NOT `name` — providers don't have a `name` field). Extract models from `provider["integrations"][0]["metadata"]`. Every provider has models — if you find none, your filter is wrong.
-4. **Filter models by region** — from the `list_providers` response, only include models that have a cost entry matching the user's selected region (or `region: "*"`). Do NOT add models unavailable in the chosen region.
+4. **Filter models by region** — from the `list_providers` response, only include models that have a `costs` entry whose `region` matches the user's selected region (or `region: "*"`). Do NOT add models unavailable in the chosen region.
 5. Do NOT dump the full model list to the user — it can be very large. Ask the user which models they want to add (by name or type) and look them up in the `list_providers` response.
 6. **Naming rule**: For `realtime`, `audio_transcription`, `audio_translation`, `text_to_speech` modes, integration `name` MUST equal `model_id`. For all other modes, any descriptive name works.
-7. **Pricing rule — follow strictly per model type:**
-   - **`chat`, `completion`, `embedding`, `responses`** → add `cost:` with `metric: public_cost` to enable public pricing
-   - **All other modes** (`realtime`, `rerank`, `audio_transcription`, `audio_translation`, `text_to_speech`, `moderation`, `image`) → the `cost` field MUST NOT be present. Do not add it, do not set it to null, do not set it to empty — omit it entirely.
-   - Do NOT manually copy cost values from `list_providers` output. Only add custom cost fields if the user explicitly provides their own pricing.
+7. **Pricing rule:** Add `cost: metric: public_cost` to a model **only if** its `costs` entry for the target region has `input_cost_per_token`. Otherwise omit `cost` entirely. Never manually copy cost values — only add custom cost if the user provides their own pricing.
 
 ### Phase 3: Validate and Apply
 
@@ -135,20 +133,18 @@ collaborators:
     subject: team:everyone
 region: <region>
 integrations:
-  # Example: chat model (MUST have cost with public_cost)
+  # Model with public pricing available (costs entry has input_cost_per_token)
   - name: <integration-name>
     type: <integration/model/provider>
     model_id: <provider-model-id>
-    model_types:
-      - chat
+    model_types: [chat]
     cost:
       metric: public_cost
-  # Example: realtime model (NO cost field, name MUST equal model_id)
-  - name: <model-id>
+  # Model without public pricing (costs entry has only region) — omit cost
+  - name: <integration-name>
     type: <integration/model/provider>
-    model_id: <model-id>
-    model_types:
-      - realtime
+    model_id: <provider-model-id>
+    model_types: [chat]
 ```
 
 ### Checklist
@@ -159,8 +155,7 @@ integrations:
 - [ ] Did I call `list_providers` and filter models to only those available in the selected region?
 - [ ] Did I avoid dumping the full model list and instead ask the user which models they want?
 - [ ] For `realtime`/`audio_transcription`/`audio_translation`/`text_to_speech` modes, is the integration `name` set to exactly the `model_id`?
-- [ ] Did I add `cost: metric: public_cost` ONLY for `chat`, `completion`, `embedding`, `responses` modes?
-- [ ] Did I completely omit the `cost` field (not present at all) for every other mode?
+- [ ] Did I check each model's `costs` entry for `input_cost_per_token` before adding `cost: metric: public_cost`? Omitted `cost` when absent?
 - [ ] Did every model I added come from the `list_providers` response (not from my own knowledge)?
 
 For more info: `search_docs` with "supported model providers", "model integrations".
