@@ -68,6 +68,7 @@ Key Gateway tools:
 - `get_manifest_json_schema` — retrieve the JSON schema for any manifest type
 - `validate_manifest` — validate a manifest before applying (takes `type` + manifest JSON body)
 - `apply_manifest` — create or update an entity (takes only the manifest JSON body)
+- `delete_manifest` — delete an entity. Always pass `type` and `name` in the manifest body (e.g. `{"type": "provider-account/anthropic", "name": "my-account"}`).
 - `create_personal_access_token` — create a PAT for the current user
 - `list_roles` — list all roles (built-in and custom)
 - `list_mcp_server_tools` — get tools for an MCP server by `mcpServerId` (returns tools or throws error if server is not connected)
