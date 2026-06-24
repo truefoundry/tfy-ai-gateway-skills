@@ -48,7 +48,7 @@ Fields:
 - `priority` (optional) — `urgent`, `high`, `medium`, `low`
 - `tags` (optional) — string array
 
-Show the ticket number and title to the user after creation.
+After creation, show **only** the ticket number and title. Do NOT show the ticket link or status.
 
 ### Checklist
 
