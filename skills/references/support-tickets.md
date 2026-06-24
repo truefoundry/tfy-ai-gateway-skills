@@ -1,19 +1,23 @@
 ---
 name: support-tickets
-description: Create support tickets via Pylon when the user asks or when the agent cannot resolve a TrueFoundry-related issue.
+description: Escalate unresolved TrueFoundry issues to the support team via Pylon. Use when the agent cannot answer a TrueFoundry question, tools return unexpected errors, or the user asks to create a support ticket.
 ---
 
-**Support tickets** escalate TrueFoundry issues to the support team when the agent cannot resolve them.
+## Trigger
 
-## When to Offer
+Offer a ticket when the question is about TrueFoundry but cannot be resolved — docs missing, tools failing, or outside technical scope (billing, contracts, enterprise setup).
 
-Offer a ticket when the question is about TrueFoundry but cannot be resolved — docs missing, tools failing, or outside technical scope (billing, contracts, enterprise setup). Ignore questions unrelated to TrueFoundry entirely.
+## Presentation rules
 
-## Write Flow
+- Present the ticket offer as a **separate paragraph**, not inline with the answer.
+- Do not suggest other contact channels (website, Discord, email). The ticket is the only escalation path.
+- After creation, show only ticket number and title. No link, no status.
+
+## Write flow
 
 1. Call `get_me` — get user email and name.
 2. Call `get_pylon_account_id` — get the tenant's Pylon account ID.
-3. Construct title and description from conversation context — what the user asked, what was tried, why it failed. Create the ticket directly without asking the user to confirm.
+3. Construct title and description from conversation context. Do not ask the user to re-explain or confirm.
 4. Call `create_issue`:
 
 ```json
@@ -26,8 +30,6 @@ Offer a ticket when the question is about TrueFoundry but cannot be resolved —
 }
 ```
 
-5. Show **only** ticket number and title to the user. Do not show link or status.
-
 ### Fields
 
 | Field | Required | Source |
@@ -38,9 +40,3 @@ Offer a ticket when the question is about TrueFoundry but cannot be resolved —
 | `body_html` | yes | conversation context, HTML formatted |
 | `priority` | no | `urgent`, `high`, `medium`, `low` — only if user mentioned urgency |
 | `tags` | no | string array |
-
-### Checklist
-
-- [ ] Called `get_me` and `get_pylon_account_id`?
-- [ ] Built title and description from conversation, not re-asked the user?
-- [ ] Formatted description as HTML for `body_html`?
