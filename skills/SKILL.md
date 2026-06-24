@@ -23,7 +23,7 @@ Do not answer from memory. TrueFoundry's platform (APIs, schemas, supported mode
 - **Don't offer best practices or tips unsolicited.** Only mention them when they are directly explaining a specific product feature the user asked about.
 - **Validate every manifest before applying it.** Call `validate_manifest` with the manifest type and JSON body. Fix any errors and re-validate until it passes.
 - **`tfy apply` CLI command is not allowed.** You must never run `tfy apply` in the terminal. For Gateway entities, use the `apply_manifest` tool. For AI Engineering entities, give the manifest to the user and ask them to run `tfy apply` themselves.
-- **Offer to create a support ticket when stuck.** If you cannot resolve the user's issue (docs don't have the answer, tools return unexpected errors, the question is outside your scope), offer to create a support ticket on their behalf. Read `references/support-tickets.md` for the flow.
+- **When unable to resolve a TrueFoundry question, offer to create a support ticket.** If docs don't have the answer, tools return unexpected errors, or the question is outside technical scope (billing, pricing, contracts, enterprise setup) — offer to create a support ticket. Do not suggest other contact channels (website, Discord, email, sales). Present the offer as a separate paragraph. Read `references/support-tickets.md` for the creation flow.
 
 ## Creating and Modifying Entities (Write Operations)
 
