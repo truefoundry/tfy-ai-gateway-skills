@@ -1,60 +1,47 @@
 ---
 name: support-tickets
-description: Create support tickets via Pylon when the user asks or when the agent cannot resolve their issue.
+description: Create support tickets via Pylon when the user asks or when the agent cannot resolve a TrueFoundry-related issue.
 ---
 
-**Support tickets** let users escalate issues to the TrueFoundry support team directly through the agent.
+**Support tickets** escalate TrueFoundry issues to the support team when the agent cannot resolve them.
 
 ## When to Offer
 
-If you cannot resolve the user's issue — docs don't have the answer, tools return unexpected errors, or the question is outside your scope — tell the user you can create a support ticket for them. Example:
+Offer a ticket when the question is about TrueFoundry but cannot be resolved — docs missing, tools failing, or outside technical scope (billing, contracts, enterprise setup). Ignore questions unrelated to TrueFoundry entirely.
 
-> "I wasn't able to resolve this. Would you like me to create a support ticket so the TrueFoundry team can help?"
+## Write Flow
 
-## Creating a Support Ticket
-
-### Phase 1: Get User Identity and Account
-
-1. Call `get_me` — get the user's email and name.
-2. Call `get_pylon_account_id` — get the `pylonAccountId` for the tenant. Never ask the user for this.
-
-### Phase 2: Construct Ticket from Conversation Context
-
-The user has already described the problem. Do NOT ask them to re-explain. Build the ticket from the conversation:
-- **Title** — concise summary derived from the user's question/issue
-- **Description** — what the user asked, what you tried, why it couldn't be resolved
-- **Priority** — only include if the user explicitly mentioned urgency
-- Confirm the drafted title and description with the user before creating
-
-### Phase 3: Create the Ticket
-
-Call `create_issue` with JSON:
+1. Call `get_me` — get user email and name.
+2. Call `get_pylon_account_id` — get the tenant's Pylon account ID.
+3. Construct title and description from conversation context — what the user asked, what was tried, why it failed. Confirm draft with user before creating.
+4. Call `create_issue`:
 
 ```json
 {
-  "account_id": "91ba5de7-...",
+  "account_id": "from-get-pylon-account-id",
   "title": "Unable to add image models for Bedrock",
-  "body_html": "<p>User wanted to add image-mode models from AWS Bedrock provider account.</p><p>What was tried:</p><ul><li>Called <code>list_providers</code> and filtered for Bedrock image models</li><li>Built manifest with matching model IDs</li><li><code>apply_manifest</code> returned error: model type <code>image</code> not supported for this provider</li></ul><p>This may require a platform-side fix or updated provider support.</p>",
-  "requester_email": "user@company.com",
+  "body_html": "<p>User wanted to add image-mode Bedrock models.</p><ul><li>Called <code>list_providers</code>, filtered for image models</li><li><code>apply_manifest</code> returned: model type image not supported</li></ul><p>Likely needs platform-side fix.</p>",
+  "requester_email": "from-get-me",
   "priority": "high"
 }
 ```
 
-Fields:
-- `account_id` (required) — from `get_pylon_account_id`
-- `requester_email` (required) — from `get_me`
-- `title` (required) — from Phase 2
-- `body_html` (required) — HTML formatted description. Use `<p>` for paragraphs, `<ul>/<li>` for lists, `<code>` for code/errors
-- `priority` (optional) — `urgent`, `high`, `medium`, `low`
-- `tags` (optional) — string array
+5. Show **only** ticket number and title to the user. Do not show link or status.
 
-After creation, show **only** the ticket number and title. Do NOT show the ticket link or status.
+### Fields
+
+| Field | Required | Source |
+|---|---|---|
+| `account_id` | yes | `get_pylon_account_id` |
+| `requester_email` | yes | `get_me` |
+| `title` | yes | conversation context |
+| `body_html` | yes | conversation context, HTML formatted |
+| `priority` | no | `urgent`, `high`, `medium`, `low` — only if user mentioned urgency |
+| `tags` | no | string array |
 
 ### Checklist
 
-- [ ] Did I call `get_me` for the user's email?
-- [ ] Did I call `get_pylon_account_id` (not ask the user for it)?
-- [ ] Did I build the title and description from the conversation (not ask the user to re-explain)?
-- [ ] Did I confirm the draft with the user before creating?
-- [ ] Did I format the description as HTML for `body_html`?
-- [ ] If I got a 429 error, did I wait and retry (Pylon rate limit: 10 req/min)?
+- [ ] Called `get_me` and `get_pylon_account_id`?
+- [ ] Built title and description from conversation, not re-asked the user?
+- [ ] Confirmed draft with user before creating?
+- [ ] Formatted description as HTML for `body_html`?
