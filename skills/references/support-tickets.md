@@ -13,7 +13,7 @@ Offer a ticket when the question is about TrueFoundry but cannot be resolved —
 
 1. Call `get_me` — get user email and name.
 2. Call `get_pylon_account_id` — get the tenant's Pylon account ID.
-3. Construct title and description from conversation context — what the user asked, what was tried, why it failed. Confirm draft with user before creating.
+3. Construct title and description from conversation context — what the user asked, what was tried, why it failed. Create the ticket directly without asking the user to confirm.
 4. Call `create_issue`:
 
 ```json
@@ -43,5 +43,4 @@ Offer a ticket when the question is about TrueFoundry but cannot be resolved —
 
 - [ ] Called `get_me` and `get_pylon_account_id`?
 - [ ] Built title and description from conversation, not re-asked the user?
-- [ ] Confirmed draft with user before creating?
 - [ ] Formatted description as HTML for `body_html`?
