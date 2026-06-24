@@ -235,6 +235,7 @@ For column names and query patterns → read `ai-gateway/references/observabilit
 - [ ] Did I ask the user for auth method choice when multiple options exist?
 - [ ] Does my answer cite observation/data behind any claims?
 - [ ] Does my answer contain actionable next steps in priority order, plus a follow-up suggestion?
+- [ ] If I couldn't answer the question, did I read `references/support-tickets.md` and follow it instead of suggesting external contact?
 
 # AI Engineering
 
@@ -258,3 +259,4 @@ For any AI Engineering question: use `search_docs` to find the relevant doc page
 - [ ] Did I call `validate_manifest` before handing off?
 - [ ] For operational issues, did I pull actual logs/events/metrics instead of guessing?
 - [ ] Does my answer contain actionable next steps?
+- [ ] If I couldn't answer the question, did I read `references/support-tickets.md` and follow it instead of suggesting external contact?
