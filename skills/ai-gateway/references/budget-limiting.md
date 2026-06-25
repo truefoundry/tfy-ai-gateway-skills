@@ -40,40 +40,55 @@ createdAt: ...
 updatedAt: ...
 ```
 
-## Searching Docs
+## Creating/Updating Budget Rules (Write Flow)
 
-Use `search_docs` to get updated understanding about budget config.
-Search terms: "gateway budget rules", "gateway budget alerts", "budget limits", "spend limits"
+> **Note**: For complex rules, use `search_docs` for "gateway budget rules" to understand how `budget_applies_per` interacts with `when` matchers, alert thresholds, and audit mode behavior.
 
-## Generating Valid Manifests for Budget Limiting
+> **CRITICAL**: The manifest **MUST** have a top-level `name` field. This field is NOT in the JSON schema, but `apply_manifest` requires it. Without it you will get: `"Manifest does not have a name field"`. Get the `name` from the existing config.
 
-### Phase 1: Fetch existing budget config.
+### Phase 1: Get Schema and Existing Config
 
-1. Gateway has a single budget config manifest. The final manifest will be union of existing + your changes.
+1. Call `get_manifest_json_schema` with type `gateway-budget-config`.
+2. Call `get_gateway_config` with `type: gateway-budget-config` to fetch the existing config. New rules must be merged with existing ones — never replace. Note the `name` field from the existing config — you will need it.
 
-### Phase 2: Research Budget Config Schema
+### Phase 2: Build and Apply
 
-1. Use grep on `scripts/manifest_schemas.py` to understand schema of class `BudgetConfig` and related classes.
+Build the manifest as JSON (include `name` from existing config) → pass to `validate_manifest` → fix if needed → pass to `apply_manifest`.
 
-    ```shell
-    grep -A 20 -h -E 'class Budget.+' scripts/manifest_schemas.py
-    ```
+### Manifest Structure
 
-### Phase 3: You must validate your budget config rule understanding
- 1. Use `search_docs`, goal is to get the correct budget document link.
- 2. Use a web fetch tool as well tool get the document. Fetch the whole page, all content.
- 3. Understand critical rules. Structure is present in manifest. The doc will you semantic correctness.
+```yaml
+name: <config-name>
+type: gateway-budget-config
+rules:
+  - id: <unique-rule-id>
+    unit: <cost_per_day|cost_per_month|cost_per_hour>
+    when:
+      subjects:
+        - <user:email or team:name or virtualaccount:name>
+      models:
+        - <account-name/model-name>
+      metadata:
+        <key>: <value>
+    limit_to: <budget-limit-in-usd>
+    audit_mode: <true|false>
+    budget_applies_per:
+      - <user|model>
+    alerts:
+      thresholds:
+        - <percentage-value>
+      notification_target:
+        - type: slack-bot
+          channels:
+            - <channel-name>
+          notification_channel: <notification-channel-fqn>
+```
 
-### Phase 4: Generate Valid Budget Config Manifest
+### Checklist
 
-1. Using the discovered schema write yaml manifest to a file.
-2. Use `python scripts/validate_schema.py --file-path <path-to-manifest>` to validate the manifest.
-3. Repeat the process until the manifest is valid.
+- [ ] Did I call `get_manifest_json_schema` with type `gateway-budget-config`?
+- [ ] Did I fetch the existing config and merge rules (not replace)?
+- [ ] Did I include the `name` field in the manifest?
+- [ ] Did I call `validate_manifest` before applying?
 
-## Checklist
-
-- [ ] Did I ensure that the final manifest is a union of existing manifest and my recommendation?
-- [ ] Did I check docs to get updated understanding of budget?
-- [ ] Did I use the correct order of budget limiting rules in the manifest?
-- [ ] Did I verify that subjects in the new rule are not already matched by earlier rules (verify team members are not already matched by two rules)?
-
+For more info: `search_docs` with "gateway budget rules", "budget limits", "spend limits".
