@@ -150,6 +150,8 @@ After a successful `apply_manifest`, show the user the relevant page:
 
 ### URL patterns
 
+`{controlPlaneUrl}` below is a placeholder — always replace it with the actual value from `get_me`. Never show `{controlPlaneUrl}` literally to the user.
+
 - **Gateway entities**: `{controlPlaneUrl}/llm-gateway/{page}` — pages: `models`, `virtual-models`, `mcp-servers`, `settings`
 - **Guardrails**: `{controlPlaneUrl}/guardrails/{page}` — pages: `registry`, `policies`
 - **Monitoring metrics**: `{controlPlaneUrl}/monitoring/metrics?monitorTab={tab}&viewBy={view}`
