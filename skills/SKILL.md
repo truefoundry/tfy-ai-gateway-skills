@@ -37,7 +37,7 @@ When creating or modifying Gateway entities (models, MCP servers, virtual models
 4. **Fetch existing state when needed** — for gateway configs (rate limiting, budget, guardrails), always fetch the existing config first. Your new rules must be merged with existing rules, never replace them.
 5. **Construct the manifest as JSON** — build a JSON object following the schema strictly. **Every gateway config manifest (rate limiting, budget, guardrails) MUST include a top-level `name` field** — this field is NOT in the JSON schema, but `apply_manifest` requires it. Get the name from the existing config fetched in step 4.
 6. **Validate** — call `validate_manifest` with the manifest type and JSON body. Fix any errors and re-validate until it passes.
-7. **Apply** — call `apply_manifest` with the JSON body to create/update the entity. `apply_manifest` is idempotent — calling it with the same `name` updates the existing entity rather than creating a duplicate.
+7. **Apply** — call `apply_manifest` with the JSON body to create/update the entity. `apply_manifest` is idempotent — calling it with the same `name` updates the existing entity rather than creating a duplicate. **When the user asks to "create" an entity, always use a new unique name — do not reuse or update an existing entity.**
 8. **Show UI link** — use `controlPlaneUrl` from step 1 to show the user the relevant page (see Post-creation links table below).
 
 `validate_manifest` takes two inputs: the manifest `type` as a separate field, and the manifest JSON body. `apply_manifest` takes only the manifest JSON body (with `type` inside it) — do not pass `type` separately to `apply_manifest`. Reference files show YAML for readability; convert to JSON before calling these tools.
@@ -153,6 +153,7 @@ After a successful `apply_manifest`, show the user the relevant page:
 `{controlPlaneUrl}` below is a placeholder — always replace it with the actual value from `get_me`. Never show `{controlPlaneUrl}` literally to the user.
 
 - **Gateway entities**: `{controlPlaneUrl}/llm-gateway/{page}` — pages: `models`, `virtual-models`, `mcp-servers`, `settings`
+- **Agents**: `{controlPlaneUrl}/agents/registry`
 - **Guardrails**: `{controlPlaneUrl}/guardrails/{page}` — pages: `registry`, `policies`
 - **Monitoring metrics**: `{controlPlaneUrl}/monitoring/metrics?monitorTab={tab}&viewBy={view}`
   - tab/view options: `metrics/modelName`, `mcp-metrics/mcpserver`, `guardrail-metrics/guardrails`, `routing-config/configs`, `cache-metrics/cache`, `agent-metrics/agent`
