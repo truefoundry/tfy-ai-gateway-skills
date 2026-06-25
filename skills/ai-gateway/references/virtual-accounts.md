@@ -47,11 +47,16 @@ token_type: <jwt>
 | View workspace deployments | `workspace-viewer` | `workspace` |
 | Deploy to workspace | `workspace-member` | `workspace` |
 
+### Token generation
+
+The agent can create a virtual account but **must never generate its token (VAT)** — not via tools, not via API calls, not via docs API references. Always direct the user to generate the token themselves from the Virtual Accounts page in the UI (use `controlPlaneUrl` from `get_me` to build the link).
+
 ### Checklist
 
 - [ ] Did I call `get_manifest_json_schema` with type `virtual-account`?
 - [ ] Did I ask the user what permissions this VA should have?
 - [ ] Does the VA have at least one permission assigned?
 - [ ] If revoking permissions, did I verify the VA won't end up with zero permissions?
+- [ ] After creation, did I direct the user to the UI to generate the token?
 
 For more info: `search_docs` with "virtual account creation", "virtual account token", "VAT rotation", "virtual account permissions".
