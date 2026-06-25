@@ -3,25 +3,23 @@ name: support-tickets
 description: Escalate unresolved TrueFoundry issues to the support team via Pylon. Use when the agent cannot answer a TrueFoundry question, tools return unexpected errors, or the user asks to create a support ticket.
 ---
 
-## Trigger
+## Trigger → Decide path
 
-Offer a ticket when the question is about TrueFoundry but cannot be resolved — docs missing, tools failing, or outside technical scope (billing, contracts, enterprise setup).
+| User says | Path |
+|---|---|
+| "Create a ticket" / "raise a ticket" | → **Direct create** |
+| "Connect me to TrueFoundry" / "talk to someone" | → **Explain and confirm**: explain the escalation is via a support ticket, proceed only if user confirms. |
+| *(agent cannot answer or operation fails)* | → **Offer first**: present ticket offer as a separate paragraph. Proceed only if user accepts. |
 
-**User explicitly asks to create a ticket** → create it directly, no confirmation needed, check for priority and some details from user
-**Agent cannot answer or an operation fails** → offer to create a ticket first, if user wants to create ticket, then create the ticket 
+Do not suggest other contact channels (website, Discord, email). The ticket is the only escalation path.
 
-## Presentation rules
-
-- Present the ticket offer as a **separate paragraph**, not inline with the answer.
-- Do not suggest other contact channels (website, Discord, email). The ticket is the only escalation path.
-- After creation, show only ticket number and title. No link, no status.
-
-## Write flow
+## Create flow
 
 1. Call `get_me` — get user email and name.
 2. Call `get_pylon_account_id` — get the tenant's Pylon account ID.
 3. Construct title and description from conversation context. Do not ask the user to re-explain.
-4. Call `create_issue`:
+4. Select a priority based on context. Confirm with user via `ask_user_question` (Yes / No). If rejected, let user pick via `ask_user_question` with `urgent`, `high`, `medium`, `low`.
+5. Call `create_issue`:
 
 ```json
 {
@@ -33,6 +31,8 @@ Offer a ticket when the question is about TrueFoundry but cannot be resolved —
 }
 ```
 
+6. Show ticket number, title, and that someone from TrueFoundry will follow up. Never show ticket link, URL, or status.
+
 ### Fields
 
 | Field | Required | Source |
@@ -41,5 +41,5 @@ Offer a ticket when the question is about TrueFoundry but cannot be resolved —
 | `requester_email` | yes | `get_me` |
 | `title` | yes | conversation context |
 | `body_html` | yes | conversation context, HTML formatted |
-| `priority` | no | `urgent`, `high`, `medium`, `low` — only if user mentioned urgency |
+| `priority` | yes | `ask_user_question` confirmation |
 | `tags` | no | string array |
