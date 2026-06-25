@@ -7,6 +7,9 @@ description: Escalate unresolved TrueFoundry issues to the support team via Pylo
 
 Offer a ticket when the question is about TrueFoundry but cannot be resolved — docs missing, tools failing, or outside technical scope (billing, contracts, enterprise setup).
 
+**User explicitly asks to create a ticket** → create it directly, no confirmation needed, check for priority and some details from user
+**Agent cannot answer or an operation fails** → offer to create a ticket first, if user wants to create ticket, then create the ticket 
+
 ## Presentation rules
 
 - Present the ticket offer as a **separate paragraph**, not inline with the answer.
@@ -17,7 +20,7 @@ Offer a ticket when the question is about TrueFoundry but cannot be resolved —
 
 1. Call `get_me` — get user email and name.
 2. Call `get_pylon_account_id` — get the tenant's Pylon account ID.
-3. Construct title and description from conversation context. Do not ask the user to re-explain or confirm.
+3. Construct title and description from conversation context. Do not ask the user to re-explain.
 4. Call `create_issue`:
 
 ```json
