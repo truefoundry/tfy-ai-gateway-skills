@@ -16,7 +16,7 @@ description: Deploy and connect MCP Servers to the AI Gateway to provide tools t
 
 ## Fetching existing MCP servers
 
-Use `list_mcp_servers_admin` to list all MCP servers and `get_mcp_server_admin` to get one by `id`. The response looks like:
+Use `list_mcp_servers` to list all MCP servers and `get_mcp_server` to get one by `id`. The response looks like:
 
 ```yaml
 data:
@@ -37,7 +37,7 @@ pagination:
 
 ## Listing tools for an MCP server
 
-Always use `list_mcp_server_tools` (pass `mcpServerId` — the server's `id` from `list_mcp_servers_admin`) whenever you need to know what tools an MCP server exposes. Returns the tool list on success. Throws an error if the server is not connected or misconfigured — the error message indicates the issue.
+Always use `list_mcp_server_tools` (pass `mcpServerId` — the server's `id` from `list_mcp_servers`) whenever you need to know what tools an MCP server exposes. Returns the tool list on success. Throws an error if the server is not connected or misconfigured — the error message indicates the issue.
 
 ## Creating MCP Servers (Write Flow)
 
@@ -193,7 +193,7 @@ collaborators:
     subject: team:everyone
 ```
 
-`mcp_server_id` is the server's `id` from `list_mcp_servers_admin`. `tools` is the list of tool names to expose from that server.
+`mcp_server_id` is the server's `id` from `list_mcp_servers`. `tools` is the list of tool names to expose from that server.
 
 ### When to direct the user to the UI
 
