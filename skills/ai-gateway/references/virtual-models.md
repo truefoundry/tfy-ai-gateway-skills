@@ -64,27 +64,54 @@ The identifier `openai-account/gpt-4o` refers to the `gpt-4o` integration under 
 
 To inspect a single virtual-model account by id, use `get_provider_account`.
 
-## Generating Valid Manifests for Virtual Models and Virtual Model Accounts (YAML / CLI)
+## Creating Virtual Model Accounts (Write Flow)
 
-> **When to use**: Only when the user explicitly asks for YAML, manifests, `tfy apply`, CLI, or programmatic/CI-CD setup. For interactive setup, guide the user through the UI instead (see "UI-First Guidance" in SKILL.md).
+### Phase 1: Get Schema
 
-### Phase 1: Research Virtual Model Schema
+1. Call `get_manifest_json_schema` with type `provider-account/virtual-model`.
 
-1. Use grep on `scripts/manifest_schemas.py` to understand schema of class `VirtualModel` and related classes.
+### Phase 2: Gather Requirements
 
-    ```shell
-    grep -A 10 -h -E 'class (VirtualModel.*|.+LoadBalancing|.*LoadBalanceTarget)' scripts/manifest_schemas.py
-    ```
+1. Collect from the user:
+   - Which routing strategy to use per virtual model (`weight-based-routing`, `priority-based-routing`, or `latency-based-routing`)
+   - Which target models to route to (format: `accountName/modelName`)
+   - Weights, priorities, or latency SLA cutoffs depending on routing type
+   - Whether targets should be fallback candidates
+2. Verify target models exist by calling `list_provider_accounts` with `includeModelProviders: true` and confirming each `accountName/modelName` is present.
 
-### Phase 2: Generate Valid Virtual Model Account Manifest
+### Phase 3: Validate and Apply
 
-1. Using the discovered schemas, write a YAML manifest to a file. This should reference the virtual model integrations written in Phase 2.
-2. Use `python scripts/validate_schema.py --file-path <path-to-manifest>` to validate the manifest.
-3. Repeat the process until the manifest is valid.
+Build the manifest as JSON → pass to `validate_manifest` → fix if needed → pass to `apply_manifest`.
 
-## Searching Docs for Additional Information
+### Manifest Structure
 
-The content above covers common operations. For conceptual questions, setup guides, or anything not fully answered above, search the docs.
+```yaml
+type: provider-account/virtual-model
+name: <unique-account-name>
+collaborators:
+  - role_id: provider-account-manager
+    subject: user:<current-user-email>  # from get_me
+  - role_id: provider-account-access
+    subject: team:everyone
+integrations:
+  - name: <virtual-model-name>
+    type: integration/model/virtual
+    model_types:
+      - <chat|completion|embedding>
+    routing_config:
+      type: <weight-based-routing|priority-based-routing|latency-based-routing>
+      load_balance_targets:
+        - target: <account-name/model-name>
+          weight: <weight>
+          priority: <priority>
+          fallback_candidate: <true|false>
+```
 
-Use `search_docs` to search for additional information about virtual models.
-Search terms: "virtual models", "weight based routing", "latency based routing", "priority based routing", "model load balancing", "model fallback"
+### Checklist
+
+- [ ] Did I call `get_manifest_json_schema` with type `provider-account/virtual-model`?
+- [ ] Did I ask the user which routing strategy to use?
+- [ ] Did I verify target models exist via `list_provider_accounts`?
+- [ ] Are all target models referenced correctly in `accountName/modelName` format?
+
+For more info: `search_docs` with "virtual models", "weight based routing", "latency based routing", "model fallback".
