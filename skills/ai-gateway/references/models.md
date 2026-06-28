@@ -108,11 +108,12 @@ ModelType enum: `chat`, `completion`, `embedding`, `realtime`, `rerank`, `audio_
 1. Call `get_manifest_json_schema` with the provider account type the user wants (e.g. `provider-account/openai`, `provider-account/aws-bedrock`, `provider-account/anthropic`, `provider-account/azure-openai`, etc.).
 2. Call `list_providers` — always call this for every model provider account creation. It returns the supported models, their types, pricing, and regions. Never use your own knowledge for model names, IDs, or modes — only use what `list_providers` returns. Your training data is outdated; `list_providers` is the source of truth.
 
-### Phase 2: Determine Authentication and Models
+### Phase 2: Determine Authentication, Region, and Models
 
 1. If the schema shows multiple authentication methods, use `ask_user_question` to ask the user which auth method to use.
-3. The `list_providers` response is very large (200K+ lines). Call it from sandbox, save to a file, then parse. Access `result["data"]` to get the providers array, then filter by `type` field (NOT `name` — providers don't have a `name` field). Extract models from `provider["integrations"][0]["metadata"]`. Every provider has models — if you find none, your filter is wrong.
-4. **Filter models by region** — from the `list_providers` response, only include models that have a `costs` entry whose `region` matches the user's selected region (or `region: "*"`). Do NOT add models unavailable in the chosen region.
+2. The `list_providers` response is very large (200K+ lines). Call it from sandbox, save to a file, then parse. Access `result["data"]` to get the providers array, then **filter by `type` field first** (e.g. `type == "provider-account/openai"`) — NOT `name` (providers don't have a `name` field). Extract models from `provider["integrations"][0]["metadata"]`. Every provider has models — if you find none, your filter is wrong.
+3. **Region** — check the JSON schema from Phase 1. If the schema includes a `region` field, collect the distinct `region` values from the **filtered provider's** models' `costs[]` entries and ask the user which region to use (via `ask_user_question`). If the schema does not have a `region` field, skip this step.
+4. **Filter models by region** — if a region was selected, only include models that have a `costs` entry whose `region` matches the user's selected region (or `region: "*"`). Do NOT add models unavailable in the chosen region.
 5. Do NOT dump the full model list to the user — it can be very large. Ask the user which models they want to add (by name or type) and look them up in the `list_providers` response.
 6. **Naming rule**: For `realtime`, `audio_transcription`, `audio_translation`, `text_to_speech` modes, integration `name` MUST equal `model_id`. For all other modes, any descriptive name works.
 7. **Pricing rule:** Add `cost: metric: public_cost` to a model **only if** its `costs` entry for the target region has `input_cost_per_token`. Otherwise omit `cost` entirely. Never manually copy cost values — only add custom cost if the user provides their own pricing.
@@ -131,7 +132,7 @@ collaborators:
     subject: user:<current-user-email>  # from get_me
   - role_id: provider-account-access
     subject: team:everyone
-region: <region>
+region: <region>                          # only if schema has region field
 integrations:
   # Model with public pricing available (costs entry has input_cost_per_token)
   - name: <integration-name>
@@ -152,7 +153,8 @@ integrations:
 - [ ] For "do you support X model?" questions, did I call `list_providers` and check the metadata?
 - [ ] Did I call `get_manifest_json_schema` to get the current schema for the provider account type?
 - [ ] Did I ask the user which auth method to use if multiple are available?
-- [ ] Did I call `list_providers` and filter models to only those available in the selected region?
+- [ ] If the schema has a `region` field, did I ask the user which region to use?
+- [ ] If a region was selected, did I filter models to only those available in that region?
 - [ ] Did I avoid dumping the full model list and instead ask the user which models they want?
 - [ ] For `realtime`/`audio_transcription`/`audio_translation`/`text_to_speech` modes, is the integration `name` set to exactly the `model_id`?
 - [ ] Did I check each model's `costs` entry for `input_cost_per_token` before adding `cost: metric: public_cost`? Omitted `cost` when absent?
