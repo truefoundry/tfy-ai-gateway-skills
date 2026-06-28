@@ -90,6 +90,10 @@ Use the `url` from the catalogue. Check the `auth_data` field to determine the a
 - **`auth_data.type: "oauth2"`** → Call `get_mcp_server_oauth_config` with the MCP server's URL to get OAuth metadata (authorization_url, token_url, scopes, etc.). Check if the metadata includes `registration_endpoint` — if yes, Dynamic Client Registration (DCR) is supported and `client_id`/`client_secret` are not needed. If no `registration_endpoint`, ask the user for their `client_id` and `client_secret` (they'll need to register an OAuth app with the provider first).
 - **`auth_data.type: "header"`** → The catalogue shows the header keys with placeholder values (e.g. `"Authorization": "Bearer YOUR_API_KEY"`). Ask the user for the actual secret values.
 
+Use exactly ONE `auth_data` block — pick the one that matches the auth type.
+
+**No auth (omit `auth_data` entirely):**
+
 ```yaml
 name: <unique-name>
 description: <description>
@@ -100,8 +104,12 @@ collaborators:
     subject: user:<current-user-email>
   - role_id: mcp-server-user
     subject: team:everyone
+```
+
+**OAuth2 (without DCR — client_id and client_secret required):**
+
+```yaml
 auth_data:
-  # For oauth2 (without DCR — client_id and client_secret required):
   type: oauth2
   grant_type: authorization_code
   authorization_url: <from-oauth-metadata>
@@ -110,7 +118,12 @@ auth_data:
   client_secret: <from-user>
   jwt_source: access_token
   scopes: [<from-oauth-metadata>]
-  # For oauth2 (with DCR — no client_id/client_secret needed):
+```
+
+**OAuth2 (with DCR — no client_id/client_secret needed):**
+
+```yaml
+auth_data:
   type: oauth2
   grant_type: authorization_code
   authorization_url: <from-oauth-metadata>
@@ -118,7 +131,12 @@ auth_data:
   registration_endpoint: <from-oauth-metadata>
   jwt_source: access_token
   scopes: [<from-oauth-metadata>]
-  # For header:
+```
+
+**Header-based auth:**
+
+```yaml
+auth_data:
   type: header
   headers:
     <header-key>: <user-provided-secret>
