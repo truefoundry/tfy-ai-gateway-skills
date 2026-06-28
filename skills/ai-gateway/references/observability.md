@@ -93,6 +93,12 @@ ORDER BY "P99LatencyMs" DESC
 - **Gateway Cache Hit Rates**: Use the `CacheHit`, `CacheType`, and `CacheLookupStatus` columns in `gateway_model_metrics`. These reflect gateway-level semantic/exact-match caching, not provider-side prompt caching.
 - **Feedback on Traces**: Feedback is stored in `gateway_feedbacks`, linked via `TargetTraceId` and `TargetSpanId`. Use a LEFT JOIN with `traces` to enrich traces with feedback. Always filter `"IsDeleted" = false`. See `ai-gateway/references/tables/gateway_feedbacks.md` for schema and sample join query.
 
+### Getting a Trace Link
+
+To construct a trace link, you need the `TraceId` from the `traces` table — query the table with appropriate filters (time range, model, user, etc.) and use the `TraceId` column value.
+
+> **WARNING — response `id` ≠ trace ID.** The `id` field in a chat completion response (e.g. `chatcmpl-xxx`) is the **response ID**, NOT the trace ID. Never use it in trace links. Always query the `traces` table to get the actual `TraceId`.
+
 ### Checklist For SQL Queries
 
 - [ ] Did I read the table schema and used the correct column names?
