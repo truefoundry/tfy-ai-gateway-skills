@@ -85,7 +85,9 @@ Build the manifest as JSON → pass to `validate_manifest` → fix if needed →
 
 ### Manifest Structure
 
-Only include the fields that match the chosen routing type — do NOT mix `weight` and `priority` on the same target.
+Use exactly ONE routing type per `routing_config`. Each type has different required fields on `load_balance_targets` — pick the block that matches the chosen strategy.
+
+**Weight-based routing:**
 
 ```yaml
 type: provider-account/virtual-model
@@ -101,19 +103,28 @@ integrations:
     model_types:
       - <chat|completion|embedding>
     routing_config:
-      # --- For weight-based-routing ---
       type: weight-based-routing
       load_balance_targets:
         - target: <account-name/model-name>
-          weight: <weight>                    # required for weight-based
+          weight: <weight>
           fallback_candidate: <true|false>
-      # --- For priority-based-routing ---
+```
+
+**Priority-based routing:**
+
+```yaml
+    routing_config:
       type: priority-based-routing
       load_balance_targets:
         - target: <account-name/model-name>
-          priority: <priority>                # required for priority-based
+          priority: <priority>
           fallback_candidate: <true|false>
-      # --- For latency-based-routing ---
+```
+
+**Latency-based routing:**
+
+```yaml
+    routing_config:
       type: latency-based-routing
       load_balance_targets:
         - target: <account-name/model-name>
