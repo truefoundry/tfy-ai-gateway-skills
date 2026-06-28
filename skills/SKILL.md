@@ -171,9 +171,11 @@ Common operators: `IN`, `STRING_CONTAINS`. Common fields: `userEmail`, `modelNam
 
 Deep link to a specific trace:
 ```
-{controlPlaneUrl}/monitoring/request-traces?filters={"rules":[{"field":"traceId","value":["<id>"],"operator":"IN"}]}
+{controlPlaneUrl}/monitoring/request-traces?filters={"rules":[{"field":"traceId","value":["<traceId>"],"operator":"IN"}]}
 ```
 URL-encode the filters JSON when constructing links.
+
+> **WARNING — response `id` ≠ trace ID.** The `id` field in a chat completion response (e.g. `chatcmpl-xxx`) is the **response ID**, NOT the trace ID. Never use it in trace links. To get the actual `TraceId`, query the `traces` table (e.g. filter by time range, model, or user) and use the `TraceId` column value.
 
 # AI Gateway
 
