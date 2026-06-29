@@ -42,16 +42,38 @@ updatedAt: ...
 
 ## Resolving budget scope
 
-Budget `when` matchers support only these scope types:
+A budget rule has two dimensions — resolve each independently:
 
-| User says | Scope type | `when` field |
-|---|---|---|
-| "per user" / user email | subject | `subjects: [user:email]` |
-| "per team" / team name | subject | `subjects: [team:name]` |
-| "per VA" / "per virtual account" | subject | `subjects: [virtualaccount:name]` |
-| Anything else ("per tenant", "per app", "per feature", etc.) | metadata | `metadata: { key: value }` |
+**1. Target — who does the rule apply to? (`when` field)**
 
-If the scope term does not match user, team, or virtual account — it is a metadata key. Read `ai-gateway/references/observability.md` and query the `gateway_model_metrics` table to discover available metadata keys before building the rule.
+| User mentions | `when` field |
+|---|---|
+| a user / email | `subjects: [user:email]` |
+| a team | `subjects: [team:name]` |
+| a VA / virtual account | `subjects: [virtualaccount:name]` |
+| a metadata term (tenant, app, feature, etc.) | `metadata: { key: value }` |
+
+If the term does not match user, team, or VA — it is a metadata key. Read `ai-gateway/references/observability.md` and query the `gateway_model_metrics` table to discover available metadata keys.
+
+**2. Bucketing — how is the budget counted? (`budget_applies_per` field)**
+
+By default, all matching requests share a **single budget pool** (e.g., two users in `subjects` share one combined budget). Use `budget_applies_per` to create **separate budgets per entity** instead. Only one value per rule.
+
+| Value | Effect |
+|---|---|
+| *(omitted)* | all matched subjects/models share one budget pool |
+| `user` | separate budget per user |
+| `model` | separate budget per model |
+| `virtualaccount` | separate budget per VA |
+| `metadata.<key>` | separate budget per unique metadata value |
+
+If the bucketing term does not match user, model, or VA — it is a metadata key.
+
+A user query can specify both dimensions. Example: "per tenant budget for tfy-ai-features VA" → target is `subjects: [virtualaccount:tfy-ai-features]`, bucketing is `budget_applies_per: [metadata.<tenant-key>]`.
+
+## Rule ordering
+
+Rules are evaluated top to bottom. The **first matching rule** controls allow/block, but cost is tracked against **all matching rules**. Place higher-priority rules (overrides, exceptions) above general defaults.
 
 ## Creating/Updating Budget Rules (Write Flow)
 
@@ -75,7 +97,7 @@ name: <config-name>
 type: gateway-budget-config
 rules:
   - id: <unique-rule-id>
-    unit: <cost_per_day|cost_per_month|cost_per_hour>
+    unit: <cost_per_day|cost_per_week|cost_per_month>
     when:
       subjects:
         - <user:email or team:name or virtualaccount:name>
@@ -86,7 +108,7 @@ rules:
     limit_to: <budget-limit-in-usd>
     audit_mode: <true|false>
     budget_applies_per:
-      - <user|model>
+      - <user|model|virtualaccount|metadata.key>
     alerts:
       thresholds:
         - <percentage-value>

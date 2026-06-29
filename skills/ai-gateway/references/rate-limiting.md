@@ -35,16 +35,40 @@ updatedAt: ...
 
 ## Resolving rate limit scope
 
-Rate limit `when` matchers support only these scope types:
+A rate limit rule has two dimensions — resolve each independently:
 
-| User says | Scope type | `when` field |
-|---|---|---|
-| "per user" / user email | subject | `subjects: [user:email]` |
-| "per team" / team name | subject | `subjects: [team:name]` |
-| "per VA" / "per virtual account" | subject | `subjects: [virtualaccount:name]` |
-| Anything else ("per tenant", "per app", "per feature", etc.) | metadata | `metadata: { key: value }` |
+**1. Target — who does the rule apply to? (`when` field)**
 
-If the scope term does not match user, team, or virtual account — it is a metadata key. Read `ai-gateway/references/observability.md` and query the `gateway_model_metrics` table to discover available metadata keys before building the rule.
+| User mentions | `when` field |
+|---|---|
+| a user / email | `subjects: [user:email]` |
+| a team | `subjects: [team:name]` |
+| a VA / virtual account | `subjects: [virtualaccount:name]` |
+| a metadata term (tenant, app, feature, etc.) | `metadata: { key: value }` |
+
+`subjects`, `models`, and `metadata` in a `when` block are **ANDed** — a request must match all specified conditions.
+
+If the term does not match user, team, or VA — it is a metadata key. Read `ai-gateway/references/observability.md` and query the `gateway_model_metrics` table to discover available metadata keys.
+
+**2. Bucketing — how is the limit counted? (`rate_limit_applies_per` field)**
+
+By default, all matching requests share a **single rate limit pool**. Use `rate_limit_applies_per` to create **separate limits per entity** instead. Maximum **2 values** per rule — you can combine (e.g., `['user', 'model']`).
+
+| Value | Effect |
+|---|---|
+| *(omitted)* | all matched subjects/models share one rate limit pool |
+| `user` | separate limit per user |
+| `model` | separate limit per model |
+| `virtualaccount` | separate limit per VA |
+| `metadata.<key>` | separate limit per unique metadata value |
+
+If the bucketing term does not match user, model, or VA — it is a metadata key.
+
+A user query can specify both dimensions. Example: "per user rate limit on gpt-4o" → target is `when: { models: [openai/gpt-4o] }`, bucketing is `rate_limit_applies_per: ['user']`.
+
+## Rule ordering
+
+Rules are evaluated top to bottom. **Only the first matching rule is applied** — subsequent rules are ignored. Place higher-priority rules (overrides, exceptions) above general defaults.
 
 ## Creating/Updating Rate Limiting Rules (Write Flow)
 
@@ -76,7 +100,7 @@ rules:
         <key>: <value>
     limit_to: <numeric-limit>
     rate_limit_applies_per:
-      - <user|model|metadata.key>
+      - <user|model|virtualaccount|metadata.key>  # max 2 values
 ```
 
 ### Checklist
