@@ -33,6 +33,43 @@ createdAt: ...
 updatedAt: ...
 ```
 
+## Resolving rate limit scope
+
+A rate limit rule has two dimensions — resolve each independently:
+
+**1. Target — who does the rule apply to? (`when` field)**
+
+| User mentions | `when` field |
+|---|---|
+| a user / email | `subjects: [user:email]` |
+| a team | `subjects: [team:name]` |
+| a VA / virtual account | `subjects: [virtualaccount:name]` |
+| a metadata term (tenant, app, feature, etc.) | `metadata: { key: value }` |
+
+`subjects`, `models`, and `metadata` in a `when` block are **ANDed** — a request must match all specified conditions.
+
+If the term does not match user, team, or VA — it is a metadata key. Read `ai-gateway/references/observability.md` and query the `gateway_model_metrics` table to discover available metadata keys.
+
+**2. Bucketing — how is the limit counted? (`rate_limit_applies_per` field)**
+
+By default, all matching requests share a **single rate limit pool**. Use `rate_limit_applies_per` to create **separate limits per entity** instead. Maximum **2 values** per rule — you can combine (e.g., `['user', 'model']`).
+
+| Value | Effect |
+|---|---|
+| *(omitted)* | all matched subjects/models share one rate limit pool |
+| `user` | separate limit per user |
+| `model` | separate limit per model |
+| `virtualaccount` | separate limit per VA |
+| `metadata.<key>` | separate limit per unique metadata value |
+
+If the bucketing term does not match user, model, or VA — it is a metadata key.
+
+A user query can specify both dimensions. Example: "per user rate limit on gpt-4o" → target is `when: { models: [openai/gpt-4o] }`, bucketing is `rate_limit_applies_per: ['user']`.
+
+## Rule ordering
+
+Rules are evaluated top to bottom. **Only the first matching rule is applied** — subsequent rules are ignored. Place higher-priority rules (overrides, exceptions) above general defaults.
+
 ## Creating/Updating Rate Limiting Rules (Write Flow)
 
 > **CRITICAL**: The manifest **MUST** have a top-level `name` field. This field is NOT in the JSON schema, but `apply_manifest` requires it. Without it you will get: `"Manifest does not have a name field"`. Get the `name` from the existing config.
@@ -63,7 +100,7 @@ rules:
         <key>: <value>
     limit_to: <numeric-limit>
     rate_limit_applies_per:
-      - <user|model|metadata.key>
+      - <user|model|virtualaccount|metadata.key>  # max 2 values
 ```
 
 ### Checklist
