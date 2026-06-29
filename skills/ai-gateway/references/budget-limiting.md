@@ -40,6 +40,19 @@ createdAt: ...
 updatedAt: ...
 ```
 
+## Resolving budget scope
+
+Budget `when` matchers support only these scope types:
+
+| User says | Scope type | `when` field |
+|---|---|---|
+| "per user" / user email | subject | `subjects: [user:email]` |
+| "per team" / team name | subject | `subjects: [team:name]` |
+| "per VA" / "per virtual account" | subject | `subjects: [virtualaccount:name]` |
+| Anything else ("per tenant", "per app", "per feature", etc.) | metadata | `metadata: { key: value }` |
+
+If the scope term does not match user, team, or virtual account — it is a metadata key. Read `ai-gateway/references/observability.md` and query the `gateway_model_metrics` table to discover available metadata keys before building the rule.
+
 ## Creating/Updating Budget Rules (Write Flow)
 
 > **Note**: For complex rules, use `search_docs` for "gateway budget rules" to understand how `budget_applies_per` interacts with `when` matchers, alert thresholds, and audit mode behavior.
