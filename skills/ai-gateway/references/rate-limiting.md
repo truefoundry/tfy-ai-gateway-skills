@@ -33,6 +33,19 @@ createdAt: ...
 updatedAt: ...
 ```
 
+## Resolving rate limit scope
+
+Rate limit `when` matchers support only these scope types:
+
+| User says | Scope type | `when` field |
+|---|---|---|
+| "per user" / user email | subject | `subjects: [user:email]` |
+| "per team" / team name | subject | `subjects: [team:name]` |
+| "per VA" / "per virtual account" | subject | `subjects: [virtualaccount:name]` |
+| Anything else ("per tenant", "per app", "per feature", etc.) | metadata | `metadata: { key: value }` |
+
+If the scope term does not match user, team, or virtual account — it is a metadata key. Read `ai-gateway/references/observability.md` and query the `gateway_model_metrics` table to discover available metadata keys before building the rule.
+
 ## Creating/Updating Rate Limiting Rules (Write Flow)
 
 > **CRITICAL**: The manifest **MUST** have a top-level `name` field. This field is NOT in the JSON schema, but `apply_manifest` requires it. Without it you will get: `"Manifest does not have a name field"`. Get the `name` from the existing config.
