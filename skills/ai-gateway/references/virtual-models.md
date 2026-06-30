@@ -68,7 +68,10 @@ To inspect a single virtual-model account by id, use `get_provider_account`.
 
 ### Phase 1: Check for Existing Virtual Models
 
-Call `list_provider_accounts` with `includeModelProviders: true` and filter for `provider: virtual-model`. Check if a virtual model account matching what the user asked for already exists. If a match exists, inform the user and ask for next steps before proceeding.
+Call `list_provider_accounts` with `includeModelProviders: true` and filter for `provider: virtual-model`. Check if a virtual model account matching what the user asked for already exists.
+
+- **Matches found:** Present the matching virtual models to the user and ask whether they want to create a new virtual model (with a different name) or update an existing one. Carry their choice forward into Phase 2.
+- **No matches:** Proceed to Phase 2.
 
 ### Phase 2: Get Schema
 

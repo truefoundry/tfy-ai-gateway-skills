@@ -43,11 +43,14 @@ Always use `list_mcp_server_tools` (pass `mcpServerId` — the server's `id` fro
 
 ### Step 1: Check for Existing MCP Servers
 
-Call `list_mcp_servers` and check if an MCP server matching what the user asked for already exists (by name if they gave one, or by type/purpose if the request is general). If a match exists, inform the user and ask for next steps before proceeding.
+Call `list_mcp_servers` and check if an MCP server matching what the user asked for already exists (by name if they gave one, or by type/purpose if the request is general).
+
+- **Matches found:** Present the matching servers to the user and ask whether they want to create a new server (with a different name) or update an existing one. Carry their choice forward into Step 2.
+- **No matches:** Proceed to Step 2.
 
 ### Step 2: Check the MCP Catalogue
 
-**Always start here.** Call `list_mcp_catalogue` to get the catalogue of known MCP servers. The response has two sections:
+Call `list_mcp_catalogue` to get the catalogue of known MCP servers. The response has two sections:
 
 ```json
 {

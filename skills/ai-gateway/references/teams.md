@@ -15,7 +15,10 @@ Use `list_teams_for_user` to list teams. This tool is **user-scoped** — it ret
 
 ### Phase 1: Check for Existing Teams
 
-Call `list_teams_for_user` and check if a team matching what the user asked for already exists. If a match exists, inform the user and ask for next steps before proceeding.
+Call `list_teams_for_user` and check if a team matching what the user asked for already exists.
+
+- **Matches found:** Present the matching teams to the user and ask whether they want to create a new team (with a different name) or update an existing one. Carry their choice forward into Phase 2.
+- **No matches:** Proceed to Phase 2.
 
 ### Phase 2: Get Schema
 
