@@ -37,9 +37,9 @@ For **read/query** operations, follow the reference file's instructions to fetch
 ### Write Workflow
 
 2. **Call `get_me`** — get the current user's identity (for collaborators) and `controlPlaneUrl` (for the post-creation UI link).
-3. **Get the JSON schema** — use `get_manifest_json_schema` to retrieve the schema for the entity type you want to create/modify. This is the source of truth for required and optional fields.
-4. **Ask user for required inputs** — use `ask_user_question` to collect decisions (auth method, region, which models to add, etc.) when multiple options exist. Never guess — always confirm.
-5. **Check for existing entities** — list existing entities of the same type and check if any are related to what the user wants to create. If a relevant entity already exists, inform the user about it before proceeding. If no match, continue with creation.
+3. **Check for existing entities** — list existing entities of the same type and check if any are related to what the user wants to create. If a relevant entity already exists, inform the user and ask for the next steps.
+4. **Get the JSON schema** — use `get_manifest_json_schema` to retrieve the schema for the entity type you want to create/modify.
+5. **Ask user for required inputs** — use `ask_user_question` to collect decisions (auth method, region, which models to add, etc.) when multiple options exist. Never guess — always confirm.
 6. **Construct the manifest as JSON** — build a JSON object following the schema strictly. **Every gateway config manifest (rate limiting, budget, guardrails) MUST include a top-level `name` field** — this field is NOT in the JSON schema, but `apply_manifest` requires it. Get the `name` from the existing config.
 7. **Validate** — call `validate_manifest` with the manifest type and JSON body. Fix any errors and re-validate until it passes.
 8. **Apply** — call `apply_manifest` with the JSON body to create/update the entity. `apply_manifest` is idempotent — calling it with the same `name` updates the existing entity rather than creating a duplicate. **When the user asks to "create" an entity, always use a new unique name — do not reuse or update an existing entity.**
