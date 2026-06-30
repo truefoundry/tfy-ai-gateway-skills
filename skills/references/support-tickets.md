@@ -18,7 +18,18 @@ Do not suggest other contact channels (website, Discord, email). The ticket is t
 1. Call `get_me` — get user email and name.
 2. Call `get_pylon_account_id` — get the tenant's Pylon account ID.
 3. Construct title and description from conversation context. Do not ask the user to re-explain.
-4. Select a priority based on context. Confirm with user via `ask_user_question` (Yes / No). If rejected, let user pick via `ask_user_question` with `urgent`, `high`, `medium`, `low`.
+4. Select priority using the severity guide below. Confirm with user via `ask_user_question` (Yes / No). If rejected, let user pick from the options.
+
+**Severity guide:**
+
+| Priority | When to use |
+|---|---|
+| `urgent` | Production system is completely down. Never for feature requests or questions. |
+| `high` | Service degraded, or feature request blocking an imminent deadline |
+| `medium` | Blocking work but has a workaround, or feature request with a timeline |
+| `low` | Question, nice-to-have feature request, or non-blocking issue |
+
+**If the user picks `urgent`:** ask clarifying questions about the impact (which service, how many users, when did it start). Only proceed with `urgent` if a production system is fully down. Otherwise, suggest the appropriate priority from the table above.
 5. Call `create_issue`:
 
 ```json

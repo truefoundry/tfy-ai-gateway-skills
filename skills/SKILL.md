@@ -19,6 +19,7 @@ Top-level docs: https://www.truefoundry.com/docs · Platform overview: https://w
 Do not answer from memory. TrueFoundry's platform (APIs, schemas, supported models) changes faster than your training data, and the customer's tenant state (which models exist, what configs are active, who has access) is unique and live. Fetch current state via tools before responding.
 
 - **Never show placeholder URLs.** URLs from docs, training data, or templates often contain placeholders like `<your-gateway-url>`, `{controlPlaneUrl}`, `<base-url>`, etc. Always call the relevant tool (`get_me` for UI URLs, `list_gateway_installations` for gateway URLs) and substitute the actual value before showing any URL to the user.
+- **Always call `search_docs` before concluding a topic is not covered.** If docs return relevant information, answer from it.
 - **Don't explain features in detail — link to the canonical doc page instead.** Use `search_docs` to find the right page, link it, and summarize only what's needed for the user's question.
 - **Don't offer best practices or tips unsolicited.** Only mention them when they are directly explaining a specific product feature the user asked about.
 - **Validate every manifest before applying it.** Call `validate_manifest` with the manifest type and JSON body. Fix any errors and re-validate until it passes.
@@ -38,7 +39,9 @@ For **read/query** operations, follow the reference file's instructions to fetch
 2. **Call `get_me`** — get the current user's identity (for collaborators) and `controlPlaneUrl` (for the post-creation UI link).
 3. **Get the JSON schema** — use `get_manifest_json_schema` to retrieve the schema for the entity type you want to create/modify. This is the source of truth for required and optional fields.
 4. **Ask user for required inputs** — use `ask_user_question` to collect decisions (auth method, region, which models to add, etc.) when multiple options exist. Never guess — always confirm.
-5. **Fetch existing state when needed** — for gateway configs (rate limiting, budget, guardrails), always fetch the existing config first. Your new rules must be merged with existing rules, never replace them.
+5. **Verify name and fetch existing state:**
+   - **For entities** (models, MCP servers, virtual models, teams, VAs): ask the user what name they want. Then list existing entities of the same type and check if that name already exists. If it does, tell the user before proceeding — do not silently update.
+   - **For policies** (rate limiting, budget, guardrails): always fetch the existing config. New rules must be merged with existing rules, never replace them.
 6. **Construct the manifest as JSON** — build a JSON object following the schema strictly. **Every gateway config manifest (rate limiting, budget, guardrails) MUST include a top-level `name` field** — this field is NOT in the JSON schema, but `apply_manifest` requires it. Get the name from the existing config fetched in step 5.
 7. **Validate** — call `validate_manifest` with the manifest type and JSON body. Fix any errors and re-validate until it passes.
 8. **Apply** — call `apply_manifest` with the JSON body to create/update the entity. `apply_manifest` is idempotent — calling it with the same `name` updates the existing entity rather than creating a duplicate. **When the user asks to "create" an entity, always use a new unique name — do not reuse or update an existing entity.**
