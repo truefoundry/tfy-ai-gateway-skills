@@ -115,35 +115,35 @@ For AI Engineering RBAC → https://www.truefoundry.com/docs/collaboration-and-a
 
 Secrets are stored in **Secret Groups** and referenced by FQN: `tfy-secret://<owner>:<secret-group>:<secret-key>`. The platform resolves at runtime. For details → https://www.truefoundry.com/docs/manage-secrets.
 
-## UI Links via `controlPlaneUrl`
+## Key URLs
 
-Call `get_me` and use the exact `controlPlaneUrl` value from the response as the base URL. Never guess or construct the domain yourself — it varies per tenant. Show UI links in two situations:
+Two base URLs exist — they are different and serve different purposes:
+
+- **`controlPlaneUrl`** (UI) — from `get_me`. Used for all UI links shown to the user.
+- **Gateway base URL** (API) — from `list_gateway_installations`. Used for API calls, SDK `baseURL`, and MCP server endpoints.
+
+Never guess or hardcode either — always fetch from the respective tool. Show UI links in two situations:
 - **After creating/modifying an entity** — so the user can verify and manage it
 - **When the agent cannot perform an operation** — so the user can do it in the UI instead
 
 ### Post-creation links
 
-After a successful `apply_manifest`, show the user the relevant page:
+After a successful `apply_manifest`, show the user the relevant page. `{controlPlaneUrl}` in the table below is a **template** — you must substitute the actual value from `get_me` before showing any URL. Never output `{controlPlaneUrl}`, `<controlPlaneUrl>`, or any placeholder literally.
 
-| Entity created/modified | Link |
+| Entity created/modified | Path (append to controlPlaneUrl) |
 |---|---|
-| Model provider account | `{controlPlaneUrl}/llm-gateway/models?provider={providerName}` |
-| Virtual model | `{controlPlaneUrl}/llm-gateway/virtual-models` |
-| MCP server (including Virtual) | `{controlPlaneUrl}/llm-gateway/mcp-servers` |
-| Rate limit rule | `{controlPlaneUrl}/llm-gateway/settings?configTab=rate-limiting` |
-| Budget rule | `{controlPlaneUrl}/llm-gateway/settings?configTab=budget-limiting` |
-| Guardrail config group | `{controlPlaneUrl}/guardrails/registry` |
-| Guardrail policy (rules) | `{controlPlaneUrl}/guardrails/policies` |
-| Team | `{controlPlaneUrl}/access-management?tab=teams` |
-| Virtual account | `{controlPlaneUrl}/access-management?tab=service-accounts` |
-| Role | `{controlPlaneUrl}/access-management?tab=custom-roles` |
-| PAT | `{controlPlaneUrl}/access-management?tab=personal-access-token` |
+| Model provider account | `/llm-gateway/models?provider={providerName}` |
+| Virtual model | `/llm-gateway/virtual-models` |
+| MCP server (including Virtual) | `/llm-gateway/mcp-servers` |
+| Rate limit rule | `/llm-gateway/settings?configTab=rate-limiting` |
+| Budget rule | `/llm-gateway/settings?configTab=budget-limiting` |
+| Guardrail config group | `/guardrails/registry` |
+| Guardrail policy (rules) | `/guardrails/policies` |
+| Team | `/access-management?tab=teams` |
+| Virtual account | `/access-management?tab=service-accounts` |
+| Role | `/access-management?tab=custom-roles` |
+| PAT | `/access-management?tab=personal-access-token` |
 
-`{controlPlaneUrl}` is a placeholder — always replace with the actual value from `get_me`. Never show it literally. For URL patterns, filters, and deep links → read `references/ui-links.md`.
-
-## Gateway Base URL
-
-The gateway base URL (used for API calls, MCP server endpoints, SDK integrations) is **different** from `controlPlaneUrl` (which is the UI). To get the gateway base URL, call `list_gateway_installations`. Never hardcode or guess the gateway URL — always fetch it.
 
 # AI Gateway
 
