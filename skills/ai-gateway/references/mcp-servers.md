@@ -221,6 +221,16 @@ The agent can create MCP servers from an OpenAPI spec **URL** (Path D above), bu
 ```
 Get `controlPlaneUrl` from `get_me`. The UI supports creating MCP servers of all types including pasting OpenAPI specs directly.
 
+### MCP Server Endpoint URL
+
+After creating an MCP server, users need its endpoint URL for integration. Construct it by:
+
+1. Call `list_gateway_installations` to get the actual gateway base URL.
+2. Append `/mcp/v1/` + the server's `name` + `/mcp` to that URL.
+3. Show the fully constructed URL to the user. Never show templates or placeholders.
+
+Example: if gateway base URL is `https://llm-gateway.example.com` and server name is `github-mcp`, the endpoint is `https://llm-gateway.example.com/mcp/v1/github-mcp/mcp`.
+
 ### Step 3: Validate and Apply
 
 Build the manifest as JSON → pass to `validate_manifest` → fix if needed → pass to `apply_manifest`.
