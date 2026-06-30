@@ -11,16 +11,20 @@ Use the `list_virtual_accounts` tool to get the list of all virtual accounts. Us
 
 ## Creating Virtual Accounts (Write Flow)
 
-### Phase 1: Get Schema
+### Phase 1: Check for Existing Virtual Accounts
+
+Call `list_virtual_accounts` and check if a virtual account matching what the user asked for already exists. If a match exists, inform the user and ask for next steps before proceeding.
+
+### Phase 2: Get Schema
 
 1. Call `get_manifest_json_schema` with type `virtual-account`.
 
-### Phase 2: Determine Permissions
+### Phase 3: Determine Permissions
 
 1. A virtual account MUST have at least one permission — it cannot exist with zero permissions. Use `ask_user_question` to ask the user what permissions this VA should have (role, resource, resource type).
 2. **When updating/revoking permissions**: if removing a permission would leave the VA with zero permissions, do NOT proceed. Inform the user that a VA cannot have empty permissions — they must either keep at least one permission or delete the VA entirely.
 
-### Phase 3: Validate and Apply
+### Phase 4: Validate and Apply
 
 Build the manifest as JSON → pass to `validate_manifest` → fix if needed → pass to `apply_manifest`.
 

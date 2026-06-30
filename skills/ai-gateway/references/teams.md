@@ -13,11 +13,15 @@ Use `list_teams_for_user` to list teams. This tool is **user-scoped** — it ret
 
 ## Creating Teams (Write Flow)
 
-### Phase 1: Get Schema
+### Phase 1: Check for Existing Teams
+
+Call `list_teams_for_user` and check if a team matching what the user asked for already exists. If a match exists, inform the user and ask for next steps before proceeding.
+
+### Phase 2: Get Schema
 
 1. Call `get_manifest_json_schema` with type `team`.
 
-### Phase 2: Build and Apply
+### Phase 3: Build and Apply
 
 Collect team name and member emails → build the manifest as JSON → pass to `validate_manifest` → fix if needed → pass to `apply_manifest`.
 
