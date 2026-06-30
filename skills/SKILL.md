@@ -141,6 +141,10 @@ After a successful `apply_manifest`, show the user the relevant page:
 
 `{controlPlaneUrl}` is a placeholder — always replace with the actual value from `get_me`. Never show it literally. For URL patterns, filters, and deep links → read `references/ui-links.md`.
 
+## Gateway Base URL
+
+The gateway base URL (used for API calls, MCP server endpoints, SDK integrations) is **different** from `controlPlaneUrl` (which is the UI). To get the gateway base URL, call `list_gateway_installations`. Never hardcode or guess the gateway URL — always fetch it.
+
 # AI Gateway
 
 ## Entities and Policies
@@ -182,6 +186,15 @@ After a successful `apply_manifest`, show the user the relevant page:
 
 In Gateway context, this almost always means a **Virtual Account** (or, less commonly, an `x-tfy-metadata` key — surfaced as a column in metrics/traces). Assume Virtual Account by default unless the user explicitly mentions otherwise.
 
+### "API Key" / "API Token" / "Token"
+
+Always present both token types and recommend VAT:
+
+- **Personal Access Token (PAT)** — tied to a user, for development/testing
+- **Virtual Account Token (VAT)** — tied to a non-human identity, for production/CI/CD **(recommended)**
+
+PATs break when the user leaves the org. Read `ai-gateway/references/access-management.md` for full details on both.
+
 ### "Caching"
 
 Gateway Caching and Provider Caching are different features — clarify with the user which one they mean.
@@ -212,7 +225,11 @@ Entity hierarchy: `Cluster → Workspace → Application`. RBAC is enforced at t
 - Monitoring and Ops → https://www.truefoundry.com/docs/monitor-your-service
 - CLI (`tfy apply`) → https://www.truefoundry.com/docs/using-tfy-apply
 
-For any AI Engineering question: use `search_docs` to find the relevant doc page, then use `get_manifest_json_schema` for the entity schema and `validate_manifest` before handing off. Never run `tfy apply` yourself — give the manifest to the user.
+The agent cannot deploy, update, or manage AI Engineering workloads directly — it has no tools for these operations. For any AI Engineering question:
+
+1. Tell the user explicitly what you cannot do (e.g., "I cannot deploy services directly").
+2. Use `search_docs` to find the relevant doc page and answer **only from the docs** — never make up deployment steps or configurations.
+3. For manifest creation: use `get_manifest_json_schema` for the entity schema and `validate_manifest` to validate, then give the manifest to the user to run `tfy apply -f <manifest.yaml>` themselves.
 
 ## Checklist Before Responding to an AI Engineering Question
 
