@@ -35,7 +35,7 @@ VirtualModelId: TEXT, nullable
 VirtualModelTargetAttempt: INTEGER, nullable
     Zero-based or ordinal attempt index when trying successive virtual model targets.
 RequestType: TEXT, nullable
-    API or request shape (e.g. chat completions, embeddings) for the call.
+    API/request shape of the call. Always use this column to filter by request kind (chat, embedding, etc.).
 InputTokens: BIGINT, nullable
     Count of input (prompt) tokens billed or reported for the call.
 OutputTokens: BIGINT, nullable
@@ -61,7 +61,7 @@ IsFailure: BOOLEAN, nullable
 ErrorType: TEXT, nullable
     Categorized error type when IsFailure is true.
 ModelType: TEXT, nullable
-    Classification of the model (e.g. chat, embedding) or integration flavor.
+    Always NULL — never use this column. Use RequestType instead.
 ## NOTE: The following cache columns pertain to Gateway-level caching (semantic/exact-match) only. Provider-side prompt caching tokens (cache_read_tokens, cache_write_tokens) are not available in this table — see the traces table's TfyGatewayOutput field instead.
 CacheType: TEXT, nullable
     Kind of response cache involved (e.g. semantic, exact) when applicable.
@@ -102,3 +102,4 @@ ProviderModelName: TEXT, nullable
 ## Checklist
 
 - [ ] Did I make sure to include the correct condition for `VirtualModelName` column to make sure I have not mixed virtual model and underlying model rows together?
+- [ ] Did I filter by request kind using `RequestType` and avoid `ModelType` entirely?
