@@ -139,7 +139,7 @@ For **read/query** operations, follow the reference file's instructions to fetch
 ### Write Workflow
 
 2. **Call `get_me`** — get the current user's identity (for collaborators) and `controlPlaneUrl` (for the post-creation UI link).
-3. **Get the JSON schema** — use `get_manifest_json_schema` to retrieve the schema for the entity type you want to create/modify.
+3. **Call `get_manifest_json_schema`** — always call this tool to get the actual schema for the entity type. The schema defines required fields, types, and the exact input format that `validate_manifest` and `apply_manifest` expect. Do not rely on reference file templates alone — they are simplified examples.
 4. **Ask user for required inputs** — use `ask_user_question` to collect decisions (auth method, region, which models to add, etc.) when multiple options exist. Never guess — always confirm.
 5. **Fetch existing state when needed** — for gateway configs (rate limiting, budget, guardrails), always fetch the existing config first. Your new rules must be merged with existing rules, never replace them.
 6. **Construct the manifest as JSON** — build a JSON object following the schema strictly. **Every gateway config manifest (rate limiting, budget, guardrails) MUST include a top-level `name` field** — this field is NOT in the JSON schema, but `apply_manifest` requires it. Get the `name` from the existing config fetched in step 5.
@@ -147,7 +147,7 @@ For **read/query** operations, follow the reference file's instructions to fetch
 8. **Apply** — call `apply_manifest` with the JSON body to create/update the entity. `apply_manifest` is idempotent — calling it with the same `name` updates the existing entity rather than creating a duplicate. **When the user asks to "create" an entity, always use a new unique name — do not reuse or update an existing entity.**
 9. **Show UI link** — use `controlPlaneUrl` from step 2 to show the user the relevant page (see Post-creation links table below).
 
-`validate_manifest` takes `type` as a separate field + manifest JSON body. `apply_manifest` takes only the manifest JSON body (with `type` inside it). `delete_manifest` requires both `type` and `name` in the body. Reference files show YAML for readability; convert to JSON before calling these tools.
+`validate_manifest` and `apply_manifest` take exactly the same input. Never call `apply_manifest` in the same parallel batch as `validate_manifest` — always wait for `validate_manifest` to return `valid: true` before calling `apply_manifest`. `delete_manifest` requires both `type` and `name` in the body. Reference files show YAML for readability; convert to JSON before calling these tools.
 
 **On failure:** If `validate_manifest` fails, read the error, fix the manifest, and retry. If `apply_manifest` returns an error, show the error to the user. For persistent or unclear errors, read `references/support-tickets.md` and offer to raise a ticket — do not silently retry or give up.
 
