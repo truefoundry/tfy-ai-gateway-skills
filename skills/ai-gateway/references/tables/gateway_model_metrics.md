@@ -41,7 +41,7 @@ InputTokens: BIGINT, nullable
 OutputTokens: BIGINT, nullable
     Count of output (completion) tokens for the call.
 LatencyMs: DOUBLE PRECISION, nullable
-    End-to-end model call latency in milliseconds.
+    End-to-end model call latency in milliseconds. NULL on failed calls (IsFailure = true); populated for all successful calls. Filter IsFailure = false for latency queries.
 TimeToFirstTokenMs: DOUBLE PRECISION, nullable
     Time from request start to first streamed token, in milliseconds.
 InterTokenLatencyMs: DOUBLE PRECISION, nullable
@@ -57,7 +57,7 @@ HttpStatusCode: INTEGER, nullable
 TfyMetadata: Map(Text, Text), nullable
     Unused column
 IsFailure: BOOLEAN, nullable
-    Whether the model call failed from the gateway’s perspective.
+    Whether the model call failed from the gateway’s perspective. Broader than HTTP status >= 400 — includes provider errors, client disconnects, and gateway rejections (rate/budget/forbidden), some of which carry HTTP 200 or a NULL status. Use this column, not HttpStatusCode, to identify failures.
 ErrorType: TEXT, nullable
     Categorized error type when IsFailure is true.
 ModelType: TEXT, nullable
@@ -103,3 +103,4 @@ ProviderModelName: TEXT, nullable
 
 - [ ] Did I make sure to include the correct condition for `VirtualModelName` column to make sure I have not mixed virtual model and underlying model rows together?
 - [ ] Did I filter by request kind using `RequestType` and avoid `ModelType` entirely?
+- [ ] For latency queries, did I filter `IsFailure = false` so failed calls (NULL latency) don't distort results?
