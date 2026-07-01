@@ -41,9 +41,16 @@ Always use `list_mcp_server_tools` (pass `mcpServerId` — the server's `id` fro
 
 ## Creating MCP Servers (Write Flow)
 
-### Step 1: Check the MCP Catalogue
+### Step 1: Check for Existing MCP Servers
 
-**Always start here.** Call `list_mcp_catalogue` to get the catalogue of known MCP servers. The response has two sections:
+Call `list_mcp_servers` and check if an MCP server matching what the user asked for already exists (by name if they gave one, or by type/purpose if the request is general).
+
+- **Matches found:** Present the matching servers to the user and ask whether they want to create a new server (with a different name) or update an existing one. Carry their choice forward into Step 2.
+- **No matches:** Proceed to Step 2.
+
+### Step 2: Check the MCP Catalogue
+
+Call `list_mcp_catalogue` to get the catalogue of known MCP servers. The response has two sections:
 
 ```json
 {
@@ -60,7 +67,7 @@ Search for the user's requested MCP server by name in this order:
 
 3. **Not found in catalogue** — Search online. Prefer remote (HTTP/SSE) servers first; only fall back to stdio if no remote endpoint exists.
 
-### Step 2: Build the manifest based on source
+### Step 3: Build the manifest based on source
 
 Call `get_manifest_json_schema` with the appropriate type (`mcp-server/tfy-managed`, `mcp-server/remote`, `mcp-server/stdio`) to get the full schema.
 
@@ -231,7 +238,7 @@ After creating an MCP server, users need its endpoint URL for integration. Const
 
 Example: if gateway base URL is `https://llm-gateway.example.com` and server name is `github-mcp`, the endpoint is `https://llm-gateway.example.com/mcp/v1/github-mcp/mcp`.
 
-### Step 3: Validate and Apply
+### Step 4: Validate and Apply
 
 Build the manifest as JSON → pass to `validate_manifest` → fix if needed → pass to `apply_manifest`.
 

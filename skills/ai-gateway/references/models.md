@@ -5,6 +5,8 @@ description: Model integrations connect vendor models to the Gateway; manifests 
 
 **Model integrations** are individual models from third party vendors or self hosted. Each integration has a `type` of `integration/model/<provider>` e.g. `integration/model/openai`.
 
+Note: The integration type always reflects the host provider account, not the model maker. For example, Anthropic Claude models on Vertex use `integration/model/vertex`, not `integration/model/anthropic`. Always derive the correct type from the `list_providers` response rather than inferring it from the model name.
+
 A tenant can have multiple model accounts (provider accounts). Each account can have multiple model integrations. A model integration is referred as `{accountName}/{integrationName}`.
 
 ## Contents
@@ -103,22 +105,29 @@ ModelType enum: `chat`, `completion`, `embedding`, `realtime`, `rerank`, `audio_
 
 ## Creating Model Provider Accounts (Write Flow)
 
-### Phase 1: Get Schema and Provider Data
+### Phase 1: Check for Existing Accounts
+
+Call `list_provider_accounts` with `includeModelProviders: true` and check if a provider account matching what the user asked for already exists (by name if they gave one, or by provider type if the request is general).
+
+- **Matches found:** Present the matching accounts to the user and ask whether they want to create a new account (with a different name) or update an existing one. Carry their choice forward into Phase 2.
+- **No matches:** Proceed to Phase 2.
+
+### Phase 2: Get Schema and Provider Data
 
 1. Call `get_manifest_json_schema` with the provider account type the user wants (e.g. `provider-account/openai`, `provider-account/aws-bedrock`, `provider-account/anthropic`, `provider-account/azure-openai`, etc.).
 2. Call `list_providers` — always call this for every model provider account creation. It returns the supported models, their types, pricing, and regions. Never use your own knowledge for model names, IDs, or modes — only use what `list_providers` returns. Your training data is outdated; `list_providers` is the source of truth.
 
-### Phase 2: Determine Authentication, Region, and Models
+### Phase 3: Determine Authentication, Region, and Models
 
 1. If the schema shows multiple authentication methods, use `ask_user_question` to ask the user which auth method to use.
 2. The `list_providers` response is very large (200K+ lines). Call it from sandbox, save to a file, then parse. Access `result["data"]` to get the providers array, then **filter by `type` field first** (e.g. `type == "provider-account/openai"`) — NOT `name` (providers don't have a `name` field). Extract models from `provider["integrations"][0]["metadata"]`. Every provider has models — if you find none, your filter is wrong.
-3. **Region** — check the JSON schema from Phase 1. If the schema includes a `region` field, collect the distinct `region` values from the **filtered provider's** models' `costs[]` entries and ask the user which region to use (via `ask_user_question`). If the schema does not have a `region` field, skip this step.
+3. **Region** — check the JSON schema from Phase 2. If the schema includes a `region` field, collect the distinct `region` values from the **filtered provider's** models' `costs[]` entries and ask the user which region to use (via `ask_user_question`). If the schema does not have a `region` field, skip this step.
 4. **Filter models by region** — if a region was selected, only include models that have a `costs` entry whose `region` matches the user's selected region (or `region: "*"`). Do NOT add models unavailable in the chosen region.
 5. Do NOT dump the full model list to the user — it can be very large. Ask the user which models they want to add (by name or type) and look them up in the `list_providers` response.
 6. **Naming rule**: For `realtime`, `audio_transcription`, `audio_translation`, `text_to_speech` modes, integration `name` MUST equal `model_id`. For all other modes, any descriptive name works.
 7. **Pricing rule:** Add `cost: metric: public_cost` to a model **only if** its `costs` entry for the target region has `input_cost_per_token`. Otherwise omit `cost` entirely. Never manually copy cost values — only add custom cost if the user provides their own pricing.
 
-### Phase 3: Validate and Apply
+### Phase 4: Validate and Apply
 
 Build the manifest as JSON → pass to `validate_manifest` → fix if needed → pass to `apply_manifest`.
 

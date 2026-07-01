@@ -86,7 +86,11 @@ Rules are evaluated top to bottom. The **first matching rule** controls allow/bl
 1. Call `get_manifest_json_schema` with type `gateway-budget-config`.
 2. Call `get_gateway_config` with `type: gateway-budget-config` to fetch the existing config. New rules must be merged with existing ones — never replace. Note the `name` field from the existing config — you will need it.
 
-### Phase 2: Build and Apply
+### Phase 2: Position the Rule
+
+Call `search_docs` for "budget limiting rule ordering" to understand how rule order affects allow/block and cost tracking. Review existing rules for overlapping scope before deciding where to insert the new rule.
+
+### Phase 3: Build and Apply
 
 Build the manifest as JSON (include `name` from existing config) → pass to `validate_manifest` → fix if needed → pass to `apply_manifest`.
 
@@ -123,6 +127,7 @@ rules:
 
 - [ ] Did I call `get_manifest_json_schema` with type `gateway-budget-config`?
 - [ ] Did I fetch the existing config and merge rules (not replace)?
+- [ ] Did I check existing rules for overlapping scope and position the new rule correctly (not just append at the end)?
 - [ ] Did I include the `name` field in the manifest?
 - [ ] Did I call `validate_manifest` before applying?
 
