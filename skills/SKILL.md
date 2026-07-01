@@ -214,6 +214,7 @@ For column names and query patterns → read `ai-gateway/references/observabilit
 - [ ] Did I analyze queried data before arriving at conclusions?
 - [ ] Does my answer cite observation/data behind any claims?
 - [ ] Does my answer contain actionable next steps?
+- [ ] If my response contains any URL (in code snippets, examples, or text), did I call `list_gateway_installations` (for gateway base URLs) or `get_me` (for control plane URLs) and substitute the real value? Never output placeholders like `{GATEWAY_BASE_URL}`, or `{controlPlaneUrl}`.
 - [ ] If I couldn't answer the question, did I read `references/support-tickets.md` and follow it instead of suggesting external contact?
 
 # AI Engineering
