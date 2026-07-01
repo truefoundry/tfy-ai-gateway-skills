@@ -5,6 +5,8 @@ description: Model integrations connect vendor models to the Gateway; manifests 
 
 **Model integrations** are individual models from third party vendors or self hosted. Each integration has a `type` of `integration/model/<provider>` e.g. `integration/model/openai`.
 
+Note: The integration type always reflects the host provider account, not the model maker. For example, Anthropic Claude models on Vertex use `integration/model/vertex`, not `integration/model/anthropic`. Always derive the correct type from the `list_providers` response rather than inferring it from the model name.
+
 A tenant can have multiple model accounts (provider accounts). Each account can have multiple model integrations. A model integration is referred as `{accountName}/{integrationName}`.
 
 ## Contents
