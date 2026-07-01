@@ -20,6 +20,8 @@ Call `list_teams_for_user` and check if a team matching what the user asked for 
 - **Matches found:** Present the matching teams to the user and ask whether they want to create a new team (with a different name) or update an existing one. Carry their choice forward into Phase 2.
 - **No matches:** Proceed to Phase 2.
 
+Note: `list_teams_for_user` only returns teams the current user belongs to. A team with the same name may already exist tenant-wide. If creation fails with 403 or a name conflict, suggest a different name.
+
 ### Phase 2: Get Schema
 
 1. Call `get_manifest_json_schema` with type `team`.
