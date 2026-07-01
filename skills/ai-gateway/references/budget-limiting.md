@@ -53,7 +53,7 @@ A budget rule has two dimensions — resolve each independently:
 | a VA / virtual account | `subjects: [virtualaccount:name]` |
 | a metadata term (tenant, app, feature, etc.) | `metadata: { key: value }` |
 
-If the term does not match user, team, or VA — it is a metadata key. Read `ai-gateway/references/observability.md` and query the `gateway_model_metrics` table to discover available metadata keys.
+If the term does not match user, team, or VA — it is a metadata key. **Do not ask the user for the key name.** Read `ai-gateway/references/observability.md` and query `gateway_model_metrics` to discover metadata keys from live data, scoped to whatever the user specified.
 
 **2. Bucketing — how is the budget counted? (`budget_applies_per` field)**
 
@@ -67,7 +67,7 @@ By default, all matching requests share a **single budget pool** (e.g., two user
 | `virtualaccount` | separate budget per VA |
 | `metadata.<key>` | separate budget per unique metadata value |
 
-If the bucketing term does not match user, model, or VA — it is a metadata key.
+If the bucketing term does not match user, model, or VA — it is a metadata key. **Do not ask the user for the key name.** Discover it from live data as described above.
 
 A user query can specify both dimensions. Example: "per tenant budget for tfy-ai-features VA" → target is `subjects: [virtualaccount:tfy-ai-features]`, bucketing is `budget_applies_per: [metadata.<tenant-key>]`.
 
