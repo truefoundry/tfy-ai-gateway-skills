@@ -32,7 +32,7 @@ For any question about a Gateway entity or policy — whether reading, querying,
 
 1. **Read the entity's reference file** — find the entity in the "Entities and Policies" table below and read its reference file. It contains instructions for fetching data, what to ask the user, and how to build manifests. Do not skip this step.
 
-For **read/query** operations, follow the reference file's instructions to fetch and present data. For **write** operations, continue with the write workflow below.
+For **read/query** operations, follow the reference file's instructions to fetch and present data. If your response will include any URL — in code snippets, SDK examples, or links — call `list_gateway_installations` (for gateway base URLs) or `get_me` (for control plane URLs) to get real values. Never output placeholders. For **write** operations, continue with the write workflow below.
 
 ### Write Workflow
 
