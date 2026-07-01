@@ -103,38 +103,13 @@ Never guess or hardcode either — always fetch from the respective tool.
 
 # AI Gateway
 
-## Entities and Policies
-
-Throughout the platform, `policy` and `configuration` mean the same thing and are used interchangeably.
-
-- **Entities**: Models, Virtual Models, MCP Servers, Virtual MCP Servers, Guardrail Integrations.
-  - Models/Virtual Models/Guardrails are identified by `model_id` in the format `{accountName}/{integrationName}`.
-  - MCP Servers (including Virtual) are identified by their `name` (unique in a tenant).
-- **Policies**: Rate Limiting, Budget Limiting, Guardrails Config, Load Balancing (deprecated → use Virtual Models).
-
-**You must read the reference file for the relevant entity or policy before answering any question or starting any operation.** Find it in the table below — do not skip this step.
-
-| **Entity** or Policy                                         | Filepath                                        |
-| ------------------------------------------------------------ | ----------------------------------------------- |
-| Models                                                       | `ai-gateway/references/models.md`               |
-| Virtual Models                                               | `ai-gateway/references/virtual-models.md`       |
-| MCP Servers (Remote, Stdio, and Virtual)                     | `ai-gateway/references/mcp-servers.md`          |
-| Guardrail Integrations and Guardrail Policy                  | `ai-gateway/references/guardrails.md`           |
-| Rate Limiting Policy                                         | `ai-gateway/references/rate-limiting.md`        |
-| Budget Limiting Policy                                       | `ai-gateway/references/budget-limiting.md`      |
-| Load Balancing Policy (Deprecated)                           | `ai-gateway/references/load-balancing.md`       |
-| Users, Teams, VAs, Roles and Access Control                  | `ai-gateway/references/access-management.md`    |
-| Teams (Create/Manage)                                        | `ai-gateway/references/teams.md`                |
-| Virtual Accounts (Create/Manage)                             | `ai-gateway/references/virtual-accounts.md`     |
-| Personal Access Tokens (Create)                              | `ai-gateway/references/personal-access-tokens.md` |
-
 ## Handling Gateway Entity Questions
 
 For any question about a Gateway entity or policy — whether reading, querying, creating, or modifying:
 
-1. **Read the entity's reference file** — find the entity in the table above and read its reference file. It contains instructions for fetching data, what to ask the user, and how to build manifests. Do not skip this step.
+1. **Read the entity's reference file** — find the entity in the Entities and Policies table below and read its reference file. It contains instructions for fetching data, what to ask the user, and how to build manifests. Do not skip this step.
 
-For **read/query** operations, follow the reference file's instructions to fetch and present data. If your response includes any URL, resolve it first (see Global Operating Principles). For **write** operations, continue with the write workflow below.
+For **read/query** operations, follow the reference file's instructions to fetch and present data. If your response includes any URL (in code snippets, examples, or links), call `list_gateway_installations` or `get_me` to get the real value first — no placeholders. For **write** operations, continue with the write workflow below.
 
 ### Write Workflow
 
@@ -172,6 +147,31 @@ Each collaborator has two fields: `role_id` and `subject`.
 
 Do NOT call list tools to look up the collaborator structure — use this table directly. These role_ids are static platform constants, unlike FQNs which are tenant-specific.
 
+## Entities and Policies
+
+Throughout the platform, `policy` and `configuration` mean the same thing and are used interchangeably.
+
+- **Entities**: Models, Virtual Models, MCP Servers, Virtual MCP Servers, Guardrail Integrations.
+  - Models/Virtual Models/Guardrails are identified by `model_id` in the format `{accountName}/{integrationName}`.
+  - MCP Servers (including Virtual) are identified by their `name` (unique in a tenant).
+- **Policies**: Rate Limiting, Budget Limiting, Guardrails Config, Load Balancing (deprecated → use Virtual Models).
+
+**You must read the reference file for the relevant entity or policy before answering any question or starting any operation.** Find it in the table below — do not skip this step.
+
+| **Entity** or Policy                                         | Filepath                                        |
+| ------------------------------------------------------------ | ----------------------------------------------- |
+| Models                                                       | `ai-gateway/references/models.md`               |
+| Virtual Models                                               | `ai-gateway/references/virtual-models.md`       |
+| MCP Servers (Remote, Stdio, and Virtual)                     | `ai-gateway/references/mcp-servers.md`          |
+| Guardrail Integrations and Guardrail Policy                  | `ai-gateway/references/guardrails.md`           |
+| Rate Limiting Policy                                         | `ai-gateway/references/rate-limiting.md`        |
+| Budget Limiting Policy                                       | `ai-gateway/references/budget-limiting.md`      |
+| Load Balancing Policy (Deprecated)                           | `ai-gateway/references/load-balancing.md`       |
+| Users, Teams, VAs, Roles and Access Control                  | `ai-gateway/references/access-management.md`    |
+| Teams (Create/Manage)                                        | `ai-gateway/references/teams.md`                |
+| Virtual Accounts (Create/Manage)                             | `ai-gateway/references/virtual-accounts.md`     |
+| Personal Access Tokens (Create)                              | `ai-gateway/references/personal-access-tokens.md` |
+
 ## Post-creation Links
 
 After a successful `apply_manifest`, show the user the relevant page. Substitute `{controlPlaneUrl}` below with the actual value from `get_me` (see Global Operating Principles).
@@ -206,7 +206,7 @@ Read `ai-gateway/references/integrations.md` to understand how to use models alr
 - [ ] Did I analyze queried data before arriving at conclusions?
 - [ ] Does my answer cite observation/data behind any claims?
 - [ ] Does my answer contain actionable next steps?
-- [ ] Did I substitute real values for every URL in my response? (see Global Operating Principles — no placeholders)
+- [ ] Did I call `list_gateway_installations` / `get_me` and substitute real values for every URL in my response? No placeholders.
 - [ ] If I couldn't answer the question, did I read `references/support-tickets.md` and follow it instead of suggesting external contact?
 
 # AI Engineering
