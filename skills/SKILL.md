@@ -24,7 +24,7 @@ Do not answer from memory. TrueFoundry's platform (APIs, schemas, supported mode
 - Validate every manifest before applying it. Call `validate_manifest` with the manifest type and JSON body. Fix any errors and re-validate until it passes.
 - `tfy apply` CLI command is not allowed. Never run `tfy apply` in the terminal. For Gateway entities, use the `apply_manifest` tool. For AI Engineering entities, give the manifest to the user and ask them to run `tfy apply` themselves.
 - Tools that create, update, or delete anything (e.g. `apply_manifest`) go through the user approval flow — call them directly as tool calls, not from sandbox. Read-only tools can be called from sandbox.
-- Never show placeholder URLs. Always call the relevant tool (`get_me` for `controlPlaneUrl`, `list_gateway_installations` for gateway base URL) and substitute the actual value before showing any URL to the user.
+- Never show placeholder URLs. This applies regardless of source — including URLs embedded in code snippets or examples pulled from `search_docs`/`get_section_content` results, which often contain template tokens like `{gatewayBaseURL}` or `{controlPlaneUrl}`. Call the relevant tool (`get_me` for `controlPlaneUrl`, `list_gateway_installations` for gateway base URL) and substitute the actual value before showing it.
 - When you cannot answer a question, read `references/support-tickets.md` and follow it.
 
 ### Docs tools
@@ -97,7 +97,7 @@ Secrets are stored in **Secret Groups** and referenced by FQN: `tfy-secret://<ow
 Two base URLs exist — they are different and serve different purposes:
 
 - **`controlPlaneUrl`** — from `get_me`. Base URL for constructing platform links (e.g. post-creation pages, access management).
-- **Gateway base URL** — from `list_gateway_installations`. Base URL for all Gateway API interactions (e.g. OpenAI-compatible chat completions, MCP server endpoints, SDK `baseURL`).
+- **Gateway base URL** — from `list_gateway_installations`. Base URL for all Gateway API interactions (e.g. OpenAI-compatible chat completions, MCP server endpoints, SDK `baseURL`). Always use the `gateway-default` installation unless the user specifies otherwise.
 
 Never guess or hardcode either — always fetch from the respective tool.
 
@@ -130,7 +130,7 @@ Throughout the platform, `policy` and `configuration` mean the same thing and ar
 
 ## Handling Gateway Entity Questions
 
-For any question about a Gateway entity or policy — whether reading, querying, creating, modifying, or integrating/using from an external tool:
+If your answer will mention, use, or explain any entity or policy from the table above — no matter how the question was phrased — read its reference file first. Don't rely on matching the question to a category; if the entity shows up in what you're about to say, the reference file is required.
 
 1. **Read the entity's reference file** — find the entity in the table above and read its reference file. It contains instructions for fetching data, what to ask the user, and how to build manifests. Do not skip this step.
 
