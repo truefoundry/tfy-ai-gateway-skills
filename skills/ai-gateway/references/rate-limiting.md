@@ -48,7 +48,7 @@ A rate limit rule has two dimensions — resolve each independently:
 
 `subjects`, `models`, and `metadata` in a `when` block are **ANDed** — a request must match all specified conditions.
 
-If the term does not match user, team, or VA — it is a metadata key. Read `ai-gateway/references/observability.md` and query the `gateway_model_metrics` table to discover available metadata keys.
+If the term does not match user, team, or VA — it is a metadata key. **Do not ask the user for the key name.** Read `ai-gateway/references/observability.md` and query `gateway_model_metrics` to discover metadata keys from live data, scoped to whatever the user specified.
 
 **2. Bucketing — how is the limit counted? (`rate_limit_applies_per` field)**
 
@@ -62,7 +62,7 @@ By default, all matching requests share a **single rate limit pool**. Use `rate_
 | `virtualaccount` | separate limit per VA |
 | `metadata.<key>` | separate limit per unique metadata value |
 
-If the bucketing term does not match user, model, or VA — it is a metadata key.
+If the bucketing term does not match user, model, or VA — it is a metadata key. **Do not ask the user for the key name.** Discover it from live data as described above.
 
 A user query can specify both dimensions. Example: "per user rate limit on gpt-4o" → target is `when: { models: [openai/gpt-4o] }`, bucketing is `rate_limit_applies_per: ['user']`.
 
