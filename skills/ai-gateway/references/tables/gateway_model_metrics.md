@@ -5,6 +5,7 @@ description: Stores metrics for both Models and Virtual Models.
 
 ## CRITICAL
 
+- For enum values and attribute details, use `get_section_content` on https://www.truefoundry.com/docs/ai-gateway/fetch-request-logs-span-attributes to get the full reference.
 - For a virtual model request,there will be multiple rows in the table, one row for the virtual model and one row for each of the underlying models till the request is fulfilled.
 - A virtual model metrics row has `VirtualModelName` column set to the name of the virtual model while for the underlying model rows this column is set to `NULL`.
 - Care should be taken to never query virtual model and underlying model rows together since virtual models themselves are not real models and are just a grouping of underlying models.
@@ -35,7 +36,7 @@ VirtualModelId: TEXT, nullable
 VirtualModelTargetAttempt: INTEGER, nullable
     Zero-based or ordinal attempt index when trying successive virtual model targets.
 RequestType: TEXT, nullable
-    API/request shape of the call. Always use this column to filter by request kind (chat, embedding, etc.).
+    API/request shape of the call. Always use this column to filter by request kind. For the full list of possible values, check `tfy.model.request_type` in the span attributes docs.
 InputTokens: BIGINT, nullable
     Count of input (prompt) tokens billed or reported for the call.
 OutputTokens: BIGINT, nullable
@@ -61,7 +62,7 @@ IsFailure: BOOLEAN, nullable
 ErrorType: TEXT, nullable
     Categorized error type when IsFailure is true.
 ModelType: TEXT, nullable
-    Always NULL — never use this column. Use RequestType instead.
+    Identifies whether the row is for a virtual model. Value is "virtual" for virtual model rows, NULL for regular model rows.
 ## NOTE: The following cache columns pertain to Gateway-level caching (semantic/exact-match) only. Provider-side prompt caching tokens (cache_read_tokens, cache_write_tokens) are not available in this table — see the traces table's TfyGatewayOutput field instead.
 CacheType: TEXT, nullable
     Kind of response cache involved (e.g. semantic, exact) when applicable.
@@ -102,5 +103,5 @@ ProviderModelName: TEXT, nullable
 ## Checklist
 
 - [ ] Did I make sure to include the correct condition for `VirtualModelName` column to make sure I have not mixed virtual model and underlying model rows together?
-- [ ] Did I filter by request kind using `RequestType` and avoid `ModelType` entirely?
+- [ ] Did I use `RequestType` for filtering by request kind, and `ModelType` only for identifying virtual model rows?
 - [ ] For latency queries, did I filter `IsFailure = false` so failed calls (NULL latency) don't distort results?
