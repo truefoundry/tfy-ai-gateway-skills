@@ -66,11 +66,18 @@ To inspect a single virtual-model account by id, use `get_provider_account`.
 
 ## Creating Virtual Model Accounts (Write Flow)
 
-### Phase 1: Get Schema
+### Phase 1: Check for Existing Virtual Models
+
+Call `list_provider_accounts` with `includeModelProviders: true` and filter for `provider: virtual-model`. Check if a virtual model account matching what the user asked for already exists.
+
+- **Matches found:** Present the matching virtual models to the user and ask whether they want to create a new virtual model (with a different name) or update an existing one. Carry their choice forward into Phase 2.
+- **No matches:** Proceed to Phase 2.
+
+### Phase 2: Get Schema
 
 1. Call `get_manifest_json_schema` with type `provider-account/virtual-model`.
 
-### Phase 2: Gather Requirements
+### Phase 3: Gather Requirements
 
 1. Collect from the user:
    - Which routing strategy to use per virtual model (`weight-based-routing`, `priority-based-routing`, or `latency-based-routing`)
@@ -79,7 +86,7 @@ To inspect a single virtual-model account by id, use `get_provider_account`.
    - Whether targets should be fallback candidates
 2. Verify target models exist by calling `list_provider_accounts` with `includeModelProviders: true` and confirming each `accountName/modelName` is present.
 
-### Phase 3: Validate and Apply
+### Phase 4: Validate and Apply
 
 Build the manifest as JSON → pass to `validate_manifest` → fix if needed → pass to `apply_manifest`.
 

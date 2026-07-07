@@ -18,20 +18,18 @@ Do not suggest other contact channels (website, Discord, email). The ticket is t
 1. Call `get_me` — get user email and name.
 2. Call `get_pylon_account_id` — get the tenant's Pylon account ID.
 3. Construct title and description from conversation context. Do not ask the user to re-explain.
-4. Select a priority based on context. Confirm with user via `ask_user_question` (Yes / No). If rejected, let user pick via `ask_user_question` with `urgent`, `high`, `medium`, `low`.
-5. Call `create_issue`:
+4. Call `create_issue`:
 
 ```json
 {
   "account_id": "from-get-pylon-account-id",
   "title": "Unable to add image models for Bedrock",
   "body_html": "<p>User wanted to add image-mode Bedrock models.</p><ul><li>Called <code>list_providers</code>, filtered for image models</li><li><code>apply_manifest</code> returned: model type image not supported</li></ul><p>Likely needs platform-side fix.</p>",
-  "requester_email": "from-get-me",
-  "priority": "high"
+  "requester_email": "from-get-me"
 }
 ```
 
-6. Show ticket number, title, and that someone from TrueFoundry will follow up. Never show ticket link, URL, or status.
+5. Show ticket number, title, and that someone from TrueFoundry will follow up. Never show ticket link, URL, or status.
 
 ### Fields
 
@@ -41,5 +39,4 @@ Do not suggest other contact channels (website, Discord, email). The ticket is t
 | `requester_email` | yes | `get_me` |
 | `title` | yes | conversation context |
 | `body_html` | yes | conversation context, HTML formatted |
-| `priority` | yes | `ask_user_question` confirmation |
 | `tags` | no | string array |

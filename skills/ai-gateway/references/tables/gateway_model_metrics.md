@@ -5,6 +5,7 @@ description: Stores metrics for both Models and Virtual Models.
 
 ## CRITICAL
 
+- For enum values and attribute details, use `get_section_content` on https://www.truefoundry.com/docs/ai-gateway/fetch-request-logs-span-attributes to get the full reference.
 - For a virtual model request,there will be multiple rows in the table, one row for the virtual model and one row for each of the underlying models till the request is fulfilled.
 - A virtual model metrics row has `VirtualModelName` column set to the name of the virtual model while for the underlying model rows this column is set to `NULL`.
 - Care should be taken to never query virtual model and underlying model rows together since virtual models themselves are not real models and are just a grouping of underlying models.
@@ -35,13 +36,13 @@ VirtualModelId: TEXT, nullable
 VirtualModelTargetAttempt: INTEGER, nullable
     Zero-based or ordinal attempt index when trying successive virtual model targets.
 RequestType: TEXT, nullable
-    API or request shape (e.g. chat completions, embeddings) for the call.
+    API/request shape of the call. Always use this column to filter by request kind. For the full list of possible values, check `tfy.model.request_type` in the span attributes docs.
 InputTokens: BIGINT, nullable
     Count of input (prompt) tokens billed or reported for the call.
 OutputTokens: BIGINT, nullable
     Count of output (completion) tokens for the call.
 LatencyMs: DOUBLE PRECISION, nullable
-    End-to-end model call latency in milliseconds.
+    End-to-end model call latency in milliseconds. NULL on failed calls (IsFailure = true); populated for all successful calls. Filter IsFailure = false for latency queries.
 TimeToFirstTokenMs: DOUBLE PRECISION, nullable
     Time from request start to first streamed token, in milliseconds.
 InterTokenLatencyMs: DOUBLE PRECISION, nullable
@@ -57,11 +58,11 @@ HttpStatusCode: INTEGER, nullable
 TfyMetadata: Map(Text, Text), nullable
     Unused column
 IsFailure: BOOLEAN, nullable
-    Whether the model call failed from the gateway’s perspective.
+    Whether the model call failed from the gateway’s perspective. Broader than HTTP status >= 400 — includes provider errors, client disconnects, and gateway rejections (rate/budget/forbidden), some of which carry HTTP 200 or a NULL status. Use this column, not HttpStatusCode, to identify failures.
 ErrorType: TEXT, nullable
     Categorized error type when IsFailure is true.
 ModelType: TEXT, nullable
-    Classification of the model (e.g. chat, embedding) or integration flavor.
+    Identifies whether the row is for a virtual model. Value is "virtual" for virtual model rows, NULL for regular model rows.
 ## NOTE: The following cache columns pertain to Gateway-level caching (semantic/exact-match) only. Provider-side prompt caching tokens (cache_read_tokens, cache_write_tokens) are not available in this table — see the traces table's TfyGatewayOutput field instead.
 CacheType: TEXT, nullable
     Kind of response cache involved (e.g. semantic, exact) when applicable.
@@ -102,3 +103,5 @@ ProviderModelName: TEXT, nullable
 ## Checklist
 
 - [ ] Did I make sure to include the correct condition for `VirtualModelName` column to make sure I have not mixed virtual model and underlying model rows together?
+- [ ] Did I use `RequestType` for filtering by request kind, and `ModelType` only for identifying virtual model rows?
+- [ ] For latency queries, did I filter `IsFailure = false` so failed calls (NULL latency) don't distort results?
