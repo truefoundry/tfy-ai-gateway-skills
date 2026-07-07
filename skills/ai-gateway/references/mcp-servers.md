@@ -244,7 +244,8 @@ Build the manifest as JSON → pass to `validate_manifest` → fix if needed →
 
 ### Checklist
 
-- [ ] Did I call `list_mcp_catalogue` first to check if the server is TFY-managed or a known integration?
+- [ ] Did I call `list_mcp_servers` first to check if a matching server already exists?
+- [ ] Did I call `list_mcp_catalogue` to check if the server is TFY-managed or a known integration?
 - [ ] Did I call `get_manifest_json_schema` with the correct type?
 - [ ] Did I use the TFY-managed path if the server was in `tfyManaged`?
 - [ ] For OAuth2, did I call `get_mcp_server_oauth_config` and check if DCR is supported? If not, did I ask for `client_id`/`client_secret`?
