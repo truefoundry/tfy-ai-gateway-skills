@@ -48,7 +48,7 @@ A rate limit rule has two dimensions — resolve each independently:
 
 `subjects`, `models`, and `metadata` in a `when` block are **ANDed** — a request must match all specified conditions.
 
-If the term does not match user, team, or VA — it is a metadata key. Read `ai-gateway/references/observability.md` and query the `gateway_model_metrics` table to discover available metadata keys.
+If the term does not match user, team, or VA — it is a metadata key. **Do not ask the user for the key name.** Read `ai-gateway/references/observability.md` and query `gateway_model_metrics` to discover metadata keys from live data, scoped to whatever the user specified.
 
 **2. Bucketing — how is the limit counted? (`rate_limit_applies_per` field)**
 
@@ -62,7 +62,7 @@ By default, all matching requests share a **single rate limit pool**. Use `rate_
 | `virtualaccount` | separate limit per VA |
 | `metadata.<key>` | separate limit per unique metadata value |
 
-If the bucketing term does not match user, model, or VA — it is a metadata key.
+If the bucketing term does not match user, model, or VA — it is a metadata key. **Do not ask the user for the key name.** Discover it from live data as described above.
 
 A user query can specify both dimensions. Example: "per user rate limit on gpt-4o" → target is `when: { models: [openai/gpt-4o] }`, bucketing is `rate_limit_applies_per: ['user']`.
 
@@ -79,7 +79,11 @@ Rules are evaluated top to bottom. **Only the first matching rule is applied** �
 1. Call `get_manifest_json_schema` with type `gateway-rate-limiting-config`.
 2. Call `get_gateway_config` with `type: gateway-rate-limiting-config` to fetch the existing config. New rules must be merged with existing ones — never replace. Note the `name` field from the existing config — you will need it.
 
-### Phase 2: Build and Apply
+### Phase 2: Position the Rule
+
+Call `search_docs` for "rate limiting rule ordering" to understand how rule order works (only the first matching rule applies). Review existing rules for overlapping scope before deciding where to insert the new rule.
+
+### Phase 3: Build and Apply
 
 Build the manifest as JSON (include `name` from existing config) → pass to `validate_manifest` → fix if needed → pass to `apply_manifest`.
 
@@ -107,6 +111,7 @@ rules:
 
 - [ ] Did I call `get_manifest_json_schema` with type `gateway-rate-limiting-config`?
 - [ ] Did I fetch the existing config and merge rules (not replace)?
+- [ ] Did I check existing rules for overlapping scope and position the new rule correctly (not just append at the end)?
 - [ ] Did I include the `name` field in the manifest?
 - [ ] Did I call `validate_manifest` before applying?
 
