@@ -192,26 +192,11 @@ After a successful `apply_manifest`, show the user the relevant page. Substitute
 
 ### Deep-linking to traces and metrics
 
-Append `&filters={url-encoded-json}` to monitoring URLs to pre-filter. Format:
-```
-{"rules":[{"field":"<fieldName>","value":"<value>","operator":"<op>"}]}
-```
-Common fields: `traceId`, `userEmail`, `modelName`, `teamName`. Operators: `IN`, `STRING_CONTAINS`. For the full list of filter fields and operators, use `search_docs` with "request logs filtering".
+Append `?filters=<url-encoded-json>` to monitoring URLs to pre-filter. JSON format: `{"rules":[{"field":"<fieldName>","value":"<value>","operator":"<op>"}]}`. URL-encode the JSON before appending. Common fields: `traceId`, `userEmail`, `modelName`, `teamName`. Operators: `IN`, `STRING_CONTAINS`. For the full list, use `search_docs` with "request logs filtering".
 
-Trace deep-link example:
-```
-{controlPlaneUrl}/monitoring/request-traces?filters={"rules":[{"field":"traceId","value":["<TraceId>"],"operator":"IN"}]}
-```
+Base paths: `{controlPlaneUrl}/monitoring/request-traces`, `{controlPlaneUrl}/monitoring/metrics?monitorTab=metrics&viewBy=modelName`.
 
-Other monitoring pages that accept filters:
-Filters also work on metrics and request traces pages. Examples:
-
-```
-{controlPlaneUrl}/monitoring/request-traces?filters={"rules":[{"field":"userEmail","value":["alice@company.com"],"operator":"IN"}]}
-{controlPlaneUrl}/monitoring/metrics?monitorTab=metrics&viewBy=modelName&filters={"rules":[{"field":"modelName","value":"gpt-4o","operator":"STRING_CONTAINS"}]}
-```
-
-URL-encode the `filters` JSON. Always provide direct links when showing trace or metrics results.
+Always provide direct links when showing trace or metrics results.
 
 ## Querying Gateway Usage Data
 
