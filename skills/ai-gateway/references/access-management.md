@@ -1,6 +1,6 @@
 ---
 name: access-management
-description: Identity types, authentication tokens (PATs/VATs), access control, roles, permissions, and virtual account token management.
+description: Identity types, authentication tokens (PATs/VATs), access control, roles, role bindings, permissions, and virtual account token management.
 ---
 
 **Access Management** covers the identity types, authentication mechanisms, access control, and token management for the Gateway.
@@ -97,8 +97,7 @@ When creating custom roles, use the `{resource-type}:{ActionInCamelCase}` format
 #### Phase 2: Determine Permissions
 
 1. Ask the user what actions the role should allow.
-2. Use the verified permission reference table below to map user intent → permission strings.
-3. If the needed permission is not in the table, use `search_docs` with terms like "role permissions", "access control permissions list".
+2. Map user intent → permission strings using the **Permission Strings** section below.
 
 #### Phase 3: Validate and Apply
 
@@ -124,173 +123,9 @@ permissions:
 - `name` pattern: `^[a-z][a-z0-9\-]{1,33}[a-z0-9]$` (starts with letter, ends with letter/digit, 3–35 chars).
 - The **Global Settings** resource prefix is `settings` (not `global-settings`) — this is a common source of validation failures.
 
-### Verified Permission Strings
+### Permission Strings
 
-Format: `{resource-type}:{ActionInCamelCase}`
-
-#### Provider Accounts / Models / Guardrails
-
-| Permission String | Description |
-|---|---|
-| `provider-account:CreateProviderAccount` | Create Provider Account |
-| `provider-account:ReadProviderAccount` | Read Provider Account |
-| `provider-account:UseIntegrations` | Use Integrations |
-| `provider-account:ManageProviderAccount` | Manage Provider Account |
-| `provider-account:DeleteProviderAccount` | Delete Provider Account |
-
-#### MCP Server
-
-| Permission String | Description |
-|---|---|
-| `mcp-server:CreateMcpServer` | Create MCP Server |
-| `mcp-server:ReadMcpServer` | Read MCP Server |
-| `mcp-server:UseMcpServer` | Use MCP Server |
-| `mcp-server:ManageMcpServer` | Manage MCP Server |
-| `mcp-server:DeleteMcpServer` | Delete MCP Server |
-
-#### Agent
-
-| Permission String | Description |
-|---|---|
-| `agent:CreateAgent` | Create Agent |
-| `agent:ReadAgent` | Read Agent |
-| `agent:ManageAgent` | Manage Agent |
-| `agent:DeleteAgent` | Delete Agent |
-
-#### Gateway Controls
-
-| Permission String | Description |
-|---|---|
-| `gateway-controls:ManageGatewayControls` | Manage Gateway Controls |
-| `gateway-controls:ListGatewayControls` | List Gateway Controls |
-
-#### Tenant
-
-| Permission String | Description |
-|---|---|
-| `tenant:AssignRole` | Assign Role |
-
-#### Cluster
-
-| Permission String | Description |
-|---|---|
-| `cluster:CreateCluster` | Create Cluster |
-| `cluster:ReadCluster` | Read Cluster |
-| `cluster:ManageClusters` | Manage Clusters |
-| `cluster:DeleteCluster` | Delete Cluster |
-
-#### Workspace
-
-| Permission String | Description |
-|---|---|
-| `workspace:CreateWorkspace` | Create Workspace |
-| `workspace:ReadWorkspace` | Read Workspace |
-| `workspace:ManageWorkspace` | Manage Workspace |
-| `workspace:DeleteWorkspace` | Delete Workspace |
-| `workspace:ListWorkspaces` | List Workspaces |
-
-#### Application
-
-| Permission String | Description |
-|---|---|
-| `application:ListApplications` | List Applications |
-| `application:ManageApplications` | Manage Applications |
-
-#### Repository
-
-| Permission String | Description |
-|---|---|
-| `repository:CreateRepository` | Create Repository |
-| `repository:ReadRepository` | Read Repository |
-| `repository:ReadData` | Read Data |
-| `repository:WriteData` | Write Data |
-| `repository:DeleteData` | Delete Data |
-| `repository:ManageRepository` | Manage Repository |
-| `repository:DeleteRepository` | Delete Repository |
-
-#### Secret Group
-
-| Permission String | Description |
-|---|---|
-| `secret-group:CreateSecretGroup` | Create Secret Group |
-| `secret-group:ReadSecretGroup` | Read Secret Group |
-| `secret-group:ReadData` | Read Data |
-| `secret-group:WriteData` | Write Data |
-| `secret-group:ManageSecretGroup` | Manage Secret Group |
-| `secret-group:DeleteSecretGroup` | Delete Secret Group |
-
-#### Tracing Project
-
-| Permission String | Description |
-|---|---|
-| `tracing-project:CreateTracingProject` | Create Tracing Project |
-| `tracing-project:ReadTracingProject` | Read Tracing Project |
-| `tracing-project:ReadData` | Read Data |
-| `tracing-project:WriteData` | Write Data |
-| `tracing-project:ManageTracingProject` | Manage Tracing Project |
-| `tracing-project:DeleteTracingProject` | Delete Tracing Project |
-
-#### User
-
-| Permission String | Description |
-|---|---|
-| `user:ManageUsers` | Manage Users |
-| `user:ListUsers` | List Users |
-
-#### Team
-
-| Permission String | Description |
-|---|---|
-| `team:CreateTeam` | Create Team |
-| `team:ReadTeam` | Read Team |
-| `team:ManageTeam` | Manage Team |
-| `team:DeleteTeam` | Delete Team |
-
-#### Virtual Account
-
-| Permission String | Description |
-|---|---|
-| `virtual-account:CreateVirtualAccount` | Create Virtual Account |
-| `virtual-account:ReadVirtualAccount` | Read Virtual Account |
-| `virtual-account:ManageVirtualAccount` | Manage Virtual Account |
-| `virtual-account:DeleteVirtualAccount` | Delete Virtual Account |
-
-#### External Identity
-
-| Permission String | Description |
-|---|---|
-| `external-identity:ListExternalIdentities` | List External Identities |
-| `external-identity:ManageExternalIdentities` | Manage External Identities |
-
-#### Role
-
-| Permission String | Description |
-|---|---|
-| `role:ManageRoles` | Manage Roles |
-| `role:ListRoles` | List Roles |
-
-#### Global Settings
-
-Resource prefix is `settings`, not `global-settings`.
-
-| Permission String | Description |
-|---|---|
-| `settings:ListSettings` | List Settings |
-| `settings:ManageSettings` | Manage Settings |
-
-#### Environment
-
-| Permission String | Description |
-|---|---|
-| `environment:ManageEnvironments` | Manage Environments |
-| `environment:ListEnvironments` | List Environments |
-
-#### Policy
-
-| Permission String | Description |
-|---|---|
-| `policy:ManagePolicies` | Manage Policies |
-| `policy:ListPolicies` | List Policies |
+For the full catalog of permission keys and their descriptions, use `get_section_content` on https://www.truefoundry.com/docs/platform/manage-user-roles-and-permissions to look them up, or reuse keys from `list_roles`. Copy keys verbatim in the `{resource-type}:{ActionInCamelCase}` format.
 
 ### Example: Gateway Config Creator Role
 
@@ -309,10 +144,53 @@ permissions:
 
 ### Custom Role Checklist
 
-- [ ] Did I confirm no built-in role covers the user's needs?
 - [ ] Did I call `get_manifest_json_schema` with type `role`?
 - [ ] Is `resourceType` set to `tenant` (not `provider-account`, `workspace`, etc.)?
 - [ ] Are all permission strings in `{resource-type}:{ActionInCamelCase}` format?
-- [ ] For Global Settings, did I use prefix `settings` (not `global-settings`)?
 
-For more info: `search_docs` with "authentication PAT VAT", "virtual account management", "access control provider account", "custom role permissions".
+## Role Bindings
+
+A **Role Binding** assigns a role to subjects (users, teams, virtual accounts, or external identities) on a specific resource. A Role defines *what* permissions exist; a Role Binding decides *who* gets that role on *which* resource.
+
+### Fetching existing role bindings
+
+Use `list_role_bindings` to list bindings. Use `check_role_binding_exists` to check whether a binding with a given name already exists.
+
+### Creating Role Bindings (Write Flow)
+
+> Role bindings have no manifest — do NOT use `get_manifest_json_schema`, `validate_manifest`, or `apply_manifest`. Use the `create_or_update_role_binding` tool directly.
+
+#### Phase 1: Gather Requirements
+
+1. **Who** gets access — user email, or team / virtual account / external identity name.
+2. **Which role** — call `list_roles` for valid role names.
+3. **On which resource** — resource type + FQN. Confirm it exists via the relevant list tool (e.g. `list_workspaces`).
+
+#### Phase 2: Create or Update
+
+Build the payload → call `create_or_update_role_binding` directly. Matching is by `name`: a binding with an existing name is updated, otherwise created.
+
+#### Manifest Structure
+
+```yaml
+type: role-binding
+name: <unique-binding-name>          # lowercase, 3-64 chars, letter start/end, hyphens allowed
+subjects:
+  - type: <user | team | virtualaccount | external-identity>
+    name: <email for user; entity name for others>
+permissions:
+  - resourceType: <resource-type>    # must match the role's own resourceType
+    resourceFqn: <resource-fqn>      # for tenant-scoped roles, use the tenant name
+    role: <role-name>                # from list_roles
+```
+
+### Deleting a role binding
+
+Use `list_role_bindings` to find the binding by name, then `delete_role_binding` with its `id`.
+
+### Checklist
+
+- [ ] Did I call `list_roles` to confirm the role name exists?
+- [ ] Does each permission's `resourceType` match the role's resource type, with a valid `resourceFqn`?
+
+For more info: `search_docs` with "authentication PAT VAT", "virtual account management", "access control provider account", "custom role permissions", "role binding", "assign role to user", "grant workspace access".

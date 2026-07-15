@@ -123,7 +123,7 @@ Throughout the platform, `policy` and `configuration` mean the same thing and ar
 | Rate Limiting Policy                                         | `ai-gateway/references/rate-limiting.md`        |
 | Budget Limiting Policy                                       | `ai-gateway/references/budget-limiting.md`      |
 | Load Balancing Policy (Deprecated)                           | `ai-gateway/references/load-balancing.md`       |
-| Users, Teams, VAs, Roles and Access Control                  | `ai-gateway/references/access-management.md`    |
+| Users, Teams, VAs, Roles, Role Bindings and Access Control   | `ai-gateway/references/access-management.md`    |
 | Teams (Create/Manage)                                        | `ai-gateway/references/teams.md`                |
 | Virtual Accounts (Create/Manage)                             | `ai-gateway/references/virtual-accounts.md`     |
 | Personal Access Tokens (Create)                              | `ai-gateway/references/personal-access-tokens.md` |
