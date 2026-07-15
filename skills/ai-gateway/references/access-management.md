@@ -125,7 +125,12 @@ permissions:
 
 ### Permission Strings
 
-Use `get_section_content` on the docs to get the exact permission keys — fetch the relevant product section: `#ai-gateway`, `#ai-engineering`, or `#common` on https://www.truefoundry.com/docs/platform/manage-user-roles-and-permissions. Each section lists permissions grouped by resource type with their exact keys and descriptions. Copy the keys verbatim.
+Get the exact permission keys from the docs. This is a two-step process — you cannot fetch all permissions at once (the `#available-platform-permissions` anchor returns no content):
+
+1. **Get the page layout first.** Call `get_page_layout` on https://www.truefoundry.com/docs/platform/manage-user-roles-and-permissions. This returns the page structure and the list of section anchors available.
+2. **Then fetch each relevant section.** Call `get_section_content` with the specific anchor from step 1 to get that section's permissions grouped by resource type, with their exact keys and descriptions.
+
+Copy the keys verbatim.
 
 ### Example: Gateway Config Creator Role
 
