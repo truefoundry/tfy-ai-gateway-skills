@@ -125,7 +125,7 @@ permissions:
 
 ### Permission Strings
 
-For the full catalog of permission keys and their descriptions, use `get_section_content` on https://www.truefoundry.com/docs/platform/manage-user-roles-and-permissions to look them up, or reuse keys from `list_roles`. Copy keys verbatim in the `{resource-type}:{ActionInCamelCase}` format.
+For the catalog of available permissions, use `get_section_content` on https://www.truefoundry.com/docs/platform/manage-user-roles-and-permissions#available-platform-permissions. It groups permissions by resource type with their display names and descriptions.
 
 ### Example: Gateway Config Creator Role
 
