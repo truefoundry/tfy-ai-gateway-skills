@@ -183,7 +183,8 @@ After a successful `apply_manifest`, show the user the relevant page. Substitute
 | Virtual model | `/llm-gateway/virtual-models` |
 | MCP server (including Virtual) | `/llm-gateway/mcp-servers` |
 | Rate limit rule | `/llm-gateway/settings?configTab=rate-limiting` |
-| Budget rule | `/llm-gateway/settings?configTab=budget-limiting` |
+| Budget rule (V2 — default) | `/llm-gateway/settings?configTab=budget-limiting-v2` |
+| Budget rule (V1 — legacy) | `/llm-gateway/settings?configTab=budget-limiting` |
 | Guardrail config group | `/guardrails/registry` |
 | Guardrail policy (rules) | `/guardrails/policies` |
 | Team | `/access-management?tab=teams` |
