@@ -121,7 +121,8 @@ Throughout the platform, `policy` and `configuration` mean the same thing and ar
 | MCP Servers (Remote, Stdio, and Virtual)                     | `ai-gateway/references/mcp-servers.md`          |
 | Guardrail Integrations and Guardrail Policy                  | `ai-gateway/references/guardrails.md`           |
 | Rate Limiting Policy                                         | `ai-gateway/references/rate-limiting.md`        |
-| Budget Limiting Policy                                       | `ai-gateway/references/budget-limiting.md`      |
+| Budget Limiting (default — use V2 for all budget work)       | `ai-gateway/references/budget-limiting-v2.md`   |
+| Budget Limiting V1 (legacy — reading, disabling, migration)  | `ai-gateway/references/budget-limiting.md`      |
 | Load Balancing Policy (Deprecated)                           | `ai-gateway/references/load-balancing.md`       |
 | Users, Teams, VAs, Roles, Role Bindings and Access Control   | `ai-gateway/references/access-management.md`    |
 | Teams (Create/Manage)                                        | `ai-gateway/references/teams.md`                |

@@ -3,6 +3,8 @@ name: budget-limiting
 description: Budget policies enforce spending and token budgets with optional alerts and audit mode for Gateway usage.
 ---
 
+> **V1 is deprecated.** Use **Budget Limiting V2** (`ai-gateway/references/budget-limiting-v2.md`) for all new budget work. This file covers V1 only for reading, disabling, and migrating existing `gateway-budget-config` rules.
+
 **Budget Config** defines **Budget Rules** that set limits using `when` matchers (subjects, models, metadata), `limit_to`, `unit`, optional `budget_applies_per`, optional `alerts`, and optional `audit_mode` (track overages without blocking).
 
 ## Fetching existing budget configuration
