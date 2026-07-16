@@ -14,9 +14,11 @@ Two things to know:
 
 ## Scopes
 
-Set by `type`: `tenant-budget-config` (tenant-wide, managed by tenant admins) or `team-budget-config` (a single team — add `team: <name>`, managed by tenant admins and that team's managers).
+Set by `type`: `tenant-budget-config` (tenant-wide, managed by tenant admins) or `team-budget-config` (a single team — add required `team_name: <name>`, managed by tenant admins and that team's managers). Team scope cannot filter `when.subjects.teams`.
 
 ## Creating/Updating rules (Write Flow)
+
+Always confirm the exact schema with `get_manifest_json_schema` before building — the field names below are strict.
 
 1. Call `get_manifest_json_schema` for the type; call `get_gateway_config` (`type: tenant-budget-config` / `team-budget-config`) to review existing rules — a new rule stacks on any overlapping one.
 2. Gather scope, filters (`when`), limits, `applies_to`, `mode`, and optional alerts — use `ask_user_question` for choices.
@@ -25,39 +27,50 @@ Set by `type`: `tenant-budget-config` (tenant-wide, managed by tenant admins) or
 ### Manifest Structure
 
 ```yaml
-name: <unique-rule-name>
-type: tenant-budget-config          # or team-budget-config (then also add: team: <name>)
-mode: enforce                       # enforce = block; audit = warn-only
-applies_to:
-  type: aggregate                   # aggregate | user | model | virtualaccount | metadata
-  key: <metadata-key>               # only when type: metadata
-limits:                             # one or more periods
-  cost_per_day: <n>                 # also cost_per_week / _month / _quarter / _lifetime (lifetime never resets)
-when:                               # {} = everything in scope
+name: <unique-rule-name>       
+type: tenant-budget-config           # or team-budget-config
+team_name: <team-name>               # REQUIRED for team-budget-config only
+mode: enforce                        # enforce = block; audit = warn-only
+limits:                              # one or more; cost_per_lifetime is mutually exclusive with the rest
+  cost_per_day: <n>                  # also cost_per_week / _month / _quarter / _lifetime
+applies_to:                          # discriminated by `type`
+  type: aggregate                    # aggregate | per-user | per-model | per-virtual-account | metadata
+  metadata: <key>                    # REQUIRED only when type: metadata (the key to bucket by)
+when:                                # optional; omit to match everything in scope
   subjects:
-    users: { in: [<bare-email>] }   # in / not_in; teams and virtualaccounts use the same shape
+    users: { in: [<email>] }         # in / not_in (values are bare, e.g. alice@x.com)
+    teams: { in: [<team>] }          # tenant scope only
+    virtual_accounts: { in: [<va>] }
   models: { in: [<account/model>] }
+  provider_accounts: { in: [<account>] }
   metadata:
     <key>: { in: [<value>] }
-overrides:                          # per-entity rules only; replaces ALL base periods for that entity
-  - subject: user:<email>           # prefixed here (unlike when.subjects, which are bare)
-    limits: { cost_per_day: <n> }
 alerts:
   thresholds: [75, 90, 95, 100]
-  send_to: shared
   notification_target:
-    - type: email                   # email | slack-webhook | slack-bot
+    - type: email                    # email | slack-webhook | slack-bot | pagerduty | ms-teams-webhook
       notification_channel: <fqn>
-      to_emails: [<email>]          # per-user rules may use "{{user.email}}"
+      to_emails: [<email>]           # email requires to_emails; slack-bot requires channels: ["#chan"]
 ```
 
-Gotchas: `mode` is `enforce` or `audit`; `applies_to.type: metadata` needs `key`; `when` subjects are **bare** but `overrides.subject` is **prefixed**; for metadata keys you don't know, discover them from live data (see `ai-gateway/references/observability.md`) — don't ask the user.
+**Overrides** (optional, per-entity `applies_to` only) live **inside `applies_to`**, keyed by the entity type — not at the top level:
+
+```yaml
+applies_to:
+  type: per-user                     # per-model / per-virtual-account / metadata analogous
+  overrides:
+    - users: [<email>]               # per-model → models: [...]; per-virtual-account → virtual_accounts: [...]; metadata → metadata_values: [...]
+      limits: { cost_per_day: <n> }  # replaces ALL base periods for those entities
+```
+
+Gotchas: `applies_to.type` is hyphenated (`per-user`, `per-model`, `per-virtual-account`) except `aggregate` and `metadata`; `type: metadata` needs a `metadata: <key>` field; `cost_per_lifetime` can't be combined with other periods; there is no `send_to` field on alerts; for metadata keys you don't know, discover them from live data (see `ai-gateway/references/observability.md`) — don't ask the user.
 
 ## Checklist
 
 - [ ] One rule per manifest, each with a unique `name`?
-- [ ] Does `when` use the nested `in`/`not_in` form?
-- [ ] Is `mode` set, and for team scope is `team` set and confirmed to exist?
+- [ ] Does `when` use the nested `in`/`not_in` form (with `virtual_accounts`, not `virtualaccounts`)?
+- [ ] Is `applies_to.type` one of `aggregate`/`per-user`/`per-model`/`per-virtual-account`/`metadata` (and `metadata:` set for the metadata type)?
+- [ ] For team scope, is `team_name` set and confirmed to exist?
 - [ ] Validated before applying, and checked existing rules for overlap?
 
 ## Migrating from V1
@@ -65,8 +78,13 @@ Gotchas: `mode` is `enforce` or `audit`; `applies_to.type: metadata` needs `key`
 V1 is a single tenant-wide config with an ordered `rules[]`; V2 is one manifest per rule. Migrate every V1 rule to a **`tenant-budget-config`** (V1 was always tenant-scoped).
 
 1. Fetch V1 with `get_gateway_config` (`type: gateway-budget-config`) and audit each rule.
-2. Recreate each `rules[]` entry as its own `tenant-budget-config` manifest: `id`→`name`, `audit_mode`→`mode`, `budget_applies_per`→`applies_to`, `limit_to`+`unit`→`limits`, flat `when`→nested `in`/`not_in`.
-3. V2 has no ordering — if a V1 rule was an override above a default, exclude that group from the default with `not_in` (or use `overrides`); otherwise both limits apply and the tightest wins.
+2. Recreate each `rules[]` entry as its own `tenant-budget-config` manifest:
+   - `id` → `name`
+   - `audit_mode: false/true` → `mode: enforce/audit`
+   - `budget_applies_per: ['user'|'model'|'virtualaccount']` → `applies_to.type: per-user`/`per-model`/`per-virtual-account`; `['metadata.<key>']` → `applies_to: { type: metadata, metadata: <key> }`; omitted → `applies_to: { type: aggregate }`
+   - `limit_to` + `unit` → `limits: { <unit>: <limit_to> }`
+   - flat `when` (`['user:a@x','team:eng']`) → nested `in`/`not_in` (`subjects.users.in: [a@x]`, `subjects.teams.in: [eng]`)
+3. V2 has no ordering — if a V1 rule was an override above a default, exclude that group from the default with `not_in` (or use per-entity `overrides` inside `applies_to`); otherwise both limits apply and the tightest wins.
 4. Create V2 rules in `mode: audit`, verify for a full period, switch to `enforce`, then disable the V1 rules (both run in parallel during the transition).
 
 For more info: `search_docs` with "budget limiting v2", "migrate budget limiting".
