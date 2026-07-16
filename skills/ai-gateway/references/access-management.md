@@ -163,7 +163,7 @@ Use `list_role_bindings` to list bindings. Use `check_role_binding_exists` to ch
 
 ### Creating Role Bindings (Write Flow)
 
-> Role bindings have no manifest — do NOT use `get_manifest_json_schema`, `validate_manifest`, or `apply_manifest`. Use the `create_or_update_role_binding` tool directly.
+> Role bindings do NOT use `get_manifest_json_schema`, `validate_manifest`, or `apply_manifest`. Use the `create_or_update_role_binding` tool directly.
 
 #### Phase 1: Gather Requirements
 
@@ -173,7 +173,7 @@ Use `list_role_bindings` to list bindings. Use `check_role_binding_exists` to ch
 
 #### Phase 2: Create or Update
 
-Build the payload → call `create_or_update_role_binding` directly. Matching is by `name`: a binding with an existing name is updated, otherwise created.
+Build the manifest (below) and call `create_or_update_role_binding` with it wrapped under a top-level `manifest` key — `{"manifest": {<the manifest>}}`. Do NOT pass the fields at the top level. Matching is by `name`: a binding with an existing name is updated, otherwise created.
 
 #### Manifest Structure
 
