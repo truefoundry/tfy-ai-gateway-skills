@@ -124,7 +124,7 @@ Throughout the platform, `policy` and `configuration` mean the same thing and ar
 | Budget Limiting (default — use V2 for all budget work)       | `ai-gateway/references/budget-limiting-v2.md`   |
 | Budget Limiting V1 (legacy — reading, disabling, migration)  | `ai-gateway/references/budget-limiting.md`      |
 | Load Balancing Policy (Deprecated)                           | `ai-gateway/references/load-balancing.md`       |
-| Users, Teams, VAs, Roles, Role Bindings and Access Control   | `ai-gateway/references/access-management.md`    |
+| Users, Teams, VAs, Roles, Access Control and Permissions     | `ai-gateway/references/access-management.md`    |
 | Teams (Create/Manage)                                        | `ai-gateway/references/teams.md`                |
 | Virtual Accounts (Create/Manage)                             | `ai-gateway/references/virtual-accounts.md`     |
 | Personal Access Tokens (Create)                              | `ai-gateway/references/personal-access-tokens.md` |
