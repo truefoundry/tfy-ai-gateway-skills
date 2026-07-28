@@ -1,6 +1,6 @@
 ---
 name: access-management
-description: Identity types, authentication tokens (PATs/VATs), access control, roles, permissions, and virtual account token management.
+description: Identity types, authentication tokens (PATs/VATs), access control, roles, permissions, giving access to users, and virtual account token management.
 ---
 
 **Access Management** covers the identity types, authentication mechanisms, access control, and token management for the Gateway.
@@ -71,11 +71,11 @@ Roles are assigned per user.
 
 There are two ways to grant access in TrueFoundry:
 
-1. **Custom role + tenant-scoped role binding** — for granting broad permissions across the entire tenant (e.g., "this user can create provider accounts and MCP servers"). Create a custom role with the permissions needed, then bind it at the tenant level.
+1. **Custom role granted to the user** — for granting broad permissions across the entire tenant (e.g., "this user can create provider accounts and MCP servers"). Create a custom role with the permissions needed, then grant it to the user (see Giving Access to a User below).
 2. **Collaborators on the entity** — for granting access to a *specific* resource (e.g., "this user can manage this particular provider account"). Add the user or team as a collaborator in the entity's manifest, or add them to a team that already has access.
 
 When to use which:
-- Need to grant someone broad platform-level capabilities? → Custom role + tenant binding
+- Need to grant someone broad platform-level capabilities? → Custom role granted to the user
 - Need to give someone access to a specific provider account, MCP server, workspace, etc.? → Add them as a collaborator on that entity, or add them to an appropriate team
 
 ### Fetching Existing Roles
@@ -97,8 +97,7 @@ When creating custom roles, use the `{resource-type}:{ActionInCamelCase}` format
 #### Phase 2: Determine Permissions
 
 1. Ask the user what actions the role should allow.
-2. Use the verified permission reference table below to map user intent → permission strings.
-3. If the needed permission is not in the table, use `search_docs` with terms like "role permissions", "access control permissions list".
+2. Map user intent → permission strings using the **Permission Strings** section below.
 
 #### Phase 3: Validate and Apply
 
@@ -124,173 +123,14 @@ permissions:
 - `name` pattern: `^[a-z][a-z0-9\-]{1,33}[a-z0-9]$` (starts with letter, ends with letter/digit, 3–35 chars).
 - The **Global Settings** resource prefix is `settings` (not `global-settings`) — this is a common source of validation failures.
 
-### Verified Permission Strings
+### Permission Strings
 
-Format: `{resource-type}:{ActionInCamelCase}`
+Get the exact permission keys from the docs. This is a two-step process — you cannot fetch all permissions at once (the `#available-platform-permissions` anchor returns no content):
 
-#### Provider Accounts / Models / Guardrails
+1. **Get the page layout first.** Call `get_page_layout` on https://www.truefoundry.com/docs/platform/manage-user-roles-and-permissions. This returns the page structure and the list of section anchors available.
+2. **Then fetch each relevant section.** Call `get_section_content` with the specific anchor from step 1 to get that section's permissions grouped by resource type, with their exact keys and descriptions.
 
-| Permission String | Description |
-|---|---|
-| `provider-account:CreateProviderAccount` | Create Provider Account |
-| `provider-account:ReadProviderAccount` | Read Provider Account |
-| `provider-account:UseIntegrations` | Use Integrations |
-| `provider-account:ManageProviderAccount` | Manage Provider Account |
-| `provider-account:DeleteProviderAccount` | Delete Provider Account |
-
-#### MCP Server
-
-| Permission String | Description |
-|---|---|
-| `mcp-server:CreateMcpServer` | Create MCP Server |
-| `mcp-server:ReadMcpServer` | Read MCP Server |
-| `mcp-server:UseMcpServer` | Use MCP Server |
-| `mcp-server:ManageMcpServer` | Manage MCP Server |
-| `mcp-server:DeleteMcpServer` | Delete MCP Server |
-
-#### Agent
-
-| Permission String | Description |
-|---|---|
-| `agent:CreateAgent` | Create Agent |
-| `agent:ReadAgent` | Read Agent |
-| `agent:ManageAgent` | Manage Agent |
-| `agent:DeleteAgent` | Delete Agent |
-
-#### Gateway Controls
-
-| Permission String | Description |
-|---|---|
-| `gateway-controls:ManageGatewayControls` | Manage Gateway Controls |
-| `gateway-controls:ListGatewayControls` | List Gateway Controls |
-
-#### Tenant
-
-| Permission String | Description |
-|---|---|
-| `tenant:AssignRole` | Assign Role |
-
-#### Cluster
-
-| Permission String | Description |
-|---|---|
-| `cluster:CreateCluster` | Create Cluster |
-| `cluster:ReadCluster` | Read Cluster |
-| `cluster:ManageClusters` | Manage Clusters |
-| `cluster:DeleteCluster` | Delete Cluster |
-
-#### Workspace
-
-| Permission String | Description |
-|---|---|
-| `workspace:CreateWorkspace` | Create Workspace |
-| `workspace:ReadWorkspace` | Read Workspace |
-| `workspace:ManageWorkspace` | Manage Workspace |
-| `workspace:DeleteWorkspace` | Delete Workspace |
-| `workspace:ListWorkspaces` | List Workspaces |
-
-#### Application
-
-| Permission String | Description |
-|---|---|
-| `application:ListApplications` | List Applications |
-| `application:ManageApplications` | Manage Applications |
-
-#### Repository
-
-| Permission String | Description |
-|---|---|
-| `repository:CreateRepository` | Create Repository |
-| `repository:ReadRepository` | Read Repository |
-| `repository:ReadData` | Read Data |
-| `repository:WriteData` | Write Data |
-| `repository:DeleteData` | Delete Data |
-| `repository:ManageRepository` | Manage Repository |
-| `repository:DeleteRepository` | Delete Repository |
-
-#### Secret Group
-
-| Permission String | Description |
-|---|---|
-| `secret-group:CreateSecretGroup` | Create Secret Group |
-| `secret-group:ReadSecretGroup` | Read Secret Group |
-| `secret-group:ReadData` | Read Data |
-| `secret-group:WriteData` | Write Data |
-| `secret-group:ManageSecretGroup` | Manage Secret Group |
-| `secret-group:DeleteSecretGroup` | Delete Secret Group |
-
-#### Tracing Project
-
-| Permission String | Description |
-|---|---|
-| `tracing-project:CreateTracingProject` | Create Tracing Project |
-| `tracing-project:ReadTracingProject` | Read Tracing Project |
-| `tracing-project:ReadData` | Read Data |
-| `tracing-project:WriteData` | Write Data |
-| `tracing-project:ManageTracingProject` | Manage Tracing Project |
-| `tracing-project:DeleteTracingProject` | Delete Tracing Project |
-
-#### User
-
-| Permission String | Description |
-|---|---|
-| `user:ManageUsers` | Manage Users |
-| `user:ListUsers` | List Users |
-
-#### Team
-
-| Permission String | Description |
-|---|---|
-| `team:CreateTeam` | Create Team |
-| `team:ReadTeam` | Read Team |
-| `team:ManageTeam` | Manage Team |
-| `team:DeleteTeam` | Delete Team |
-
-#### Virtual Account
-
-| Permission String | Description |
-|---|---|
-| `virtual-account:CreateVirtualAccount` | Create Virtual Account |
-| `virtual-account:ReadVirtualAccount` | Read Virtual Account |
-| `virtual-account:ManageVirtualAccount` | Manage Virtual Account |
-| `virtual-account:DeleteVirtualAccount` | Delete Virtual Account |
-
-#### External Identity
-
-| Permission String | Description |
-|---|---|
-| `external-identity:ListExternalIdentities` | List External Identities |
-| `external-identity:ManageExternalIdentities` | Manage External Identities |
-
-#### Role
-
-| Permission String | Description |
-|---|---|
-| `role:ManageRoles` | Manage Roles |
-| `role:ListRoles` | List Roles |
-
-#### Global Settings
-
-Resource prefix is `settings`, not `global-settings`.
-
-| Permission String | Description |
-|---|---|
-| `settings:ListSettings` | List Settings |
-| `settings:ManageSettings` | Manage Settings |
-
-#### Environment
-
-| Permission String | Description |
-|---|---|
-| `environment:ManageEnvironments` | Manage Environments |
-| `environment:ListEnvironments` | List Environments |
-
-#### Policy
-
-| Permission String | Description |
-|---|---|
-| `policy:ManagePolicies` | Manage Policies |
-| `policy:ListPolicies` | List Policies |
+Copy the keys verbatim.
 
 ### Example: Gateway Config Creator Role
 
@@ -309,10 +149,20 @@ permissions:
 
 ### Custom Role Checklist
 
-- [ ] Did I confirm no built-in role covers the user's needs?
 - [ ] Did I call `get_manifest_json_schema` with type `role`?
 - [ ] Is `resourceType` set to `tenant` (not `provider-account`, `workspace`, etc.)?
 - [ ] Are all permission strings in `{resource-type}:{ActionInCamelCase}` format?
-- [ ] For Global Settings, did I use prefix `settings` (not `global-settings`)?
 
-For more info: `search_docs` with "authentication PAT VAT", "virtual account management", "access control provider account", "custom role permissions".
+## Giving Access to a User
+
+**Always recommend doing this via the UI** — show the steps below.
+
+**To give a user permissions:**
+
+1. Go to **Users > Access Control** and search for the user.
+2. Open the user's **Access Control** and click **Grant access**.
+3. Pick the role — a built-in role or a custom role (see Roles above) — and click **Update**.
+
+Full walkthrough: https://www.truefoundry.com/docs/platform/manage-user-roles-and-permissions
+
+For more info: `search_docs` with "authentication PAT VAT", "virtual account management", "access control provider account", "custom role permissions", "assign role to user", "grant workspace access".

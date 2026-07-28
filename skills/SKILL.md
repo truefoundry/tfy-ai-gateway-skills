@@ -121,9 +121,10 @@ Throughout the platform, `policy` and `configuration` mean the same thing and ar
 | MCP Servers (Remote, Stdio, and Virtual)                     | `ai-gateway/references/mcp-servers.md`          |
 | Guardrail Integrations and Guardrail Policy                  | `ai-gateway/references/guardrails.md`           |
 | Rate Limiting Policy                                         | `ai-gateway/references/rate-limiting.md`        |
-| Budget Limiting Policy                                       | `ai-gateway/references/budget-limiting.md`      |
+| Budget Limiting (default — use V2 for all budget work)       | `ai-gateway/references/budget-limiting-v2.md`   |
+| Budget Limiting V1 (legacy — reading, disabling, migration)  | `ai-gateway/references/budget-limiting.md`      |
 | Load Balancing Policy (Deprecated)                           | `ai-gateway/references/load-balancing.md`       |
-| Users, Teams, VAs, Roles and Access Control                  | `ai-gateway/references/access-management.md`    |
+| Users, Teams, VAs, Roles, Access Control and Permissions     | `ai-gateway/references/access-management.md`    |
 | Teams (Create/Manage)                                        | `ai-gateway/references/teams.md`                |
 | Virtual Accounts (Create/Manage)                             | `ai-gateway/references/virtual-accounts.md`     |
 | Personal Access Tokens (Create)                              | `ai-gateway/references/personal-access-tokens.md` |
@@ -143,11 +144,11 @@ For **read/query** operations, follow the reference file's instructions to fetch
 4. **Ask user for required inputs** — use `ask_user_question` to collect decisions (auth method, region, which models to add, etc.) when multiple options exist. Never guess — always confirm.
 5. **Fetch existing state when needed** — for gateway configs (rate limiting, budget, guardrails), always fetch the existing config first. Your new rules must be merged with existing rules, never replace them.
 6. **Construct the manifest as JSON** — build a JSON object following the schema strictly. **Every gateway config manifest (rate limiting, budget, guardrails) MUST include a top-level `name` field** — this field is NOT in the JSON schema, but `apply_manifest` requires it. Get the `name` from the existing config fetched in step 5.
-7. **Validate** — call `validate_manifest` with the manifest. Fix any errors and re-validate until it passes.
-8. **Apply** — call `apply_manifest` with the JSON body to create/update the entity. `apply_manifest` is idempotent — calling it with the same `name` updates the existing entity rather than creating a duplicate. **When the user asks to "create" an entity, always use a new unique name — do not reuse or update an existing entity.**
+7. **Validate** — call `validate_manifest` with the manifest wrapped under a top-level `manifest` key. Fix any errors and re-validate until it passes.
+8. **Apply** — call `apply_manifest` (same wrapped input as validate) to create/update the entity. `apply_manifest` is idempotent — calling it with the same `name` updates the existing entity rather than creating a duplicate. **When the user asks to "create" an entity, always use a new unique name — do not reuse or update an existing entity.**
 9. **Show UI link** — use `controlPlaneUrl` from step 2 to show the user the relevant page (see Post-creation links table below).
 
-`validate_manifest` and `apply_manifest` take exactly the same input. Never call `apply_manifest` in the same parallel batch as `validate_manifest` — always wait for `validate_manifest` to return `valid: true` before calling `apply_manifest`. `delete_manifest` requires both `type` and `name` in the body. Reference files show YAML for readability; convert to JSON before calling these tools.
+`validate_manifest` and `apply_manifest` take exactly the same input: the manifest object wrapped under a top-level `manifest` key — `{"manifest": {<the manifest>}}`. Never call `apply_manifest` in the same parallel batch as `validate_manifest` — always wait for `validate_manifest` to return `valid: true` before calling `apply_manifest`. `delete_manifest` requires both `type` and `name` in the body. Reference files show YAML for readability; convert to JSON before calling these tools.
 
 **On failure:** If `validate_manifest` fails, read the error, fix the manifest, and retry. If `apply_manifest` returns an error, show the error to the user. For persistent or unclear errors, read `references/support-tickets.md` and offer to raise a ticket — do not silently retry or give up.
 
@@ -182,7 +183,8 @@ After a successful `apply_manifest`, show the user the relevant page. Substitute
 | Virtual model | `/llm-gateway/virtual-models` |
 | MCP server (including Virtual) | `/llm-gateway/mcp-servers` |
 | Rate limit rule | `/llm-gateway/settings?configTab=rate-limiting` |
-| Budget rule | `/llm-gateway/settings?configTab=budget-limiting` |
+| Budget rule (V2 — default) | `/llm-gateway/settings?configTab=budget-limiting-v2` |
+| Budget rule (V1 — legacy) | `/llm-gateway/settings?configTab=budget-limiting` |
 | Guardrail config group | `/guardrails/registry` |
 | Guardrail policy (rules) | `/guardrails/policies` |
 | Team | `/access-management?tab=teams` |
