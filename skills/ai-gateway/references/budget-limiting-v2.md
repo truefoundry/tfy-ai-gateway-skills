@@ -16,11 +16,17 @@ Two things to know:
 
 Set by `type`: `tenant-budget-config` (tenant-wide, managed by tenant admins) or `team-budget-config` (a single team — add required `team_name: <name>`, managed by tenant admins and that team's managers). Team scope cannot filter `when.subjects.teams`.
 
+## Reading existing rules (Read Flow)
+
+Use **`list_gateway_budgets`** to read V2 rules. Because each V2 rule is its own manifest, there is no single config object to fetch — **`get_gateway_config` does not work for V2** (it only serves the V1 `gateway-budget-config`). Check the tool's schema for the scope/team filter arguments it accepts.
+
+Use it for every V2 read: listing what budgets exist, checking for overlapping rules before creating a new one, and reporting spend. When the response carries usage data (current spend, percent consumed, remaining, period start), present that alongside the limits — and for per-entity rules, which entities are over budget.
+
 ## Creating/Updating rules (Write Flow)
 
 Always confirm the exact schema with `get_manifest_json_schema` before building — the field names below are strict.
 
-1. Call `get_manifest_json_schema` for the type; call `get_gateway_config` (`type: tenant-budget-config` / `team-budget-config`) to review existing rules — a new rule stacks on any overlapping one.
+1. Call `get_manifest_json_schema` for the type; call `list_gateway_budgets` to review existing rules — a new rule stacks on any overlapping one.
 2. Gather scope, filters (`when`), limits, `applies_to`, `mode`, and optional alerts — use `ask_user_question` for choices.
 3. For **each** rule: build one manifest (top-level `name`) → `validate_manifest` → `apply_manifest`.
 
@@ -31,12 +37,12 @@ name: <unique-rule-name>
 type: tenant-budget-config           # or team-budget-config
 team_name: <team-name>               # REQUIRED for team-budget-config only
 mode: enforce                        # enforce = block; audit = warn-only
-limits:                              # one or more; cost_per_lifetime is mutually exclusive with the rest
+limits:                              # one or more; any combination is allowed, incl. cost_per_lifetime
   cost_per_day: <n>                  # also cost_per_week / _month / _quarter / _lifetime
 applies_to:                          # discriminated by `type`
   type: aggregate                    # aggregate | per-user | per-model | per-virtual-account | metadata
   metadata: <key>                    # REQUIRED only when type: metadata (the key to bucket by)
-when:                                # optional; omit to match everything in scope
+when:                                # optional; omit or use `when: {}` to match everything in scope
   subjects:
     users: { in: [<email>] }         # in / not_in (values are bare, e.g. alice@x.com)
     teams: { in: [<team>] }          # tenant scope only
@@ -63,10 +69,11 @@ applies_to:
       limits: { cost_per_day: <n> }  # replaces ALL base periods for those entities
 ```
 
-Gotchas: `applies_to.type` is hyphenated (`per-user`, `per-model`, `per-virtual-account`) except `aggregate` and `metadata`; `type: metadata` needs a `metadata: <key>` field; `cost_per_lifetime` can't be combined with other periods; there is no `send_to` field on alerts; for metadata keys you don't know, discover them from live data (see `ai-gateway/references/observability.md`) — don't ask the user.
+Gotchas: `applies_to.type` is hyphenated (`per-user`, `per-model`, `per-virtual-account`) except `aggregate` and `metadata`, and it cannot be changed after the rule is created — to re-partition a budget, create a new rule and disable the old one; `type: metadata` needs a `metadata: <key>` field; there is no `send_to` field on alerts; usage counts from rule creation, not from the start of the current period, so earlier spend is never backfilled; for metadata keys you don't know, discover them from live data (see `ai-gateway/references/observability.md`) — don't ask the user.
 
 ## Checklist
 
+- [ ] Did I read existing rules with `list_gateway_budgets` (not `get_gateway_config`)?
 - [ ] One rule per manifest, each with a unique `name`?
 - [ ] Does `when` use the nested `in`/`not_in` form (with `virtual_accounts`, not `virtualaccounts`)?
 - [ ] Is `applies_to.type` one of `aggregate`/`per-user`/`per-model`/`per-virtual-account`/`metadata` (and `metadata:` set for the metadata type)?
@@ -77,7 +84,7 @@ Gotchas: `applies_to.type` is hyphenated (`per-user`, `per-model`, `per-virtual-
 
 V1 is a single tenant-wide config with an ordered `rules[]`; V2 is one manifest per rule. Migrate every V1 rule to a **`tenant-budget-config`** (V1 was always tenant-scoped).
 
-1. Fetch V1 with `get_gateway_config` (`type: gateway-budget-config`) and audit each rule.
+1. Fetch V1 with `get_gateway_config` (`type: gateway-budget-config`) and audit each rule — this is the one place `get_gateway_config` still applies. Also call `list_gateway_budgets` to see what has already been migrated.
 2. Recreate each `rules[]` entry as its own `tenant-budget-config` manifest:
    - `id` → `name`
    - `audit_mode: false/true` → `mode: enforce/audit`
