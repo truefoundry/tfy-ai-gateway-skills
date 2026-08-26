@@ -56,7 +56,7 @@ Users use abbreviated names, typos, or partial matches. Always look up the entit
 - "gpt-4 model" → search Models matching "gpt-4".
 - "my-team" → look up Teams matching "my-team".
 - "github mcp" → search MCP servers with names containing "github".
-- "the prod service" / "my-service" → list Applications by name within the relevant workspace.
+- "the prod service" / "my-service" → list Applications by name. An application is identified by **workspace and name together**; the same name can exist in several workspaces, so confirm which one rather than taking the first match.
 
 ## "Application" / "App" / "Use-Case"
 
@@ -122,22 +122,22 @@ Throughout the platform, `policy` and `configuration` mean the same thing and ar
   - MCP Servers (including Virtual) are identified by their `name` (unique in a tenant).
 - **Policies**: Rate Limiting, Budget Limiting, Guardrails Config, Load Balancing (deprecated → use Virtual Models).
 
-**You must read the reference file for the relevant entity or policy before answering any question or starting any operation.** Find it in the table below — do not skip this step.
+**You must read the reference file for the relevant entity or policy before answering any question or starting any operation.** Find it in the table below — do not skip this step. Paths are under `ai-gateway/references/`.
 
-| **Entity** or Policy                                         | Filepath                                        |
-| ------------------------------------------------------------ | ----------------------------------------------- |
-| Models                                                       | `ai-gateway/references/models.md`               |
-| Virtual Models                                               | `ai-gateway/references/virtual-models.md`       |
-| MCP Servers (Remote, Stdio, and Virtual)                     | `ai-gateway/references/mcp-servers.md`          |
-| Guardrail Integrations and Guardrail Policy                  | `ai-gateway/references/guardrails.md`           |
-| Rate Limiting Policy                                         | `ai-gateway/references/rate-limiting.md`        |
-| Budget Limiting (default — use V2 for all budget work)       | `ai-gateway/references/budget-limiting-v2.md`   |
-| Budget Limiting V1 (legacy — reading, disabling, migration)  | `ai-gateway/references/budget-limiting.md`      |
-| Load Balancing Policy (Deprecated)                           | `ai-gateway/references/load-balancing.md`       |
-| Users, Teams, VAs, Roles, Access Control and Permissions     | `ai-gateway/references/access-management.md`    |
-| Teams (Create/Manage)                                        | `ai-gateway/references/teams.md`                |
-| Virtual Accounts (Create/Manage)                             | `ai-gateway/references/virtual-accounts.md`     |
-| Personal Access Tokens (Create)                              | `ai-gateway/references/personal-access-tokens.md` |
+| **Entity** or Policy | File |
+|---|---|
+| Models | `models.md` |
+| Virtual Models | `virtual-models.md` |
+| MCP Servers (Remote, Stdio, and Virtual) | `mcp-servers.md` |
+| Guardrail Integrations and Guardrail Policy | `guardrails.md` |
+| Rate Limiting Policy | `rate-limiting.md` |
+| Budget Limiting (default — use V2 for all budget work) | `budget-limiting-v2.md` |
+| Budget Limiting V1 (legacy — reading, disabling, migration) | `budget-limiting.md` |
+| Load Balancing Policy (Deprecated) | `load-balancing.md` |
+| Users, Teams, VAs, Roles, Access Control and Permissions | `access-management.md` |
+| Teams (Create/Manage) | `teams.md` |
+| Virtual Accounts (Create/Manage) | `virtual-accounts.md` |
+| Personal Access Tokens (Create) | `personal-access-tokens.md` |
 
 ## Handling Gateway Entity Questions
 

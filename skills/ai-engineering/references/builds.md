@@ -16,7 +16,7 @@ A build runs before any workload exists, so there is no pod, no container and no
 
 Three calls, in order:
 
-1. `get_application` — gives you the application `id` and its `activeDeployment` / `lastDeployment`.
+1. `get_application` — gives you the application `id` and its `activeDeployment` / `lastDeployment`. If you only have a name, `list_applications` first: the same name can exist in several workspaces, so ask which one the user means rather than taking the first match.
 2. `get_deployment` with that application `id` and the deployment `id` — the response carries `deploymentBuilds`.
 3. `get_build_logs` with the build's `name` as `pipelineRunName`.
 

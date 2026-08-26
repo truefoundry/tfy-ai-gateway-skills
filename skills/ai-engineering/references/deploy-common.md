@@ -17,10 +17,14 @@ These apply to every deploy path. They interleave with the path's own reference 
 
 ## Creating or updating
 
-Call `list_applications` filtered by the name you intend to use. Both `apply_manifest` and `tfy deploy` **replace the entire manifest**, so the name decides what you are doing:
+An application is identified by **workspace and name together**, not by name alone — the same name can exist in several workspaces. Settle the target workspace first, then call `list_applications` filtered by the name and look only at what is in that workspace.
 
-- **Name is free** — you are creating. Build the manifest from `get_manifest_json_schema`.
-- **Name is taken** — you are updating something that is running. Tell the user what is already there and confirm before changing it.
+Both `apply_manifest` and `tfy deploy` **replace the entire manifest**, so that pair decides what you are doing:
+
+- **Nothing of that name in the target workspace** — you are creating, even if the name exists in another workspace. Build the manifest from `get_manifest_json_schema`.
+- **That workspace already has one** — you are updating something that is running. Tell the user what is there and in which workspace, and confirm before changing it.
+
+Do not treat a match in a different workspace as a collision, and do not treat a match in the target workspace as a different application because the user did not name the workspace.
 
 **When updating, start from the manifest that is already deployed.** `get_application` returns `activeDeployment`, which carries that deployment's `manifest`. Change the fields the user asked about and apply that.
 

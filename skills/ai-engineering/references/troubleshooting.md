@@ -17,7 +17,9 @@ Operational questions arrive without the two facts that decide how to answer the
 
 ## Phase 1: Identify the application
 
-Call `list_applications` (filter by name) or `get_application` to get the application. Record these before doing anything else:
+Call `list_applications` filtered by the name. **A name is not an identifier — the same name can exist in several workspaces.** If more than one comes back, do NOT pick one: show the user the matches with their workspaces and ask which they mean. Diagnosing the wrong one produces a thorough, confident answer about an application they were not asking about, and nothing in that answer reveals the mistake.
+
+Once you have the right application, record these before doing anything else:
 
 | Field | Why you need it |
 |---|---|
@@ -142,6 +144,7 @@ State what you could not see rather than reporting health. "No events in the las
 
 ## Checklist
 
+- [ ] If more than one workspace had an application with that name, did I ask which one rather than diagnosing the first?
 - [ ] Did I call `get_application` for `type` and `id`, then `list_workspaces` for `clusterId` and the namespace?
 - [ ] If the type is `helm`, did I go pod-level for logs instead of calling `get_logs`?
 - [ ] Did I read pod state with `list_k8s_pods` before deciding where to look?
