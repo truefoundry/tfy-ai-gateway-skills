@@ -1,75 +1,71 @@
 ---
 name: builds
-description: Read build logs and diagnose a build that failed or produced an unexpected image. Read this when a deployment from source did not come up, or when the user asks what happened during a build.
+description: Read build logs and work out why a build failed or produced an unexpected image. Read this when a deploy from source did not come up, when the user asks what happened during a build, or when a running workload is not the code the user expects.
 ---
 
-A build runs before any workload exists. That decides how to investigate one: there is no pod, no container and no runtime log, so every `*_k8s_*` tool returns empty — and empty is easy to misread as a healthy, quiet service.
+A build runs before any workload exists, so there is no pod, no container and no runtime log. Every `*_k8s_*` tool returns empty for a build problem, and empty reads as a healthy quiet service. Start here instead.
 
 ## Contents
-- Phase 1: Find the build
-- Phase 2: Read the logs
-- Common build failures
-- When the logs do not match the code
-- After a successful build
+- Getting from an application to its build
+- What the build record tells you
+- Reading the log
+- The image is not what the user expects
 - Checklist
 
-## Phase 1: Find the build
+## Getting from an application to its build
 
-1. Call `get_application` (or `list_applications`) to get the application `id`.
-2. Call `get_deployment` with that `id` and the `deploymentId`. The response includes the deployment's builds.
-3. Read the **build** status before anything else. If no image was produced, nothing downstream is worth investigating.
+Three calls, in order:
 
-Do NOT infer the build outcome from the deployment status. A deployment can report `DEPLOY_SUCCESS` — meaning the rollout was accepted — while its build failed. Read the build record directly.
+1. `get_application` — gives you the application `id` and its `activeDeployment` / `lastDeployment`.
+2. `get_deployment` with that application `id` and the deployment `id` — the response carries `deploymentBuilds`.
+3. `get_build_logs` with the build's `name` as `pipelineRunName`.
 
-From the build row, keep:
+`deploymentBuilds` is an array because an application can have several components, each built separately. `componentName` says which one, so on a multi-component application check you are reading the build you meant.
 
-| Field | Used for |
+## What the build record tells you
+
+Read these fields before fetching any log — most build questions are answered here:
+
+| Field | Use |
 |---|---|
-| build / pipeline run name | Fetching the logs |
-| `logsStartTs` | The log query's start timestamp |
-| status | Whether an image exists at all |
+| `status` | `STARTED`, `SUCCEEDED` or `FAILED`. Only the last two are terminal — `STARTED` means it is still running, not that it stalled |
+| `imageUri` | Present means an image exists. Absent on a `FAILED` build, which is the fastest way to know nothing was produced |
+| `name` | The pipeline run name — this is the `pipelineRunName` that `get_build_logs` takes |
+| `logsStartTs` | The timestamp the log window opens at. Required, see below |
+| `componentName` | Which component of the application this build belongs to |
 
-## Phase 2: Read the logs
+Do NOT infer the build outcome from the deployment's status. A deployment can report `DEPLOY_SUCCESS` — meaning the rollout was accepted — while its build failed. `status` on the build record is the authority.
 
-Fetch build logs using the identifiers from the build row. Do NOT construct them.
+## Reading the log
 
-**Pass the start timestamp.** Build logs are time-windowed, and the build row carries the timestamp the logs begin at. Without it the query can land on a window where nothing happened and return empty — which looks like a build that produced no output rather than a query that looked in the wrong place.
+`get_build_logs` takes `pipelineRunName` in the path, and `startTs`, `endTs`, `limit`, `direction` and `numLogsToIgnore` as query parameters.
 
-**Read the end of the log first.** Build failures report their cause on the last lines. Everything before it is dependency resolution and layer caching, which rarely explains anything.
+**Pass `logsStartTs` from the build record as `startTs`.** The log query is time-windowed, and without a start timestamp the window does not cover the build — you get an empty result, which looks like a build that printed nothing rather than a query that looked in the wrong place. This is the single most common way a build investigation dead-ends.
 
-## Common build failures
+Read the end of the log first. A build reports its cause on the last lines; everything before is dependency resolution and layer caching. Use `direction` to fetch from the end rather than paging through the whole thing.
 
-| Log shows | Cause | Fix |
-|---|---|---|
-| Package or version not found | A pinned version no longer exists, or a private package with no credentials | Correct the version, or configure registry credentials |
-| `COPY` / `ADD` failed, file not found | The Dockerfile references files that were not committed, or `build_context_path` is wrong | Fix the path, or commit the missing files |
-| Base image pull failed | Bad tag, or the base registry now requires authentication | Correct the tag, or configure credentials |
-| Process killed during a compile or install step | The builder ran out of memory | Reduce the build, or raise build resources |
+The log is the build tool's own output — a Dockerfile step that failed, a dependency that would not resolve, a base image that could not be pulled. Read it as you would any build log; nothing about it is TrueFoundry-specific.
 
-The first two are the ones a local `docker build` catches in seconds — see `deploy-from-source.md`.
+## The image is not what the user expects
 
-## When the logs do not match the code
+Two different situations, and they need different answers.
 
-If the log describes something other than what you expect — an older commit, a change that is not reflected, a build that finished implausibly fast — consider that **no build ran at all**.
+**The build ran and succeeded, but the code is old.** Builds are deduplicated: when the platform judges the same source has already been built, it reuses the existing image and points the deployment at that earlier build. The logs are real but describe the previous build. Compare the build's `createdAt` against when the user made their change — if the build predates it, their change was never built. Say so plainly: a reused image is the one case where a deployment succeeds and still runs the old code.
 
-Builds are deduplicated: when the platform judges that the same source has already been built, it reuses the existing image and the deployment points at that earlier build. The logs are real, but they describe the previous build rather than this deployment.
-
-Check what the build record actually refers to before drawing conclusions from its contents. If the user's change was not built, say so — a reused image is the one case where a deployment can succeed and still be running the old code.
+**The build is still going.** `status: STARTED` with no `imageUri` means it has not finished. Do not report a failure — the workload will not exist yet, and pod tools returning empty is expected. Check again rather than diagnosing.
 
 ## After a successful build
 
-A successful build means an image exists. It does not mean the workload is running — the image still has to be pulled, scheduled and started, and each can fail separately.
-
-Once an image exists, the investigation moves to runtime: `troubleshooting.md`.
+`SUCCEEDED` with an `imageUri` means an image exists. It does not mean the workload runs — the image still has to be pulled, scheduled and started, and each can fail on its own. Continue to `troubleshooting.md`.
 
 ## Checklist
 
-- [ ] Did I read the build status from `get_deployment` rather than inferring it from the deployment status?
-- [ ] Did I pass the start timestamp from the build row when fetching logs?
-- [ ] Did I read the end of the log first?
-- [ ] If the log looked stale or unexpectedly short, did I check whether the build was deduplicated?
-- [ ] If a build was reused, did I tell the user their change was not rebuilt?
-- [ ] Did I avoid reaching for pod or k8s tools for a build that never produced an image?
-- [ ] After a successful build, did I continue to runtime instead of reporting the deployment complete?
+- [ ] Did I read the build's `status` rather than inferring the outcome from the deployment status?
+- [ ] Did I check `imageUri` to establish whether an image was produced at all?
+- [ ] Did I pass `logsStartTs` as `startTs` when fetching the log?
+- [ ] On a multi-component application, did I check `componentName` to confirm I read the right build?
+- [ ] If `status` was `STARTED`, did I treat it as unfinished instead of reporting a failure?
+- [ ] If the code looked stale, did I compare the build's `createdAt` against the user's change and tell them if it was never built?
+- [ ] After a successful build, did I continue to runtime instead of reporting the deploy complete?
 
 For more info: `search_docs` with "build logs", "troubleshoot a build failure".
