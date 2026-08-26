@@ -45,7 +45,7 @@ Ask the user which version they want. If they have no preference, use a recent s
 
 Values are the entire configuration surface, and the chart's own documentation is the authority. Do NOT invent value keys — a misspelled key is not an error, it is ignored, and the release comes up on defaults.
 
-**First, check whether the release name is taken** — call `list_applications` filtered by it. If a release is already installed under that name you are upgrading, and its values come from the deployed manifest rather than from the user. Read **Creating or updating** in `SKILL.md` before going further; a fresh `values` block silently drops everything the release had set.
+**First, check whether the release name is taken** — call `list_applications` filtered by it. If a release is already installed under that name you are upgrading, and its values come from the deployed manifest rather than from the user. Read **Creating or updating** in `deploy-common.md` before going further; a fresh `values` block silently drops everything the release had set.
 
 Otherwise use `ask_user_question` for at least:
 
@@ -57,7 +57,7 @@ Otherwise use `ask_user_question` for at least:
 ## Phase 4: Validate and apply
 
 1. Call `get_manifest_json_schema` with type `helm` — the manifest shape differs from other application types.
-2. Take `workspace_fqn` from `list_workspaces`. If it returns nothing for the workspace the user named, see **Resolving the workspace** in `SKILL.md`.
+2. Take `workspace_fqn` from `list_workspaces`. If it returns nothing for the workspace the user named, see **Resolving the workspace** in `deploy-common.md`.
 3. Build the manifest as JSON → `validate_manifest` → fix and re-validate → `apply_manifest`.
 
 There is no build, so Helm always goes through `apply_manifest`.

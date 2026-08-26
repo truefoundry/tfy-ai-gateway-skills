@@ -28,7 +28,7 @@ An image the cluster cannot pull produces a workload that never starts, and the 
 
 An image built by someone else has expectations that are invisible in its reference. Getting them wrong produces a container that starts and immediately exits, which reads as a crashloop rather than as misconfiguration.
 
-**First, check whether the name is taken** — call `list_applications` filtered by it. If something is already deployed under that name you are updating, and the values below come from the deployed manifest rather than from the user. Read **Creating or updating** in `SKILL.md` before going further.
+**First, check whether the name is taken** — call `list_applications` filtered by it. If something is already deployed under that name you are updating, and the values below come from the deployed manifest rather than from the user. Read **Creating or updating** in `deploy-common.md` before going further.
 
 Otherwise use `ask_user_question` for each of these — do NOT choose on the user's behalf:
 
@@ -40,7 +40,7 @@ Otherwise use `ask_user_question` for each of these — do NOT choose on the use
 | Persistence | A stateful image with no volume loses its data when the pod is replaced. Raise this before deploying, not after. |
 | Resources | Requests no node can satisfy leave the pod `Pending` forever with no error. |
 
-Also call `list_workspaces` and take `workspace_fqn` from the response rather than constructing it. If it returns nothing for the workspace the user named, see **Resolving the workspace** in `SKILL.md`.
+Also call `list_workspaces` and take `workspace_fqn` from the response rather than constructing it. If it returns nothing for the workspace the user named, see **Resolving the workspace** in `deploy-common.md`.
 
 ## Phase 3: Validate and apply
 

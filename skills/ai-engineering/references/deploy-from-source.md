@@ -34,9 +34,9 @@ Note the **command** that starts the application. The buildpack requires it, and
 
 ## Phase 2: Collect inputs
 
-1. **Check whether the name is taken** — call `list_applications` filtered by it. If something is already deployed under that name you are updating, and the values below come from the deployed manifest rather than from the user. Read **Creating or updating** in `SKILL.md` before going further.
+1. **Check whether the name is taken** — call `list_applications` filtered by it. If something is already deployed under that name you are updating, and the values below come from the deployed manifest rather than from the user. Read **Creating or updating** in `deploy-common.md` before going further.
 2. `get_manifest_json_schema` for the entity type — `service`, `async-service` or `job`. Do not recall fields from memory.
-3. `list_workspaces` — take `workspace_fqn` from the response. Do NOT construct an FQN. If it returns nothing for the workspace the user named, see **Resolving the workspace** in `SKILL.md`.
+3. `list_workspaces` — take `workspace_fqn` from the response. Do NOT construct an FQN. If it returns nothing for the workspace the user named, see **Resolving the workspace** in `deploy-common.md`.
 4. `ask_user_question` for anything you would otherwise guess: the port and whether to expose it, CPU and memory, environment variables, and for a `job` its `trigger` and `retries`.
 
 ## Phase 3: Deploy and read the build logs
