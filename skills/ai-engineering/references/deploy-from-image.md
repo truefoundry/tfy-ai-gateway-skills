@@ -8,23 +8,31 @@ There is no build, which removes the largest source of failure and changes what 
 Applies to `service`, `async-service` and `job`, and is the only path for `notebook`, `rstudio` and `ssh-server`.
 
 ## Contents
-- Phase 1: Confirm the image is reachable
-- Phase 2: Collect the configuration the image expects
-- Phase 3: Validate and apply
+- Phase 1: Check for an existing application
+- Phase 2: Confirm the image is reachable
+- Phase 3: Collect the configuration the image expects
+- Phase 4: Validate and apply
 - Manifest structure
 - Diagnosing a workload that will not start
 - Checklist
 
-## Phase 1: Confirm the image is reachable
+## Phase 1: Check for an existing application
+
+Call `list_applications` filtered by the name you are about to deploy under. `apply_manifest` is idempotent, so applying under a name that already exists **updates that application** rather than creating one — replacing a running workload with no warning.
+
+- **A match exists**: tell the user what is already deployed there and ask whether to update it or use a different name. Wait for their answer before continuing.
+- **No match**: continue to Phase 2.
+
+## Phase 2: Confirm the image is reachable
 
 An image the cluster cannot pull produces a workload that never starts, and the deployment still reports success. Check before deploying.
 
 - **Public images** — usually pullable, but registries increasingly require authentication for images that were previously anonymous. A `401` is the registry's access decision, not a platform fault. Report it; do NOT retry the same call.
 - **Private images** — need registry credentials configured in the tenant. Call `get_cluster` to see the cluster's default registry, which images in the tenant's own registry are usually pullable from.
 - **Tags** — `latest` resolves at each pod start, so two replicas can run different code. Prefer a specific tag, and say so if the user asks for `latest`.
-- **Validation tool** — `validate_docker_image` is not currently registered, so verify by reading the registry or by asking the user which registry the image lives in.
+- **Verifying** — ask the user which registry the image lives in, or read the registry directly. Do not assume an image is pullable because its name looks familiar.
 
-## Phase 2: Collect the configuration the image expects
+## Phase 3: Collect the configuration the image expects
 
 An image built by someone else has expectations that are invisible in its reference. Getting them wrong produces a container that starts and immediately exits, which reads as a crashloop rather than as misconfiguration.
 
@@ -40,7 +48,7 @@ Use `ask_user_question` for each of these — do NOT choose on the user's behalf
 
 Also call `list_workspaces` and take `workspace_fqn` from the response rather than constructing it.
 
-## Phase 3: Validate and apply
+## Phase 4: Validate and apply
 
 Build the manifest as JSON → `validate_manifest` → fix and re-validate until it passes → `apply_manifest`.
 
@@ -72,18 +80,13 @@ env:
 
 ## Diagnosing a workload that will not start
 
-Three causes, and they are distinguishable:
+Start with `list_k8s_pods` and read the pod's `phase` and `problem`, then follow `troubleshooting.md`. Do not start from logs: whether logs exist at all is what the pod state tells you, and the three failure modes here are distinguished by that field rather than by what the logs contain.
 
-| Evidence | Cause | Where to look |
-|---|---|---|
-| No logs at all | Image was never pulled — the container never ran | `list_application_events`, or `list_k8s_events` for the live view |
-| Logs exist but only in the previous container | Started and exited — usually a missing env var or bad command | `get_k8s_pod_logs` with `previous: true` |
-| Pod is `Pending`, no failure reported | Nothing can schedule it — resource requests too large, or no matching node | `list_k8s_pods` for the phase, `list_k8s_events` for the reason |
-
-`troubleshooting.md` covers all three, including why an empty result is not evidence of health.
+The ones specific to deploying an image: `ImagePullBackOff` means the registry refused or the tag is wrong, so the container never ran and there is nothing to read. `CrashLoopBackOff` on a first deploy is usually a missing environment variable or a command the image does not expect. `Pending` means the resource requests cannot be satisfied by any node.
 
 ## Checklist
 
+- [ ] Did I check whether an application with that name already exists, and ask the user before overwriting it?
 - [ ] Did I confirm the image is pullable before deploying, rather than after it failed?
 - [ ] If a registry returned `401`, did I report it instead of retrying?
 - [ ] Did I use a specific tag, or tell the user why `latest` is risky?

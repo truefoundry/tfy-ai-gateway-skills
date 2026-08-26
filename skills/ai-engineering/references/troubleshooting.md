@@ -1,13 +1,14 @@
 ---
 name: troubleshooting
-description: Diagnose a deployed workload — logs, events, crashes, pending pods, failed builds. Read this before calling get_logs, list_application_events, or any k8s tool, for any question about whether an application is working or why it is not.
+description: Diagnose a deployed workload — logs, events, metrics, crashes, pending pods, failed builds, slowness. Read this for any question about whether an application is working, why it is not, how it is performing, or what changed, before calling any read tool against a deployed application.
 ---
 
 Operational questions arrive without the two facts that decide how to answer them: the application's **type**, and how far in the **past** the answer lives. Both change which tools can see anything, and a tool that cannot see returns an empty list rather than an error — which reads exactly like good news.
 
 ## Contents
 - Phase 1: Identify the application
-- Phase 2: Identify the failing layer
+- Phase 2: Read the pod state
+- Phase 3: Metrics and application state
 - Native tools vs k8s tools
 - Reading logs from a crashing container
 - Helm applications
@@ -35,21 +36,46 @@ What is available by type:
 
 Do NOT call `get_logs` on a Helm application and report "no logs found". There is no application-level log stream for a Helm release — the logs are pod-level and reachable.
 
-## Phase 2: Identify the failing layer
+## Phase 2: Read the pod state
 
-Establish where the failure is before choosing a tool. An agent that always runs pods → logs → events gets most of these wrong.
+Call `list_k8s_pods` with `clusterId` and `namespace`. This is the entry point for every runtime question because it is the one thing observable in a single call, and it tells you which branch to take. Do NOT start from logs — whether logs exist, and which container holds them, is what this call establishes.
 
-| Symptom | Layer | Tool that answers it |
+Each pod returns its `phase`, `restarts` and a `problem` field. Branch on what you see:
+
+| Pod state | What it means | Next call |
 |---|---|---|
-| Container killed, restart count climbing | runtime | `list_k8s_pods` — read the `problem` field, e.g. `OOMKilled` |
-| Application throws and restarts | runtime | `get_k8s_pod_logs` with `previous: true` |
-| Image cannot be pulled, bad tag, no credentials | pull | `list_application_events`, or `list_k8s_events` for the live view |
-| Nothing schedules it — no capacity, no GPU, a taint | schedule | `list_k8s_events` + `list_k8s_nodes` |
-| Never produced an image | pre-Kubernetes | `get_deployment` → `builds.md` |
+| No pods at all | Nothing was ever created — usually the build never produced an image | `get_deployment` → `builds.md` |
+| `Pending` | Nothing can schedule it | `list_k8s_events` for the reason, `list_k8s_nodes` for capacity and taints |
+| `problem: OOMKilled` | Killed for exceeding its memory limit | `list_app_metric_charts` → `get_application_chart_data` for the memory trend |
+| `problem: ImagePullBackOff` / `ErrImagePull` | The image could not be pulled — the container never ran, so there are no logs | `list_application_events` or `list_k8s_events` for the registry's reason |
+| `problem: CrashLoopBackOff`, `restarts` climbing | Started and exited repeatedly | `get_k8s_pod_logs` with `previous: true` |
+| `Running`, no problem, but misbehaving | Started fine; the issue is inside the application or its capacity | `get_logs`, then metrics |
 
-**A `Pending` pod is not a failed pod.** When nothing can schedule a workload, Kubernetes leaves it `Pending` indefinitely. Nothing reports failure and the deployment may still say `DEPLOY_SUCCESS`. Read the pod phase directly from `list_k8s_pods`.
+**A `Pending` pod is not a failed pod.** Kubernetes leaves an unschedulable workload `Pending` indefinitely. Nothing reports failure and the deployment may still say `DEPLOY_SUCCESS`.
 
-**A failed build has no pod.** If no image was produced there is nothing running to inspect, and every k8s tool returns empty. Check `get_deployment` before reaching for pod tools.
+**No pods means look before Kubernetes.** If no image was produced there is nothing to inspect, and every `*_k8s_*` tool returns empty.
+
+## Phase 3: Metrics and application state
+
+Logs and events say what happened at a moment. Metrics show a trend, which is the only way to see a problem building rather than one that already fired.
+
+Charts are a two-step call:
+
+1. `list_app_metric_charts` — the charts available for the application
+2. `get_application_chart_data` — the data for a chart from that list
+
+Do NOT guess chart names; take them from step 1. For cluster-level capacity questions the pair is `list_cluster_metric_charts` → `get_cluster_chart_data`.
+
+Reach for metrics when:
+
+- the pod was `OOMKilled` — memory over time shows whether the limit is too low or the application leaks
+- the user reports slowness rather than failure, where nothing is in the logs
+- you are deciding whether resource requests need raising, instead of guessing
+
+Two more tools worth knowing:
+
+- `get_application_state` — the application's current state, for "is this healthy" without reading pods directly
+- `list_application_deployments` — deployment history, for "it worked yesterday" and "what changed"
 
 ## Native tools vs k8s tools
 
@@ -61,6 +87,8 @@ Start native. Escalate only for what native cannot provide.
 | `list_k8s_events` | ~1h cluster TTL | Live scheduling and pull failures |
 | `get_k8s_pod_logs` | Pod lifetime only | Current or just-crashed container output |
 | `list_k8s_pods`, `list_k8s_nodes` | Live only | Pod phase, restarts, `problem`; node capacity and taints |
+| `list_app_metric_charts`, `get_application_chart_data` | Persisted | CPU, memory and throughput over time |
+| `get_application_state`, `list_application_deployments` | Persisted | Current health; deployment history |
 
 Escalate to `*_k8s_*` when you need live pod state, a previous container's logs, scheduling detail, or node capacity. Every `*_k8s_*` tool takes `clusterId` as a path parameter and, except for `list_k8s_nodes`, a `namespace` equal to the workspace name.
 
@@ -109,10 +137,12 @@ State what you could not see rather than reporting health. "No events in the las
 
 - [ ] Did I call `get_application` first and record `type`, `id`, workspace name and `clusterId`?
 - [ ] If the type is `helm`, did I go pod-level for logs instead of calling `get_logs`?
-- [ ] Did I identify which layer failed before choosing a tool?
+- [ ] Did I read pod state with `list_k8s_pods` before deciding where to look?
 - [ ] For a crashlooping container, did I pass `previous: true`?
 - [ ] Did I get pod names from `list_k8s_pods` rather than constructing them?
 - [ ] For anything historical, did I use the native tools rather than k8s tools?
+- [ ] For an OOM kill or a slowness report, did I look at the memory trend rather than only the logs?
+- [ ] Did I take chart names from `list_app_metric_charts` rather than guessing them?
 - [ ] If a call returned empty, did I check whether that tool could have seen the answer at all?
 - [ ] If the deployment says `DEPLOY_SUCCESS`, did I confirm the pods are actually running?
 - [ ] Does my answer cite the specific pod, event or log line behind each claim?

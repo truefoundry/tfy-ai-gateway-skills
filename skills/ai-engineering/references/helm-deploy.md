@@ -8,15 +8,23 @@ A Helm deployment installs a chart someone else wrote, so the usual deployment d
 A Helm release also behaves differently once running, which matters for every question asked about it afterwards. See the last section.
 
 ## Contents
-- Phase 1: Reach the chart
-- Phase 2: Pin a version
-- Phase 3: Collect values
-- Phase 4: Validate and apply
+- Phase 1: Check for an existing release
+- Phase 2: Reach the chart
+- Phase 3: Pin a version
+- Phase 4: Collect values
+- Phase 5: Validate and apply
 - Manifest structure
 - What a Helm release looks like afterwards
 - Checklist
 
-## Phase 1: Reach the chart
+## Phase 1: Check for an existing release
+
+Call `list_applications` filtered by the release name you are about to use. `apply_manifest` is idempotent, so applying under a name that already exists **upgrades that release** rather than installing a new one — and a Helm upgrade with different values can replace or destroy the workloads underneath it.
+
+- **A match exists**: tell the user what is already installed there and ask whether to upgrade it or use a different release name. Wait for their answer before continuing.
+- **No match**: continue to Phase 2.
+
+## Phase 2: Reach the chart
 
 Charts come from a chart repository serving an `index.yaml`, or from an OCI registry.
 
@@ -33,15 +41,15 @@ Two things about public chart sources, both worth knowing before spending attemp
 
 **A public index does not mean a public chart.** Registries have moved to requiring authentication for the chart artifact while leaving the index readable, so listing charts succeeds and pulling one returns `401`. This is the registry's access decision — not a platform failure, and not something a retry will fix. Report which registry refused it and tell the user the chart needs credentials configured or a different source.
 
-`get_helm_charts` is not currently registered, so do NOT tell the user to list charts with it. Ask them for the chart name and version, or read the repository's index directly.
+Ask the user for the chart name and version, or read the repository's index directly.
 
-## Phase 2: Pin a version
+## Phase 3: Pin a version
 
 Do NOT leave `version` unset and do NOT guess one. Charts change shape between major versions, and values correct for one version are **silently ignored** by another — producing a release that installs successfully and is configured nothing like what was asked for.
 
 Ask the user which version they want. If they have no preference, use a recent stable version and tell them which one you used.
 
-## Phase 3: Collect values
+## Phase 4: Collect values
 
 Values are the entire configuration surface, and the chart's own documentation is the authority. Do NOT invent value keys — a misspelled key is not an error, it is ignored, and the release comes up on defaults.
 
@@ -52,7 +60,7 @@ Use `ask_user_question` for at least:
 - **Architecture** — many charts offer standalone vs replicated, and the choice changes how many workloads appear.
 - **Resources** — requests no node can satisfy leave pods `Pending` with no error.
 
-## Phase 4: Validate and apply
+## Phase 5: Validate and apply
 
 1. Call `get_manifest_json_schema` with type `helm` — the manifest shape differs from other application types.
 2. Take `workspace_fqn` from `list_workspaces`.
@@ -95,22 +103,17 @@ source:
 
 ## What a Helm release looks like afterwards
 
-A chart usually creates several workloads, and **their names are not the release name**. Subcharts append their own suffixes, and StatefulSet pods carry an ordinal:
-
-```
-release      nikp-redis
-StatefulSet  nikp-redis-master
-pod          nikp-redis-master-0
-```
-
-`nikp-redis-0` does not exist. A query for a pod that does not exist returns empty rather than an error, so a constructed name produces a confident wrong answer. **List the pods with `list_k8s_pods`, then use the real names.**
+A chart usually creates several workloads, and **their names are not the release name** — subcharts append their own suffixes and StatefulSet pods carry an ordinal. A query for a pod that does not exist returns empty rather than an error, so a constructed name produces a confident wrong answer. **Never construct a pod name: list them with `list_k8s_pods`, then use the real ones.**
 
 Events work normally — `list_application_events` covers a Helm release like any other application.
 
-Logs do not. There is no application-level log stream, so reading logs means `list_k8s_pods` → `get_k8s_pod_logs`. Do NOT call `get_logs` on a Helm release and report "no logs found". `troubleshooting.md` covers this.
+Logs do not. There is no application-level log stream, so reading logs means `list_k8s_pods` → `get_k8s_pod_logs`. Do NOT call `get_logs` on a Helm release and report "no logs found".
+
+`troubleshooting.md` has the naming example and the rest of the operational path.
 
 ## Checklist
 
+- [ ] Did I check whether a release with that name already exists, and ask the user before upgrading it?
 - [ ] Did I confirm the chart is reachable — and for `oci://`, did I call `validate_oci_chart`?
 - [ ] If a registry returned `401`, did I report which registry refused it rather than retrying?
 - [ ] Did I pin an explicit `version` rather than leaving it unset or guessing?
@@ -120,6 +123,5 @@ Logs do not. There is no application-level log stream, so reading logs means `li
 - [ ] Did I call `get_manifest_json_schema` with type `helm`?
 - [ ] Did I take `workspace_fqn` from `list_workspaces`?
 - [ ] After applying, did I list the pods and confirm they are running?
-- [ ] Did I avoid telling the user to use `get_helm_charts`, which is not registered?
 
 For more info: `search_docs` with "deploy a helm chart", "helm values".

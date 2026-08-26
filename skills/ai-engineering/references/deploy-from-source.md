@@ -10,10 +10,11 @@ Applies to `service`, `async-service` and `job`. Build mechanics are identical a
 ## Contents
 - Choosing the build spec
 - Choosing the source
-- Phase 1: Inspect the repository
-- Phase 2: Get the schema and collect inputs
-- Phase 3: Verify the build locally
-- Phase 4: Validate and apply
+- Phase 1: Check for an existing application
+- Phase 2: Inspect the repository
+- Phase 3: Get the schema and collect inputs
+- Phase 4: Verify the build locally
+- Phase 5: Validate and apply
 - Manifest structure
 - Checklist
 
@@ -44,14 +45,21 @@ For a non-Python repository with no Dockerfile: if you have a working copy you c
 
 `LocalSource` builds the image on the machine running the command and pushes it, which no API call can do — the files are on your disk. This is the **only** case that uses `tfy deploy` from the sandbox instead of the approval-gated `apply_manifest`. Use it when the code is not in a repository the platform can reach, or has uncommitted changes.
 
-## Phase 1: Inspect the repository
+## Phase 1: Check for an existing application
+
+Call `list_applications` filtered by the name you are about to deploy under. `apply_manifest` is idempotent, so applying under a name that already exists **updates that application** rather than creating one — replacing a running workload with no warning.
+
+- **A match exists**: tell the user what is already deployed there and ask whether to update it or use a different name. Wait for their answer before continuing.
+- **No match**: continue to Phase 2.
+
+## Phase 2: Inspect the repository
 
 1. Read the repository contents. Look for a Dockerfile and note its path relative to the repo root.
 2. Note whether the project is Python (`requirements.txt`, `pyproject.toml`, `setup.py`).
 3. Choose `build_spec.type` from the table above.
 4. Establish the command that starts the application — the buildpack requires `command`, and a Dockerfile may need one if it has no `CMD`.
 
-## Phase 2: Get the schema and collect inputs
+## Phase 3: Get the schema and collect inputs
 
 1. Call `get_manifest_json_schema` with the entity type — `service`, `async-service` or `job`. Do not recall fields from memory; the schema is the source of truth.
 2. Call `list_workspaces` to resolve the target workspace, and use its `fqn` for `workspace_fqn`. Do NOT construct an FQN.
@@ -63,7 +71,7 @@ For a non-Python repository with no Dockerfile: if you have a working copy you c
 
 Secrets are referenced by FQN (`tfy-secret://...`), never pasted as literal values.
 
-## Phase 3: Verify the build locally
+## Phase 4: Verify the build locally
 
 If Docker **and** Python are both available, build the image locally before deploying:
 
@@ -75,7 +83,7 @@ A local failure arrives in seconds with the full error. The same failure found t
 
 If Docker is not available, skip this and read build logs afterwards. Do NOT tell the user you verified the build when you did not.
 
-## Phase 4: Validate and apply
+## Phase 5: Validate and apply
 
 Build the manifest as JSON → `validate_manifest` → fix and re-validate until it passes → `apply_manifest` (or `tfy deploy` for `local` source only).
 
@@ -125,6 +133,7 @@ For `tfy-python-buildpack`, replace `build_spec` with:
 
 ## Checklist
 
+- [ ] Did I check whether an application with that name already exists, and ask the user before overwriting it?
 - [ ] Did I read the repository to decide the build spec, rather than inferring from the language?
 - [ ] If the repo has a Dockerfile, did I use `dockerfile` rather than the buildpack?
 - [ ] If the user named a branch, did I set `branch_name` rather than putting it in `ref`?
