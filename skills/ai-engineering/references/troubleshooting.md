@@ -1,89 +1,120 @@
 ---
 name: troubleshooting
-description: Diagnose a deployed workload — logs, events, crashes, pending pods, failed builds. Read this before calling get_logs, list_application_events, or any k8s tool, for any question about whether something is working or why it is not.
+description: Diagnose a deployed workload — logs, events, crashes, pending pods, failed builds. Read this before calling get_logs, list_application_events, or any k8s tool, for any question about whether an application is working or why it is not.
 ---
 
-Operational questions arrive without the two facts that decide how to answer them: what type the application is, and how far in the past the answer lives. Both change which tools can see anything, and a tool that cannot see returns an empty result rather than an error — which reads exactly like good news.
+Operational questions arrive without the two facts that decide how to answer them: the application's **type**, and how far in the **past** the answer lives. Both change which tools can see anything, and a tool that cannot see returns an empty list rather than an error — which reads exactly like good news.
 
 ## Contents
-
-- Step 1: resolve the application type
-- Step 2: work out which layer failed
-- Choosing between native and Kubernetes tools
+- Phase 1: Identify the application
+- Phase 2: Identify the failing layer
+- Native tools vs k8s tools
 - Reading logs from a crashing container
 - Helm applications
-- When a result is empty
+- Interpreting an empty result
+- Checklist
 
-## Step 1: resolve the application type
+## Phase 1: Identify the application
 
-Call `get_application` first. The `type` field changes what is available:
+Call `list_applications` (filter by name) or `get_application` to get the application. Record four fields before doing anything else:
 
-| type | events | logs |
-| ---- | ------ | ---- |
+| Field | Why you need it |
+|---|---|
+| `type` | Decides whether application-level logs exist. See the table below. |
+| `id` | Required by `get_deployment`. |
+| `workspaceId` / workspace name | The k8s namespace equals the workspace name. |
+| `clusterId` | Required by every `*_k8s_*` tool as a path parameter. |
+
+What is available by type:
+
+| `type` | Events | Logs |
+|---|---|---|
 | `service`, `async-service`, `job` | `list_application_events` | `get_logs` |
-| `helm` | `list_application_events` | **no application-level logs** — go pod-level, see below |
-| others | `list_application_events` | try `get_logs`, fall back to pod-level |
+| `helm` | `list_application_events` | **none at application level** — go pod-level |
+| `notebook`, `rstudio`, `ssh-server` | `list_application_events` | `get_logs` |
 
-One call, and it prevents the most common wrong turn: reaching for `get_logs` on a Helm release and reporting "no logs" when the logs were simply somewhere else.
+Do NOT call `get_logs` on a Helm application and report "no logs found". There is no application-level log stream for a Helm release — the logs are pod-level and reachable.
 
-## Step 2: work out which layer failed
+## Phase 2: Identify the failing layer
 
-Failures happen at different layers, and each layer is visible to a different tool. Establish the layer before choosing a tool — an agent that always checks pods, then logs, then events gets most of these wrong.
+Establish where the failure is before choosing a tool. An agent that always runs pods → logs → events gets most of these wrong.
 
-| What went wrong | Layer | What actually answers it |
-| --------------- | ----- | ------------------------ |
-| Out of memory | runtime | `list_k8s_pods` — the `problem` field says `OOMKilled` |
-| Application error, crashlooping | runtime | `get_k8s_pod_logs` with `previous: true` |
-| Image cannot be pulled, bad tag, missing credentials | pull | `list_application_events` or `list_k8s_events` — no logs exist, the container never started |
-| Nothing will schedule it — no capacity, no GPU, a taint | schedule | `list_k8s_events` plus `list_k8s_nodes` |
-| The build never produced an image | before Kubernetes | `get_deployment` and `builds.md` — no pod exists, so every Kubernetes tool is the wrong tool |
+| Symptom | Layer | Tool that answers it |
+|---|---|---|
+| Container killed, restart count climbing | runtime | `list_k8s_pods` — read the `problem` field, e.g. `OOMKilled` |
+| Application throws and restarts | runtime | `get_k8s_pod_logs` with `previous: true` |
+| Image cannot be pulled, bad tag, no credentials | pull | `list_application_events`, or `list_k8s_events` for the live view |
+| Nothing schedules it — no capacity, no GPU, a taint | schedule | `list_k8s_events` + `list_k8s_nodes` |
+| Never produced an image | pre-Kubernetes | `get_deployment` → `builds.md` |
 
-Two of these are easy to misread:
+**A `Pending` pod is not a failed pod.** When nothing can schedule a workload, Kubernetes leaves it `Pending` indefinitely. Nothing reports failure and the deployment may still say `DEPLOY_SUCCESS`. Read the pod phase directly from `list_k8s_pods`.
 
-**A pending pod is not a failed pod.** When nothing can schedule a workload, Kubernetes leaves it `Pending` indefinitely. Nothing reports failure, health checks say nothing is wrong, and the deployment may still say it succeeded. Look at the pod phase directly.
+**A failed build has no pod.** If no image was produced there is nothing running to inspect, and every k8s tool returns empty. Check `get_deployment` before reaching for pod tools.
 
-**A failed build has no pod at all.** If the image was never produced, there is nothing running to inspect. Reaching for pod logs here returns nothing and looks like a healthy quiet service.
+## Native tools vs k8s tools
 
-## Choosing between native and Kubernetes tools
+Start native. Escalate only for what native cannot provide.
 
-Start with the native tools — `get_logs`, `list_application_events`. They persist history, they are scoped to the application, and they keep working after a pod is gone.
+| | Retention | Use for |
+|---|---|---|
+| `list_application_events`, `get_logs` | Persisted | Anything historical; any pod that no longer exists |
+| `list_k8s_events` | ~1h cluster TTL | Live scheduling and pull failures |
+| `get_k8s_pod_logs` | Pod lifetime only | Current or just-crashed container output |
+| `list_k8s_pods`, `list_k8s_nodes` | Live only | Pod phase, restarts, `problem`; node capacity and taints |
 
-Escalate to the `*_k8s_*` tools when you need something native cannot give you:
+Escalate to `*_k8s_*` when you need live pod state, a previous container's logs, scheduling detail, or node capacity. Every `*_k8s_*` tool takes `clusterId` as a path parameter and, except for `list_k8s_nodes`, a `namespace` equal to the workspace name.
 
-- live pod state — phase, restart count, the reason a container is failing
-- the previous container's logs after a crash
-- scheduling detail: why nothing will place this pod
-- node capacity or taints
-
-The two see different windows. Kubernetes discards events after roughly an hour and keeps pod logs only for the life of the pod, while the native tools persist. So for anything historical, or any pod that no longer exists, the Kubernetes tools return nothing — not because nothing happened, but because it is no longer there to see.
+Kubernetes discards events after roughly an hour and keeps pod logs only for the life of the pod. Asking a k8s tool a historical question returns nothing — not because nothing happened, but because it is gone.
 
 ## Reading logs from a crashing container
 
-A container in `CrashLoopBackOff` has usually produced nothing in its current attempt — it died before it could. The stack trace explaining the crash is in the **previous** container.
+A container in `CrashLoopBackOff` has usually produced nothing in its current attempt. The stack trace is in the **previous** container.
 
-Pass `previous: true` to `get_k8s_pod_logs`. Without it you will read an empty log and conclude the application is silent, when in fact it is failing loudly one container back.
+Call `get_k8s_pod_logs` with `previous: true`. Without it you read an empty log and conclude the application is silent when it is failing loudly one container back.
 
-If a pod has never restarted there is no previous container, and the request returns an error for that pod rather than for the whole call. That is expected, not a fault.
+Useful parameters: `podName` or `deploymentName` or `jobName` or `labelSelector` (one is required), `container` when the pod has several, `tailLines`, `previous`, `timestamps`.
+
+A pod that has never restarted has no previous container and returns an error **for that pod only** — the other pods still return logs. That is expected, not a fault.
 
 ## Helm applications
 
-Events behave normally: use `list_application_events`.
+Events work normally. Logs do not.
 
-Logs do not. There is no application-level log stream for a Helm release, so go pod-level:
+1. `list_k8s_pods` with `clusterId` and `namespace` (the workspace name) to get the real pod names.
+2. `get_k8s_pod_logs` with the `podName` from step 1.
 
-1. `list_k8s_pods` for the workspace namespace
-2. `get_k8s_pod_logs` for the pod you want
+**Never construct a pod name.** Subcharts append their own suffixes to the release name:
 
-**Do not construct pod names.** A Helm chart's subcharts append their own suffixes to the release name, so a release called `nikp-redis` produces a StatefulSet called `nikp-redis-master` and a pod called `nikp-redis-master-0`. Guessing `nikp-redis-0` finds nothing. List the pods and read the real names.
+```
+release      nikp-redis
+StatefulSet  nikp-redis-master
+pod          nikp-redis-master-0        # <set>-<ordinal>
+```
 
-The same applies to anything that owns pods indirectly. StatefulSet pods are named `<set>-<ordinal>`; Deployment pods carry a generated ReplicaSet hash. Neither is predictable from the application name.
+`nikp-redis-0` does not exist, and a query for a pod that does not exist returns empty rather than an error. Deployment-backed pods carry a generated ReplicaSet hash (`tsx-gpu-86d675bf87-hcgbd`) and are equally unpredictable. List, then read.
 
-## When a result is empty
+## Interpreting an empty result
 
-An empty list is the least informative answer a tool can give, because it means either "nothing happened" or "I could not see it". Before reporting that a workload is fine:
+An empty list means either "nothing happened" or "I could not see it". Before reporting that a workload is healthy, rule out the second:
 
-- Could the tool have seen it? Kubernetes events older than an hour are gone. Pod logs for a replaced pod are gone.
+- Could the tool see it? k8s events older than ~1h are gone; logs for a replaced pod are gone.
 - Did you ask the right layer? A failed build leaves no pod; an unschedulable pod leaves no logs.
 - Is this a Helm release where you asked for application-level logs?
 
-If the check that returned empty was one of these, say what you could not see rather than reporting health. "No events in the last hour" and "nothing is wrong" are different statements, and only one of them is supported by an empty result.
+State what you could not see rather than reporting health. "No events in the last hour" and "nothing is wrong" are different claims, and an empty result supports only the first.
+
+**`DEPLOY_SUCCESS` means the rollout was accepted, not that the workload is healthy.** A pod that is crashlooping, out of memory, or unable to pull its image still reports it. Confirm with `list_k8s_pods` before telling a user their deployment worked.
+
+## Checklist
+
+- [ ] Did I call `get_application` first and record `type`, `id`, workspace name and `clusterId`?
+- [ ] If the type is `helm`, did I go pod-level for logs instead of calling `get_logs`?
+- [ ] Did I identify which layer failed before choosing a tool?
+- [ ] For a crashlooping container, did I pass `previous: true`?
+- [ ] Did I get pod names from `list_k8s_pods` rather than constructing them?
+- [ ] For anything historical, did I use the native tools rather than k8s tools?
+- [ ] If a call returned empty, did I check whether that tool could have seen the answer at all?
+- [ ] If the deployment says `DEPLOY_SUCCESS`, did I confirm the pods are actually running?
+- [ ] Does my answer cite the specific pod, event or log line behind each claim?
+
+For more info: `search_docs` with "monitor your service", "debug a deployment".
