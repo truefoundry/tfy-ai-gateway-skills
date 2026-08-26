@@ -22,7 +22,7 @@ Do not answer from memory. TrueFoundry's platform (APIs, schemas, supported mode
 - Don't explain features in detail — link to the canonical doc page instead. Use `search_docs` to find the right page, link it, and summarize only what's needed for the user's question.
 - Don't offer best practices or tips unsolicited. Only mention them when directly explaining a specific product feature the user asked about.
 - `apply_manifest` is the write path for every entity — Gateway and AI Engineering alike. It goes through the user approval flow, which is why it is preferred: the user sees and confirms the change before it happens. Never run `tfy apply` in the terminal; it is the same operation without the approval step.
-- The one exception: `build_source: local` builds the image on the machine running the command, which no API can do, so that case alone uses `tfy deploy` from the sandbox. Everything else — prebuilt images, git sources, Helm charts — goes through `apply_manifest`. Read `ai-engineering/references/deploy-from-source.md` first.
+- Deploying from source is the exception: the build runs against a local clone, which may contain a Dockerfile you wrote, and the platform cannot clone a file that was never pushed. So source deploys use `build_source: local` and `tfy deploy`. Prebuilt images and Helm charts go through `apply_manifest`. Read `ai-engineering/references/deploy-from-source.md` first.
 - Tools that create, update, or delete anything (e.g. `apply_manifest`) go through the user approval flow — call them directly as tool calls, not from sandbox. Read-only tools can be called from sandbox.
 - Never show placeholder URLs. This applies regardless of source — including URLs embedded in code snippets or examples pulled from `search_docs`/`get_section_content` results, which often contain template tokens like `{gatewayBaseURL}` or `{controlPlaneUrl}`. Call the relevant tool (`get_me` for `controlPlaneUrl`, `list_gateway_installations` for gateway base URL) and substitute the actual value before showing it.
 - When you cannot answer a question, read `references/support-tickets.md` and follow it.
@@ -233,7 +233,7 @@ Entity hierarchy: `Cluster → Workspace → Application`. RBAC is enforced at t
 - Application types and deployment docs → https://www.truefoundry.com/docs/introduction-to-a-service
 - ML Repos and Model Registry → https://www.truefoundry.com/docs/introduction-to-ml-repo
 - Monitoring and Ops → https://www.truefoundry.com/docs/monitor-your-service
-- CLI (`tfy apply`) → https://www.truefoundry.com/docs/using-tfy-apply
+- CLI reference → https://www.truefoundry.com/docs/using-tfy-apply
 
 ## Reference files
 
@@ -241,28 +241,53 @@ Entity hierarchy: `Cluster → Workspace → Application`. RBAC is enforced at t
 
 | Task | Filepath |
 | ---- | -------- |
-| Deploy from a git repository (service, async-service, job) | `ai-engineering/references/deploy-from-source.md` |
-| Deploy a prebuilt image (also notebook, rstudio, ssh-server) | `ai-engineering/references/deploy-from-image.md` |
+| Deploy from source — a git repo or local code (service, async-service, job) | `ai-engineering/references/deploy-from-source.md` |
+| Deploy a prebuilt image (service, async-service, job) | `ai-engineering/references/deploy-from-image.md` |
 | Deploy a Helm chart | `ai-engineering/references/helm-deploy.md` |
 | Read build logs, diagnose a failed build | `ai-engineering/references/builds.md` |
 | **Anything about a deployed application** — logs, events, metrics, health, performance, crashes, what changed | `ai-engineering/references/troubleshooting.md` |
+| **Change an existing application** — replicas, resources, env vars, secrets, image tag | No reference file — follow **Creating or updating** below |
+| `notebook`, `rstudio`, `ssh-server`, `volume`, `workflow`, `spark-job`, `application-set`, ML Repos, Model Registry | No reference file — work from `get_manifest_json_schema` and `search_docs`, and say that is what you are doing |
+
+Some software deploys either way. `redis`, `postgres`, `kafka` and their like have both an official image and a Helm chart, and the two are not interchangeable: a chart brings persistence, replication and the operational defaults its authors chose, while a plain image is one container you configure entirely yourself. Ask the user which they want — do not infer it from the name.
 
 Questions about a deployed application are the easiest to answer confidently wrong, because the answer depends on the application type and on how far in the past it lives — neither of which is visible from the request, and a tool that cannot see returns an empty list rather than an error. Read `troubleshooting.md` before calling any read tool against a deployed application: "why is it failing", "is it healthy", "did it deploy", "why is it slow", "what is its memory usage" and "it worked yesterday" all belong there.
 
 ## Deploying
 
-1. **Read the reference file** for the source path you are using, from the table above.
-2. **Check whether the application already exists** — call `list_applications` filtered by the name. `apply_manifest` is idempotent, so deploying under an existing name updates that application rather than creating one, which can silently replace something running. If it exists, tell the user and ask whether to update it or use a new name before going further.
-3. **Call `get_manifest_json_schema`** for the entity type. The schema is the authority on fields, types and what is required — reference files deliberately do not repeat it.
-4. **Ask the user for anything you would otherwise guess** — workspace, resources, ports, environment variables. Use `ask_user_question` rather than choosing for them.
-5. **Validate, then apply** — `validate_manifest`, then `apply_manifest` (or `tfy deploy` for the `build_source: local` case only). Validation checks the manifest's shape, not whether it will deploy — never report a passing validation as "this will work".
-6. **Verify.** A deploy is not finished when the call returns. Follow it through `get_deployment` and confirm the workload is actually running.
+Read the reference file for your path first. The rules below apply to every path, in this order, and the reference files do not repeat them.
+
+### 1. Creating or updating
+
+Settle this before you ask the user for anything — what you need to ask depends on the answer.
+
+Call `list_applications` filtered by the name you intend to use. Both `apply_manifest` and `tfy deploy` **replace the entire manifest**, so the name decides what you are doing:
+
+- **Name is free** — you are creating. Build the manifest from `get_manifest_json_schema`.
+- **Name is taken** — you are updating something that is running. Tell the user what is already there and confirm before changing it.
+
+**When updating, start from the manifest that is already deployed.** `get_application` returns `activeDeployment`, which carries that deployment's `manifest`. Change the fields the user asked about and apply that.
+
+Never build a fresh manifest from the schema for an update. The apply replaces everything, so every environment variable, secret reference, resource limit, replica count and probe the user had configured and you did not carry over is silently dropped — and the deploy reports success. The schema tells you what a field is called; only the deployed manifest tells you what this application had.
+
+### 2. Resolving the workspace
+
+`workspace_fqn` comes from `list_workspaces`. Never construct one.
+
+If the workspace the user named does not exist, or the tenant has none yet, a workspace is itself a manifest (`type: workspace`) and it needs a cluster — call `list_clusters`, then apply a workspace manifest before the application. Ask the user before creating a workspace; do not create one silently to make a deploy succeed.
+
+### 3. Validating and verifying
+
+`validate_manifest` checks the manifest's **shape**, not whether it will deploy — it returns `valid: true` for a Dockerfile path that does not exist. Never report a passing validation as "this will work".
+
+A deploy is not finished when the call returns. Follow it through `get_deployment`, and confirm the workload is running rather than that the rollout was accepted — `troubleshooting.md` covers how.
 
 ## Checklist Before Responding to an AI Engineering Question
 
 - [ ] Did I read the reference file for what I was about to do?
 - [ ] Did I identify the application type? It changes which tools can answer.
 - [ ] Before deploying, did I check whether an application with that name already exists — and ask the user rather than overwriting it?
+- [ ] If I was updating, did I start from `activeDeployment.manifest` rather than building a fresh manifest?
 - [ ] Did I use `get_manifest_json_schema` before writing a manifest, rather than recalling fields?
 - [ ] Did I validate — and describe the result as a shape check, not a guarantee it will deploy?
 - [ ] For questions about a deployed application, did I read pod state and pull logs, events or metrics instead of inferring from status?

@@ -1,95 +1,64 @@
 ---
 name: deploy-from-source
-description: Deploy a service, async-service or job by building a container image from source — a git repository or local code. Read this whenever the user points at a repository or a directory rather than an existing image, including "deploy this repo" and "deploy my project".
+description: Deploy a service, async-service or job by building a container image from source. Read this whenever the user points at a git repository or a directory rather than an existing image, including "deploy this repo" and "deploy my project".
 ---
 
-Deploying from source builds an image before anything runs, so most failures happen at build time, before there is a workload to inspect. The decisions that matter are the build type and the source type.
+The flow is the same every time: clone the repository, make sure it can produce an image, deploy with `tfy deploy`, read the build logs. Only one thing varies — whether Docker is available to build locally.
 
-Applies to `service`, `async-service` and `job`. Build mechanics are identical across all three; only the manifest differs, and `get_manifest_json_schema` is the authority on that.
+Applies to `service`, `async-service` and `job`. Build mechanics are identical; only the manifest differs, and `get_manifest_json_schema` is the authority on that.
 
 ## Contents
-- Choosing the build spec
-- Choosing the source
-- Phase 1: Check for an existing application
-- Phase 2: Inspect the repository
-- Phase 3: Get the schema and collect inputs
-- Phase 4: Verify the build locally
-- Phase 5: Validate and apply
+- Phase 1: Clone and choose the build spec
+- Phase 2: Collect inputs
+- Phase 3: Deploy and read the build logs
 - Manifest structure
 - Checklist
 
-## Choosing the build spec
-
-`build_spec.type` has two values. Inspect the repository before choosing — do NOT infer from the language alone.
-
-| Repository contains | `build_spec.type` | Required fields |
-|---|---|---|
-| A Dockerfile | `dockerfile` | `dockerfile_path`, `build_context_path` |
-| Python, no Dockerfile | `tfy-python-buildpack` | `build_context_path`, `command`; optionally `python_version`, `requirements_path`, `pip_packages` |
-| Neither | — | A Dockerfile must be written first. Say so. |
-
-`tfy-python-buildpack` builds a Python image **without a Dockerfile existing in the repository**, so a Python project never needs one authored. Prefer `dockerfile` when one is present — the repository's own Dockerfile encodes decisions a buildpack will not reproduce.
-
-For a non-Python repository with no Dockerfile: if you have a working copy you can write one and use `LocalSource`. If you cannot change the code, the honest answer is that the repository needs a Dockerfile before it can be built.
-
-## Choosing the source
-
-`build_source.type` decides where the code comes from and, critically, which apply path is allowed.
-
-| | `type` | Fields | Apply with |
-|---|---|---|---|
-| Remote git | `git` | `repo_url`, `ref`, `branch_name?` | `apply_manifest` |
-| Local files | `local` | `project_root_path`, `local_build` | **`tfy deploy` only** |
-
-**`ref` and `branch_name` are different fields.** `ref` is the commit SHA. `branch_name` selects the latest commit on that branch. When the user names a branch, set `branch_name`; use `ref` only to pin a specific commit. Do NOT put a branch name in `ref` and assume it is correct.
-
-`LocalSource` builds the image on the machine running the command and pushes it, which no API call can do — the files are on your disk. This is the **only** case that uses `tfy deploy` from the sandbox instead of the approval-gated `apply_manifest`. Use it when the code is not in a repository the platform can reach, or has uncommitted changes.
-
-## Phase 1: Check for an existing application
-
-Call `list_applications` filtered by the name you are about to deploy under. `apply_manifest` is idempotent, so applying under a name that already exists **updates that application** rather than creating one — replacing a running workload with no warning.
-
-- **A match exists**: tell the user what is already deployed there and ask whether to update it or use a different name. Wait for their answer before continuing.
-- **No match**: continue to Phase 2.
-
-## Phase 2: Inspect the repository
-
-1. Read the repository contents. Look for a Dockerfile and note its path relative to the repo root.
-2. Note whether the project is Python (`requirements.txt`, `pyproject.toml`, `setup.py`).
-3. Choose `build_spec.type` from the table above.
-4. Establish the command that starts the application — the buildpack requires `command`, and a Dockerfile may need one if it has no `CMD`.
-
-## Phase 3: Get the schema and collect inputs
-
-1. Call `get_manifest_json_schema` with the entity type — `service`, `async-service` or `job`. Do not recall fields from memory; the schema is the source of truth.
-2. Call `list_workspaces` to resolve the target workspace, and use its `fqn` for `workspace_fqn`. Do NOT construct an FQN.
-3. Use `ask_user_question` for anything you would otherwise guess:
-   - the port the application listens on, and whether it should be exposed
-   - CPU and memory requests and limits
-   - environment variables and secrets
-   - for a `job`: `trigger`, `retries`, `concurrency_limit`
-
-Secrets are referenced by FQN (`tfy-secret://...`), never pasted as literal values.
-
-## Phase 4: Verify the build locally
-
-If Docker **and** Python are both available, build the image locally before deploying:
+## Phase 1: Clone and choose the build spec
 
 ```
-docker build -f <dockerfile_path> <build_context_path>
+git clone <repo_url> && cd <repo>
 ```
 
-A local failure arrives in seconds with the full error. The same failure found through the platform arrives minutes later and has to be read out of build logs. This is worth doing even when deploying from a git source, because the failure modes are identical — a missing dependency, a bad base image, a Dockerfile that copies files that were never committed.
+Read the repository and pick `build_spec.type` from what is there:
 
-If Docker is not available, skip this and read build logs afterwards. Do NOT tell the user you verified the build when you did not.
+| Repository has | `build_spec.type` |
+|---|---|
+| A Dockerfile | `dockerfile` |
+| Python, no Dockerfile (`requirements.txt`, `pyproject.toml`, `setup.py`) | `tfy-python-buildpack` |
+| Neither | Write a Dockerfile in the clone, then `dockerfile` |
 
-## Phase 5: Validate and apply
+The buildpack accepts only `python_version`, `requirements_path`, `pip_packages`, `apt_packages`, `cuda_version` and `command`. If a Python repository needs anything beyond those — a Node asset build, a non-Python base image, a multi-stage build — write a Dockerfile instead.
 
-Build the manifest as JSON → `validate_manifest` → fix and re-validate until it passes → `apply_manifest` (or `tfy deploy` for `local` source only).
+Note the **command** that starts the application. The buildpack requires it, and a Dockerfile without a `CMD` needs one.
 
-**`validate_manifest` checks the shape of the manifest, not whether it will deploy.** It returns `valid: true` for a `dockerfile_path` that does not exist in the repository. Never report a passing validation as "this will work".
+## Phase 2: Collect inputs
 
-After applying, follow the build to completion — `apply_manifest` returning successfully means the deployment was accepted, not that an image was built. See `builds.md`.
+1. **Check whether the name is taken** — call `list_applications` filtered by it. If something is already deployed under that name you are updating, and the values below come from the deployed manifest rather than from the user. Read **Creating or updating** in `SKILL.md` before going further.
+2. `get_manifest_json_schema` for the entity type — `service`, `async-service` or `job`. Do not recall fields from memory.
+3. `list_workspaces` — take `workspace_fqn` from the response. Do NOT construct an FQN. If it returns nothing for the workspace the user named, see **Resolving the workspace** in `SKILL.md`.
+4. `ask_user_question` for anything you would otherwise guess: the port and whether to expose it, CPU and memory, environment variables, and for a `job` its `trigger` and `retries`.
+
+## Phase 3: Deploy and read the build logs
+
+The source is always `local`, because the build runs against your clone — which may contain a Dockerfile you wrote, and the platform cannot clone a file that was never pushed.
+
+One check decides `local_build`:
+
+```
+docker info
+```
+
+- **Docker works** → `local_build: true`. Run `docker build` first to catch failures in seconds rather than minutes, then deploy.
+- **No Docker** → `local_build: false`. The source is uploaded and the platform builds it. Do NOT claim you verified a build you could not run.
+
+When the check is inconclusive, use `false` — it always works, whereas `true` without a daemon fails at deploy time.
+
+Build the manifest — see **Manifest structure** below — then `validate_manifest` → fix and re-validate until it passes → `tfy deploy`.
+
+`validate_manifest` checks the manifest's **shape**, not whether it will deploy — it returns `valid: true` for a `dockerfile_path` that does not exist. Never report a passing validation as "this will work".
+
+Finally read the build logs. A deploy call returning successfully means the deployment was accepted, not that an image was built, and when the platform does the building that log is the only place a failure appears. See `builds.md`.
 
 ## Manifest structure
 
@@ -100,11 +69,11 @@ workspace_fqn: <fqn from list_workspaces>
 image:
   type: build
   build_source:
-    type: git
-    repo_url: https://github.com/<org>/<repo>
-    branch_name: main                  # branch; use `ref` for a pinned commit SHA
+    type: local
+    project_root_path: ./
+    local_build: false                 # true only if `docker info` works
   build_spec:
-    type: dockerfile                   # or tfy-python-buildpack
+    type: dockerfile
     dockerfile_path: ./Dockerfile
     build_context_path: ./
 ports:
@@ -120,7 +89,7 @@ env:
   KEY: value
 ```
 
-For `tfy-python-buildpack`, replace `build_spec` with:
+For a Python repository with no Dockerfile, replace `build_spec`:
 
 ```yaml
   build_spec:
@@ -133,16 +102,12 @@ For `tfy-python-buildpack`, replace `build_spec` with:
 
 ## Checklist
 
-- [ ] Did I check whether an application with that name already exists, and ask the user before overwriting it?
-- [ ] Did I read the repository to decide the build spec, rather than inferring from the language?
-- [ ] If the repo has a Dockerfile, did I use `dockerfile` rather than the buildpack?
-- [ ] If the user named a branch, did I set `branch_name` rather than putting it in `ref`?
-- [ ] Did I call `get_manifest_json_schema` before writing the manifest?
-- [ ] Did I take `workspace_fqn` from `list_workspaces` instead of constructing it?
-- [ ] Did I ask the user for ports, resources and environment rather than choosing them?
+- [ ] Did I clone and read the repository rather than inferring its contents?
+- [ ] If it has a Dockerfile, did I use it instead of the buildpack? If Python without one, the buildpack instead of writing a Dockerfile?
+- [ ] Did I set `local_build` from an actual `docker info` check rather than assuming?
 - [ ] If Docker was available, did I build locally first — and if not, did I avoid claiming I verified it?
-- [ ] Did I describe the validation result as a shape check, not a guarantee it will deploy?
-- [ ] For `local` source, did I use `tfy deploy`? For everything else, `apply_manifest`?
-- [ ] Did I follow the build to completion instead of reporting success when apply returned?
+- [ ] Did I call `get_manifest_json_schema` and take `workspace_fqn` from `list_workspaces`?
+- [ ] Did I ask the user for ports, resources and environment rather than choosing them?
+- [ ] Did I read the build logs instead of reporting success when the deploy call returned?
 
-For more info: `search_docs` with "deploy from a git repository", "build configuration".
+For more info: `search_docs` with "deploy from a git repository", "build configuration", "tfy deploy".

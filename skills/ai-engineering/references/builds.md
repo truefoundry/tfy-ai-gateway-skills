@@ -52,9 +52,9 @@ The first two are the ones a local `docker build` catches in seconds — see `de
 
 If the log describes something other than what you expect — an older commit, a change that is not reflected, a build that finished implausibly fast — consider that **no build ran at all**.
 
-Builds are deduplicated. When the same repository and ref have already been built, the existing image is reused rather than rebuilt, and the deployment points at that earlier build. The logs are real, but they belong to the previous build rather than to this deployment.
+Builds are deduplicated: when the platform judges that the same source has already been built, it reuses the existing image and the deployment points at that earlier build. The logs are real, but they describe the previous build rather than this deployment.
 
-This matters when someone pushes a change without moving the ref, or redeploys expecting a rebuild. Check what the build record actually refers to before drawing conclusions from its contents, and tell the user their change was not built if that is what happened.
+Check what the build record actually refers to before drawing conclusions from its contents. If the user's change was not built, say so — a reused image is the one case where a deployment can succeed and still be running the old code.
 
 ## After a successful build
 

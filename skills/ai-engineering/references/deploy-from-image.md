@@ -1,29 +1,21 @@
 ---
 name: deploy-from-image
-description: Deploy a workload from an image that already exists, with no build step — a public image such as redis or postgres, or one from the tenant's own registry. Also the only path for notebook, rstudio and ssh-server. Read this when the user names an image rather than a repository.
+description: Deploy a workload from an image that already exists, with no build step — a public image, or one from the tenant's own registry. Read this when the user names an image rather than a repository.
 ---
 
 There is no build, which removes the largest source of failure and changes what needs checking. What goes wrong instead is the image not being pullable, or the workload not being configured the way the image expects.
 
-Applies to `service`, `async-service` and `job`, and is the only path for `notebook`, `rstudio` and `ssh-server`.
+Applies to `service`, `async-service` and `job`.
 
 ## Contents
-- Phase 1: Check for an existing application
-- Phase 2: Confirm the image is reachable
-- Phase 3: Collect the configuration the image expects
-- Phase 4: Validate and apply
+- Phase 1: Confirm the image is reachable
+- Phase 2: Collect the configuration the image expects
+- Phase 3: Validate and apply
 - Manifest structure
 - Diagnosing a workload that will not start
 - Checklist
 
-## Phase 1: Check for an existing application
-
-Call `list_applications` filtered by the name you are about to deploy under. `apply_manifest` is idempotent, so applying under a name that already exists **updates that application** rather than creating one — replacing a running workload with no warning.
-
-- **A match exists**: tell the user what is already deployed there and ask whether to update it or use a different name. Wait for their answer before continuing.
-- **No match**: continue to Phase 2.
-
-## Phase 2: Confirm the image is reachable
+## Phase 1: Confirm the image is reachable
 
 An image the cluster cannot pull produces a workload that never starts, and the deployment still reports success. Check before deploying.
 
@@ -32,11 +24,13 @@ An image the cluster cannot pull produces a workload that never starts, and the 
 - **Tags** — `latest` resolves at each pod start, so two replicas can run different code. Prefer a specific tag, and say so if the user asks for `latest`.
 - **Verifying** — ask the user which registry the image lives in, or read the registry directly. Do not assume an image is pullable because its name looks familiar.
 
-## Phase 3: Collect the configuration the image expects
+## Phase 2: Collect the configuration the image expects
 
 An image built by someone else has expectations that are invisible in its reference. Getting them wrong produces a container that starts and immediately exits, which reads as a crashloop rather than as misconfiguration.
 
-Use `ask_user_question` for each of these — do NOT choose on the user's behalf:
+**First, check whether the name is taken** — call `list_applications` filtered by it. If something is already deployed under that name you are updating, and the values below come from the deployed manifest rather than from the user. Read **Creating or updating** in `SKILL.md` before going further.
+
+Otherwise use `ask_user_question` for each of these — do NOT choose on the user's behalf:
 
 | Input | Why it cannot be guessed |
 |---|---|
@@ -46,13 +40,13 @@ Use `ask_user_question` for each of these — do NOT choose on the user's behalf
 | Persistence | A stateful image with no volume loses its data when the pod is replaced. Raise this before deploying, not after. |
 | Resources | Requests no node can satisfy leave the pod `Pending` forever with no error. |
 
-Also call `list_workspaces` and take `workspace_fqn` from the response rather than constructing it.
+Also call `list_workspaces` and take `workspace_fqn` from the response rather than constructing it. If it returns nothing for the workspace the user named, see **Resolving the workspace** in `SKILL.md`.
 
-## Phase 4: Validate and apply
+## Phase 3: Validate and apply
 
 Build the manifest as JSON → `validate_manifest` → fix and re-validate until it passes → `apply_manifest`.
 
-Nothing is being built, so the `tfy deploy` exception never applies here — this always goes through the approval-gated tool.
+Nothing is built here, so there is no local source and no reason to use the CLI — this always goes through `apply_manifest`.
 
 After applying, confirm the workload is running. A successful apply means the rollout was accepted, not that the image pulled or that the container stayed up.
 
@@ -86,8 +80,7 @@ The ones specific to deploying an image: `ImagePullBackOff` means the registry r
 
 ## Checklist
 
-- [ ] Did I check whether an application with that name already exists, and ask the user before overwriting it?
-- [ ] Did I confirm the image is pullable before deploying, rather than after it failed?
+- [ ] For a user-supplied image, did I confirm it is pullable before deploying rather than after it failed?
 - [ ] If a registry returned `401`, did I report it instead of retrying?
 - [ ] Did I use a specific tag, or tell the user why `latest` is risky?
 - [ ] Did I ask the user for the port rather than assuming the image's default?

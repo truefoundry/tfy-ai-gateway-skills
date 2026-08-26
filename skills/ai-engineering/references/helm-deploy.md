@@ -1,6 +1,6 @@
 ---
 name: helm-deploy
-description: Deploy a Helm chart from a chart repository or an OCI registry, with values. Read this whenever the user asks to deploy a chart, or names software normally installed as one — redis, postgres, kafka, elasticsearch, prometheus.
+description: Deploy a Helm chart from a chart repository or an OCI registry, with values. Read this when the user asks to deploy a chart, or has confirmed they want a chart rather than a plain image for software that ships as both — redis, postgres, kafka, elasticsearch, prometheus.
 ---
 
 A Helm deployment installs a chart someone else wrote, so the usual deployment decisions do not apply — there is no build, no image to choose, no application code. What matters is reaching the chart, pinning a version, and setting the values the chart expects.
@@ -8,23 +8,15 @@ A Helm deployment installs a chart someone else wrote, so the usual deployment d
 A Helm release also behaves differently once running, which matters for every question asked about it afterwards. See the last section.
 
 ## Contents
-- Phase 1: Check for an existing release
-- Phase 2: Reach the chart
-- Phase 3: Pin a version
-- Phase 4: Collect values
-- Phase 5: Validate and apply
+- Phase 1: Reach the chart
+- Phase 2: Pin a version
+- Phase 3: Collect values
+- Phase 4: Validate and apply
 - Manifest structure
 - What a Helm release looks like afterwards
 - Checklist
 
-## Phase 1: Check for an existing release
-
-Call `list_applications` filtered by the release name you are about to use. `apply_manifest` is idempotent, so applying under a name that already exists **upgrades that release** rather than installing a new one — and a Helm upgrade with different values can replace or destroy the workloads underneath it.
-
-- **A match exists**: tell the user what is already installed there and ask whether to upgrade it or use a different release name. Wait for their answer before continuing.
-- **No match**: continue to Phase 2.
-
-## Phase 2: Reach the chart
+## Phase 1: Reach the chart
 
 Charts come from a chart repository serving an `index.yaml`, or from an OCI registry.
 
@@ -43,30 +35,32 @@ Two things about public chart sources, both worth knowing before spending attemp
 
 Ask the user for the chart name and version, or read the repository's index directly.
 
-## Phase 3: Pin a version
+## Phase 2: Pin a version
 
 Do NOT leave `version` unset and do NOT guess one. Charts change shape between major versions, and values correct for one version are **silently ignored** by another — producing a release that installs successfully and is configured nothing like what was asked for.
 
 Ask the user which version they want. If they have no preference, use a recent stable version and tell them which one you used.
 
-## Phase 4: Collect values
+## Phase 3: Collect values
 
 Values are the entire configuration surface, and the chart's own documentation is the authority. Do NOT invent value keys — a misspelled key is not an error, it is ignored, and the release comes up on defaults.
 
-Use `ask_user_question` for at least:
+**First, check whether the release name is taken** — call `list_applications` filtered by it. If a release is already installed under that name you are upgrading, and its values come from the deployed manifest rather than from the user. Read **Creating or updating** in `SKILL.md` before going further; a fresh `values` block silently drops everything the release had set.
+
+Otherwise use `ask_user_question` for at least:
 
 - **Persistence** — charts differ on whether it defaults on. A database without a volume loses everything when its pod is replaced. Confirm before deploying.
 - **Credentials** — passwords and keys the chart requires. Reference secrets by FQN (`tfy-secret://...`); never write a password into the manifest as plain text.
 - **Architecture** — many charts offer standalone vs replicated, and the choice changes how many workloads appear.
 - **Resources** — requests no node can satisfy leave pods `Pending` with no error.
 
-## Phase 5: Validate and apply
+## Phase 4: Validate and apply
 
 1. Call `get_manifest_json_schema` with type `helm` — the manifest shape differs from other application types.
-2. Take `workspace_fqn` from `list_workspaces`.
+2. Take `workspace_fqn` from `list_workspaces`. If it returns nothing for the workspace the user named, see **Resolving the workspace** in `SKILL.md`.
 3. Build the manifest as JSON → `validate_manifest` → fix and re-validate → `apply_manifest`.
 
-There is no build, so the `tfy deploy` exception never applies to Helm.
+There is no build, so Helm always goes through `apply_manifest`.
 
 After applying, confirm the release's pods actually came up. A Helm install being accepted says nothing about whether its workloads started.
 
@@ -113,7 +107,6 @@ Logs do not. There is no application-level log stream, so reading logs means `li
 
 ## Checklist
 
-- [ ] Did I check whether a release with that name already exists, and ask the user before upgrading it?
 - [ ] Did I confirm the chart is reachable — and for `oci://`, did I call `validate_oci_chart`?
 - [ ] If a registry returned `401`, did I report which registry refused it rather than retrying?
 - [ ] Did I pin an explicit `version` rather than leaving it unset or guessing?
