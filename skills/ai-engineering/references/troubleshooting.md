@@ -17,14 +17,21 @@ Operational questions arrive without the two facts that decide how to answer the
 
 ## Phase 1: Identify the application
 
-Call `list_applications` (filter by name) or `get_application` to get the application. Record four fields before doing anything else:
+Call `list_applications` (filter by name) or `get_application` to get the application. Record these before doing anything else:
 
 | Field | Why you need it |
 |---|---|
 | `type` | Decides whether application-level logs exist. See the table below. |
 | `id` | Required by `get_deployment`. |
-| `workspaceId` / workspace name | The k8s namespace equals the workspace name. |
-| `clusterId` | Required by every `*_k8s_*` tool as a path parameter. |
+| `workspaceFqn` | Resolves the cluster and the namespace — see below. |
+
+The application does **not** carry `clusterId`, and every `*_k8s_*` tool needs it as a path parameter. Resolve it with one filtered call:
+
+```
+list_workspaces  fqn=<the application's workspaceFqn>  attributes=["id","name","fqn","clusterId"]
+```
+
+That returns `clusterId` and the workspace `name` — and the k8s `namespace` is that workspace name. Pass `attributes`: an unprojected workspace row is large enough to be worth avoiding.
 
 What is available by type:
 
@@ -64,7 +71,7 @@ Charts are a two-step call:
 1. `list_app_metric_charts` — the charts available for the application
 2. `get_application_chart_data` — the data for a chart from that list
 
-Do NOT guess chart names; take them from step 1. For cluster-level capacity questions the pair is `list_cluster_metric_charts` → `get_cluster_chart_data`.
+Do NOT guess chart names; take them from step 1. These are per-application; for node-level capacity use `list_k8s_nodes`.
 
 Reach for metrics when:
 
@@ -87,7 +94,7 @@ Start native. Escalate only for what native cannot provide.
 | `list_k8s_events` | ~1h cluster TTL | Live scheduling and pull failures |
 | `get_k8s_pod_logs` | Pod lifetime only | Current or just-crashed container output |
 | `list_k8s_pods`, `list_k8s_nodes` | Live only | Pod phase, restarts, `problem`; node capacity and taints |
-| `list_app_metric_charts`, `get_application_chart_data` | Persisted | CPU, memory and throughput over time |
+| `list_app_metric_charts`, `get_application_chart_data` | Persisted | An application's CPU, memory and throughput over time |
 | `get_application_state`, `list_application_deployments` | Persisted | Current health; deployment history |
 
 Escalate to `*_k8s_*` when you need live pod state, a previous container's logs, scheduling detail, or node capacity. Every `*_k8s_*` tool takes `clusterId` as a path parameter and, except for `list_k8s_nodes`, a `namespace` equal to the workspace name.
@@ -114,12 +121,12 @@ Events work normally. Logs do not.
 **Never construct a pod name.** Subcharts append their own suffixes to the release name:
 
 ```
-release      nikp-redis
-StatefulSet  nikp-redis-master
-pod          nikp-redis-master-0        # <set>-<ordinal>
+release      my-cache
+StatefulSet  my-cache-master
+pod          my-cache-master-0        # <set>-<ordinal>
 ```
 
-`nikp-redis-0` does not exist, and a query for a pod that does not exist returns empty rather than an error. Deployment-backed pods carry a generated ReplicaSet hash (`tsx-gpu-86d675bf87-hcgbd`) and are equally unpredictable. List, then read.
+`my-cache-0` does not exist, and a query for a pod that does not exist returns empty rather than an error. Deployment-backed pods carry a generated ReplicaSet hash (`my-api-7d4b9c8f2a-x4kqp`) and are equally unpredictable. List, then read.
 
 ## Interpreting an empty result
 
@@ -135,7 +142,7 @@ State what you could not see rather than reporting health. "No events in the las
 
 ## Checklist
 
-- [ ] Did I call `get_application` first and record `type`, `id`, workspace name and `clusterId`?
+- [ ] Did I call `get_application` for `type` and `id`, then `list_workspaces` for `clusterId` and the namespace?
 - [ ] If the type is `helm`, did I go pod-level for logs instead of calling `get_logs`?
 - [ ] Did I read pod state with `list_k8s_pods` before deciding where to look?
 - [ ] For a crashlooping container, did I pass `previous: true`?

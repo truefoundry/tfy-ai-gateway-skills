@@ -255,7 +255,11 @@ Questions about a deployed application are the easiest to answer confidently wro
 
 ## Deploying
 
-Read the reference file for your path first. The rules below apply to every path, in this order, and the reference files do not repeat them.
+These three rules apply to every path and the reference files do not repeat them. They interleave with the reference file rather than running before it:
+
+- **Rule 1 settles before you open the reference file** — it changes what you build and what you ask.
+- **Rule 2 applies wherever the reference file asks for `workspace_fqn`.**
+- **Rule 3 applies after the reference file's last step.**
 
 ### 1. Creating or updating
 
@@ -269,6 +273,11 @@ Call `list_applications` filtered by the name you intend to use. Both `apply_man
 **When updating, start from the manifest that is already deployed.** `get_application` returns `activeDeployment`, which carries that deployment's `manifest`. Change the fields the user asked about and apply that.
 
 Never build a fresh manifest from the schema for an update. The apply replaces everything, so every environment variable, secret reference, resource limit, replica count and probe the user had configured and you did not carry over is silently dropped — and the deploy reports success. The schema tells you what a field is called; only the deployed manifest tells you what this application had.
+
+**The stored manifest is resolved, not the one that was submitted.** An application built from source stores `image: {type: image, image_uri: ...}` pointing at the image that was built — not the build spec that produced it. Two consequences:
+
+- **Changing anything but the code** — replicas, resources, env vars, secrets, ports — is a plain `apply_manifest` of the fetched manifest with your edit. It reuses the existing image and does not rebuild, so it works without the source and no reference file is involved.
+- **Changing the code** means producing a new image, which editing a manifest cannot do. Go back to `ai-engineering/references/deploy-from-source.md` and run the source flow.
 
 ### 2. Resolving the workspace
 
