@@ -7,6 +7,7 @@ Every tool below requires the `deployment` feature on the tenant. Gateway-only t
 
 ## Contents
 - Resolve identity first
+- Model catalogue
 - Application and deployment
 - Logs, events, metrics, alerts
 - Kubernetes reads
@@ -29,6 +30,15 @@ Almost every debug call needs some combination of `applicationId`, `workspaceId`
 | FQN → id | `get_id_from_fqn` | When the user pasted an FQN |
 
 Never construct FQNs, pod names, or image URIs. List, then take values from the response.
+
+## Model catalogue
+
+| Tool | Answers | Key inputs |
+|---|---|---|
+| `get_model_deployment_specs` | Recommended model servers + GPU-sized `type: service` manifests for a Hub URL or deployable model version | `workspaceId` (required), `huggingfaceHubUrl` **or** `modelVersionFqn`, optional `huggingfaceHubTokenSecretFqn`, optional `pipelineTagOverride` |
+| `get_nim_deployment_specs` | NIM container deployment options | `workspaceId`, `nimModelId`, `nvcrDockerRegistryProviderIntegrationFqn`, `ngcApiKeySecretFqn` |
+
+Use these instead of hand-writing vLLM/SGLang services. Full workflow: `model-deploy.md`. Debugging a broken model service: `model-debug.md`.
 
 ## Application and deployment
 

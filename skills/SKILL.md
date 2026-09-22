@@ -1,6 +1,6 @@
 ---
 name: truefoundry-platform
-description: Answer questions about TrueFoundry, an enterprise AI platform. Covers two products — AI Gateway (LLM proxy, MCP servers, agents, governance) and AI Engineering (deploy services, jobs, notebooks, workflows; ML repos, model registry, fine-tuning). Triggers on TrueFoundry, tfy CLI, Gateway entities/policies, tracing/observability, prompt management, or deploying applications — even when the product name isn't stated.
+description: Answer questions about TrueFoundry, an enterprise AI platform. Covers two products — AI Gateway (LLM proxy, MCP servers, agents, governance) and AI Engineering (deploy services, jobs, notebooks, workflows; deploy HuggingFace/catalogue models with vLLM/SGLang/etc.; ML repos, model registry, fine-tuning). Triggers on TrueFoundry, tfy CLI, Gateway entities/policies, tracing/observability, prompt management, or deploying applications and models — even when the product name isn't stated.
 ---
 
 # Introduction
@@ -238,6 +238,8 @@ Docs: [applications](https://www.truefoundry.com/docs/introduction-to-a-service)
 | Deploy from a git repo or local code (service, async-service, job) | `deploy-from-source.md` |
 | Deploy a prebuilt image (service, async-service, job) | `deploy-from-image.md` |
 | Deploy a Helm chart | `helm-deploy.md` |
+| **Deploy a model from HuggingFace / model catalogue / NIM** (vLLM, SGLang, …) | `model-deploy.md` |
+| **Debug a deployed model** (download vs server, recipes, GitHub issues, fix+apply) | `model-debug.md` |
 | Rules shared by every deploy path, and **changing an existing application** | `deploy-common.md` |
 | Build logs, a failed build | `builds.md` |
 | **Anything about a deployed application** — logs, events, metrics, health, performance, crashes, what changed. Read this before *any* read tool: an empty result is what a tool returns when it cannot see, not an error | `troubleshooting.md` |
@@ -260,7 +262,9 @@ Read `deploy-common.md` before any deploy. One rule bears repeating here: **depl
 
 - [ ] Did I read the reference file for what I was about to do (including the failure-mode playbook when debugging)?
 - [ ] Did I identify the application type? It changes which tools can answer.
+- [ ] For model deploy/debug, did I use `get_model_deployment_specs` / `model-deploy.md` / `model-debug.md` instead of hand-rolling a vLLM service from memory?
 - [ ] For questions about a deployed application, did I read pod state (`list_k8s_pods` / `reason`) and pull logs, events or metrics instead of inferring from `DEPLOY_SUCCESS`?
 - [ ] If something came back empty, did I check whether the tool could have seen it at all before calling it healthy?
 - [ ] Did I avoid treating exit 137 as OOM without events/metrics corroboration?
+- [ ] When proposing a fix, did I edit from the live manifest, validate, and apply only with approval?
 - [ ] If I couldn't answer the question, did I read `references/support-tickets.md` and follow it instead of suggesting external contact?

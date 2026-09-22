@@ -69,6 +69,7 @@ Each pod returns `phase`, `restarts`, and optional **`reason`** (e.g. `CrashLoop
 | Events mention `FailedMount` / PVC | `failure-modes/volumes-storage.md` |
 | `Running`, no reason, but wrong version / stuck rollout | `failure-modes/rollout-argocd.md` |
 | `Running`, no reason, misbehaving / slow | `get_logs` + metrics (Phase 3) |
+| Manifest has `artifacts_download` / model-server labels | Also read `model-debug.md` after the matching row above |
 
 **A `Pending` pod is not a failed pod in Kubernetes terms, but it is a failed deploy for the user.** Nothing may report failure and the deployment may still say `DEPLOY_SUCCESS`.
 
@@ -99,6 +100,8 @@ Paths are under `ai-engineering/references/`:
 
 | File | When |
 |---|---|
+| `model-deploy.md` | User wants to deploy a HuggingFace / catalogue / NIM model |
+| `model-debug.md` | Deployed model service unhealthy or inference broken |
 | `failure-modes/pending-scheduling.md` | Pending, FailedScheduling, GPU, Karpenter |
 | `failure-modes/crashloop-oom-probes.md` | CrashLoop, OOM, exit 137, probe kills |
 | `failure-modes/image-pull.md` | ImagePullBackOff / ErrImagePull |
@@ -169,8 +172,9 @@ State what you could not see rather than reporting health. "No events in the las
 
 - Lead with the root cause, then the evidence (pod name, event reason, log line, metric).
 - Prefer one primary cause. Mention secondary issues only if they block the fix.
-- Propose a concrete next step (manifest field change, registry fix, wait for node, sync) — do not dump a generic Kubernetes tutorial.
-- For write fixes, use `validate_manifest` → `apply_manifest` (or `sync_application` / `redeploy_application`) with approval. Do not run `tfy apply` in the terminal.
+- Prefer proposing a concrete fix (manifest field change, registry fix, wait for node, sync, regenerated model specs) — do not dump a generic Kubernetes tutorial.
+- For write fixes, use `validate_manifest` → `apply_manifest` (or `sync_application` / `redeploy_application` / regenerated specs from `get_model_deployment_specs`) with approval. Do not run `tfy apply` in the terminal.
+- When the workload is a model server, read `model-debug.md` and research recipes/GitHub issues before inventing engine flags.
 - If you still cannot tell, follow `references/support-tickets.md`.
 
 ## Checklist
