@@ -247,7 +247,7 @@ Docs: [applications](https://www.truefoundry.com/docs/introduction-to-a-service)
 | ImagePullBackOff / ErrImagePull | `failure-modes/image-pull.md` |
 | FailedMount / PVC / volume | `failure-modes/volumes-storage.md` |
 | Job runs / cron | `failure-modes/jobs.md` |
-| Stuck rollout / Argo OutOfSync / non-terminal deploy | `failure-modes/rollout-argocd.md` |
+| Stuck rollout / Argo OutOfSync / non-terminal deploy / status not publishing | `failure-modes/rollout-argocd.md` |
 | Cluster disconnected / addons / widespread Pending | `failure-modes/cluster-capacity.md` |
 | `notebook`, `rstudio`, `ssh-server` runtime issues | `troubleshooting.md` (then the matching failure-mode file) |
 | `volume`, `workflow`, `spark-job`, `application-set`, ML Repos, Model Registry | none for deploy authoring — work from `get_manifest_json_schema` and `search_docs`, and say so. Volume *mount* failures still use `failure-modes/volumes-storage.md` |

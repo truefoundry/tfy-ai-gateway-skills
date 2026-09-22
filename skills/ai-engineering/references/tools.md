@@ -93,7 +93,7 @@ TrueFoundry app pods are labeled `truefoundry.com/application-id=<applicationId>
 
 If the apiVersion is wrong, the call errors — try the version from `list_cluster_addons` / docs rather than inventing.
 
-Platform namespaces (`kube-system`, `argocd`, `istio-system`, `tfy-agent`) are generally **not** readable via these tools (namespace must map to a workspace). Cluster-scoped objects like NodeClaims still work. For Karpenter **controller logs** in `kube-system`, fall back to `get_cluster_autoscaler_logs` or tell the user you cannot read that namespace.
+Platform namespaces (`kube-system`, `argocd`, `istio-system`, `tfy-agent`) are generally **not** readable via these tools (namespace must map to a workspace). Cluster-scoped objects like NodeClaims still work. For Karpenter **controller logs** in `kube-system`, fall back to `get_cluster_autoscaler_logs` or tell the user you cannot read that namespace. For **tfy-agent** logs (status / `DEPLOY_SUCCESS` publishing), see `failure-modes/rollout-argocd.md` — check `get_cluster_status` and the tfy-agent addon first, then ask the user for agent logs; do not pretend you fetched that namespace.
 
 ## Cluster and workspace
 
