@@ -241,7 +241,16 @@ Docs: [applications](https://www.truefoundry.com/docs/introduction-to-a-service)
 | Rules shared by every deploy path, and **changing an existing application** | `deploy-common.md` |
 | Build logs, a failed build | `builds.md` |
 | **Anything about a deployed application** — logs, events, metrics, health, performance, crashes, what changed. Read this before *any* read tool: an empty result is what a tool returns when it cannot see, not an error | `troubleshooting.md` |
-| `notebook`, `rstudio`, `ssh-server`, `volume`, `workflow`, `spark-job`, `application-set`, ML Repos, Model Registry | none — work from `get_manifest_json_schema` and `search_docs`, and say so |
+| Which debug tool to call / parameters / retention | `tools.md` |
+| Pods Pending / FailedScheduling / GPU / Karpenter | `failure-modes/pending-scheduling.md` |
+| CrashLoopBackOff / OOMKilled / probe kills / exit 137 | `failure-modes/crashloop-oom-probes.md` |
+| ImagePullBackOff / ErrImagePull | `failure-modes/image-pull.md` |
+| FailedMount / PVC / volume | `failure-modes/volumes-storage.md` |
+| Job runs / cron | `failure-modes/jobs.md` |
+| Stuck rollout / Argo OutOfSync / non-terminal deploy | `failure-modes/rollout-argocd.md` |
+| Cluster disconnected / addons / widespread Pending | `failure-modes/cluster-capacity.md` |
+| `notebook`, `rstudio`, `ssh-server` runtime issues | `troubleshooting.md` (then the matching failure-mode file) |
+| `volume`, `workflow`, `spark-job`, `application-set`, ML Repos, Model Registry | none for deploy authoring — work from `get_manifest_json_schema` and `search_docs`, and say so. Volume *mount* failures still use `failure-modes/volumes-storage.md` |
 
 `redis`, `postgres`, `kafka` and similar ship as both an image and a chart. They are not interchangeable — a chart brings persistence and replication defaults, an image is one container you configure yourself. Ask which they want; never infer from the name.
 
@@ -249,8 +258,9 @@ Read `deploy-common.md` before any deploy. One rule bears repeating here: **depl
 
 ## Checklist Before Responding to an AI Engineering Question
 
-- [ ] Did I read the reference file for what I was about to do?
+- [ ] Did I read the reference file for what I was about to do (including the failure-mode playbook when debugging)?
 - [ ] Did I identify the application type? It changes which tools can answer.
-- [ ] For questions about a deployed application, did I read pod state and pull logs, events or metrics instead of inferring from status?
+- [ ] For questions about a deployed application, did I read pod state (`list_k8s_pods` / `reason`) and pull logs, events or metrics instead of inferring from `DEPLOY_SUCCESS`?
 - [ ] If something came back empty, did I check whether the tool could have seen it at all before calling it healthy?
+- [ ] Did I avoid treating exit 137 as OOM without events/metrics corroboration?
 - [ ] If I couldn't answer the question, did I read `references/support-tickets.md` and follow it instead of suggesting external contact?
