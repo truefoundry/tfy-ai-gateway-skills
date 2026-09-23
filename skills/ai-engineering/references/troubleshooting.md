@@ -47,7 +47,7 @@ What is available by type:
 | `service`, `async-service` | `list_application_events` | `get_logs` | Standard path |
 | `job` | `list_application_events` (+ `jobRunName`) | `get_logs` (+ `jobRunName`) | Read `failure-modes/jobs.md` |
 | `helm` | `list_application_events` | **none at application level** — pod-level only | Also `get_application_argocd_resources` |
-| `notebook`, `rstudio`, `ssh-server` | `list_application_events` | `get_logs` | Auth/OAuth issues are often app logs + probes, not schedule |
+| `notebook`, `rstudio`, `ssh-server` | `list_application_events` | `get_logs` | Author/access: `notebook-ssh.md`. Auth/OAuth issues are often app logs + probes, not schedule |
 
 Do NOT call `get_logs` on a Helm application and report "no logs found". There is no application-level log stream for a Helm release — the logs are pod-level and reachable.
 
@@ -163,6 +163,7 @@ An empty list means either "nothing happened" or "I could not see it". Before re
 - Did you ask the right layer? A failed build leaves no pod; an unschedulable pod leaves no logs.
 - Is this a Helm release where you asked for application-level logs?
 - Are Prometheus/log backends missing on the cluster? (`failure-modes/cluster-capacity.md`)
+- **StatefulSet-backed apps (common for some model services):** `list_application_events` can return **empty even while pods CrashLoop**. Fall back to `list_k8s_events` + `get_k8s_pod_logs` (`model-debug.md`). Never treat empty application events as proof of health.
 
 State what you could not see rather than reporting health. "No events in the last hour" and "nothing is wrong" are different claims.
 

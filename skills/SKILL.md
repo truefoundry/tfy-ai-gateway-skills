@@ -238,8 +238,17 @@ Docs: [applications](https://www.truefoundry.com/docs/introduction-to-a-service)
 | Deploy from a git repo or local code (service, async-service, job) | `deploy-from-source.md` |
 | Deploy a prebuilt image (service, async-service, job) | `deploy-from-image.md` |
 | Deploy a Helm chart | `helm-deploy.md` |
-| **Deploy a model from HuggingFace / model catalogue / NIM** (vLLM, SGLang, …) | `model-deploy.md` |
-| **Debug a deployed model** (download vs server, recipes, GitHub issues, fix+apply) | `model-debug.md` |
+| **Deploy a model from HuggingFace / model catalogue / NIM** (vLLM, SGLang, …) — includes smoke test, Gateway, sticky, GPU util | `model-deploy.md` |
+| **Debug a deployed model** (download vs server, StatefulSet empty events, recipes, fix+apply) | `model-debug.md` |
+| Classical ML (sklearn/XGBoost) vs LLM catalogue | `model-deploy.md` (Classical ML section) |
+| Create / mount a **volume** (PVC, model cache) | `volume-create.md` (mount failures → `failure-modes/volumes-storage.md`) |
+| Deploy **notebook / rstudio / ssh-server** (incl. OAuth access) | `notebook-ssh.md` |
+| **Workflow / Spark / application-set** authoring | `workflow-spark.md` |
+| Autoscaling, scale-to-0, cost right-size | `autoscaling.md` |
+| Endpoints, sticky sessions, SSL/custom domain, connectivity | `networking.md` |
+| Secrets / HF tokens / registry creds | `secrets.md` |
+| Canary / progressive rollout | `canary-rollouts.md` |
+| Cluster onboarding / agent / addons (blast-radius) | `cluster-onboard.md` (+ `failure-modes/cluster-capacity.md`) |
 | Rules shared by every deploy path, and **changing an existing application** | `deploy-common.md` |
 | Build logs, a failed build | `builds.md` |
 | **Anything about a deployed application** — logs, events, metrics, health, performance, crashes, what changed. Read this before *any* read tool: an empty result is what a tool returns when it cannot see, not an error | `troubleshooting.md` |
@@ -251,8 +260,8 @@ Docs: [applications](https://www.truefoundry.com/docs/introduction-to-a-service)
 | Job runs / cron | `failure-modes/jobs.md` |
 | Stuck rollout / Argo OutOfSync / non-terminal deploy / status not publishing | `failure-modes/rollout-argocd.md` |
 | Cluster disconnected / addons / widespread Pending | `failure-modes/cluster-capacity.md` |
-| `notebook`, `rstudio`, `ssh-server` runtime issues | `troubleshooting.md` (then the matching failure-mode file) |
-| `volume`, `workflow`, `spark-job`, `application-set`, ML Repos, Model Registry | none for deploy authoring — work from `get_manifest_json_schema` and `search_docs`, and say so. Volume *mount* failures still use `failure-modes/volumes-storage.md` |
+| ML Repos / Model Registry (non-LLM) | `search_docs` + `get_manifest_json_schema`; classical deploy notes in `model-deploy.md` |
+| Golden eval prompts / expectations for this skill | `ai-engineering/evals/evals.json` |
 
 `redis`, `postgres`, `kafka` and similar ship as both an image and a chart. They are not interchangeable — a chart brings persistence and replication defaults, an image is one container you configure yourself. Ask which they want; never infer from the name.
 
@@ -263,8 +272,10 @@ Read `deploy-common.md` before any deploy. One rule bears repeating here: **depl
 - [ ] Did I read the reference file for what I was about to do (including the failure-mode playbook when debugging)?
 - [ ] Did I identify the application type? It changes which tools can answer.
 - [ ] For model deploy/debug, did I use `get_model_deployment_specs` / `model-deploy.md` / `model-debug.md` instead of hand-rolling a vLLM service from memory?
+- [ ] For notebooks/volumes/workflows/spark, did I use the matching authoring file (`notebook-ssh.md`, `volume-create.md`, `workflow-spark.md`) rather than a service template?
+- [ ] For scale-to-0 / sticky / secrets / canary / cluster blast-radius, did I open the matching ops file?
 - [ ] For questions about a deployed application, did I read pod state (`list_k8s_pods` / `reason`) and pull logs, events or metrics instead of inferring from `DEPLOY_SUCCESS`?
-- [ ] If something came back empty, did I check whether the tool could have seen it at all before calling it healthy?
+- [ ] If something came back empty, did I check whether the tool could have seen it at all before calling it healthy (including StatefulSet event gaps)?
 - [ ] Did I avoid treating exit 137 as OOM without events/metrics corroboration?
 - [ ] When proposing a fix, did I edit from the live manifest, validate, and apply only with approval?
 - [ ] If I couldn't answer the question, did I read `references/support-tickets.md` and follow it instead of suggesting external contact?
