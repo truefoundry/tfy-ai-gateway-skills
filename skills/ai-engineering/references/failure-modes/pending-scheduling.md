@@ -17,6 +17,7 @@ A `Pending` pod is waiting for a node. Kubernetes will leave it there forever. T
 
 After `troubleshooting.md` Phase 1–2 have given you `clusterId`, `namespace`, and a Pending pod name:
 
+0. **FailedMount first.** `Pending` is also what you see for volume mount failures, and those are **not** `FailedScheduling`. Call `list_k8s_events` (no FailedScheduling-only filter yet) / `list_application_events`. If you see `FailedMount`, `FailedAttachVolume`, or PVC bind errors → stop and open `failure-modes/volumes-storage.md`.
 1. `list_k8s_events` with `fieldSelector=reason=FailedScheduling` (and/or `list_application_events` for the same window).
 2. `describe_k8s_object` on the **Pod** — you need requests, nodeSelector/affinity, tolerations, and topology constraints. The list projection does not include these.
 3. `list_k8s_nodes` — capacity, taints, readiness. For GPUs, try `labelSelector=nvidia.com/gpu.present=true` (or the cloud's equivalent).

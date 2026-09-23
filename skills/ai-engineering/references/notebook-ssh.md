@@ -16,7 +16,7 @@ description: Deploy and debug notebook, rstudio, and ssh-server applications —
 1. Resolve workspace FQN (`list_workspaces`).
 2. `get_manifest_json_schema` for the exact type: `notebook` | `rstudio` | `ssh-server`.
 3. Fill required fields (name, workspace_fqn, resources, image if configurable). Prefer platform defaults for Jupyter images unless the user specified one.
-4. Attach volumes/datasets via documented volume mounts when they need persistent home or data (`volume-create.md` if the volume does not exist yet).
+4. Attach volumes/datasets via documented volume mounts when they need persistent home or data. If the volume application does not exist yet, author it from `get_manifest_json_schema` + `search_docs` for `volume` (no dedicated playbook).
 5. `validate_manifest` → `apply_manifest` (approval).
 6. Return `generate_deployment_endpoint` / SSH connection instructions from the deployment response — do not invent hostnames.
 

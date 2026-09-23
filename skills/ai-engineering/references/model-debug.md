@@ -77,7 +77,8 @@ Classify:
 
 | Log / reason pattern | Likely fix direction |
 |---|---|
-| `OOMKilled` / CUDA OOM / `torch.OutOfMemoryError` | Lower `gpu_memory_utilization` (especially from ~0.90 on small GPUs), smaller max length, quant variant, more/bigger GPUs, TP size — regenerate via `get_model_deployment_specs` or edit resources/args |
+| Container `reason: OOMKilled` (cgroup / memory limit) | Raise **memory** `resources` limits/requests — not GPU util. See `failure-modes/crashloop-oom-probes.md` |
+| CUDA OOM / `torch.OutOfMemoryError` / GPU OOM in logs (pod may still show CrashLoop, not always `OOMKilled`) | Lower `--gpu-memory-utilization` (or equivalent) in **command/args or env** (especially from ~0.90 on small GPUs), smaller max length, quant variant, more/bigger GPUs, TP size — regenerate via `get_model_deployment_specs` or edit args/env/resources |
 | `ValueError` / unsupported architecture / missing multimodal | Wrong server or `pipeline_tag` — override tag and regenerate; or switch vLLM ↔ SGLang |
 | Engine args rejected / unknown flag | Align args with the **image tag’s** docs; bump image tag or remove flags from a newer recipe |
 | NCCL / TP size errors | GPU count not matching `--tensor-parallel-size`; fix resources + args together |
@@ -88,7 +89,7 @@ Re-read applied resources with `get_applied_k8s_manifest` — catalogue recommen
 
 ## Hard cases (GPU util, probes, wrong tag, image drift)
 
-1. **Small-GPU OOM at load** — treat default `gpu_memory_utilization ≈ 0.90` as a first suspect; try 0.70–0.80 before only scaling GPUs. See `model-deploy.md`.
+1. **Small-GPU CUDA OOM at load** — treat default `--gpu-memory-utilization ≈ 0.90` (in args/env, not a top-level manifest field) as a first suspect; try 0.70–0.80 before only scaling GPUs. See `model-deploy.md`. Do not confuse with container `OOMKilled`.
 2. **Wrong Hub task** — regenerate with `pipelineTagOverride` from the modality table in `model-deploy.md`.
 3. **Probe vs OOM** — exit 137 + Unhealthy probe events often means slow startup, not memory; lengthen probes first when download/load logs look healthy.
 4. **Recipe newer than image** — bump vLLM/SGLang image tag carefully; re-validate; expect longer pull + startup.
@@ -115,7 +116,7 @@ Fixes are **service manifest** updates:
 
 1. Start from `get_application` → `activeDeployment.manifest` (full replace — `deploy-common.md`).
 2. Prefer regenerating with `get_model_deployment_specs` (correct `pipelineTagOverride`, token, workspace) and merging user-specific bits (name, mounts, autoscaling, sticky labels) when the catalogue can produce a better baseline.
-3. Otherwise surgically patch: resources, `image`, command/args, env, probes, `artifacts_download`, `gpu_memory_utilization`.
+3. Otherwise surgically patch only real service fields: `resources`, `image`, command/args, env, probes, `artifacts_download`. To change GPU memory fraction, edit the **server flag in args/env** (e.g. `--gpu-memory-utilization`) — never invent a top-level `gpu_memory_utilization` manifest key.
 4. `validate_manifest` → explain the diff → `apply_manifest` (approval). For trivial “redeploy same spec” use `redeploy_application`.
 5. Verify with pods + logs (+ `list_k8s_events` if application events stay empty). For inference errors, re-run the smoke curl from `model-deploy.md`.
 
@@ -127,7 +128,8 @@ This same **diagnose → research → patch manifest → ask approval → apply 
 - [ ] Did I separate download failures from server runtime failures (init vs main)?
 - [ ] For CrashLoop, did I use `previous: true` and the correct `container`?
 - [ ] If `list_application_events` was empty, did I fall back to `list_k8s_events` / pod logs?
-- [ ] Did I consider `gpu_memory_utilization` / probes / pipeline tag / image tag before inventing flags?
+- [ ] Did I separate container `OOMKilled` (memory limits) from CUDA OOM (args/env GPU util)?
+- [ ] Did I patch `--gpu-memory-utilization` via args/env (not a fake top-level field), and consider probes / pipeline tag / image tag before inventing flags?
 - [ ] Did I search recipes + GitHub for the exact model/error?
 - [ ] Did I propose a concrete manifest diff and apply only after approval?
 - [ ] Did I verify pods/logs (and smoke test) after the fix?

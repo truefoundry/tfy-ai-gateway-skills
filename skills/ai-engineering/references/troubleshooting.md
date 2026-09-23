@@ -62,11 +62,11 @@ Each pod returns `phase`, `restarts`, and optional **`reason`** (e.g. `CrashLoop
 | Pod state | Next file / action |
 |---|---|
 | No pods at all | `get_deployment` → if build failed/missing image: `builds.md`; if deploy stuck: `failure-modes/rollout-argocd.md` |
-| `Pending` | `failure-modes/pending-scheduling.md` |
+| `Pending` | Check events first: `FailedMount` / PVC → `failure-modes/volumes-storage.md`; otherwise `failure-modes/pending-scheduling.md` |
 | `reason: ImagePullBackOff` / `ErrImagePull` | `failure-modes/image-pull.md` |
 | `reason: OOMKilled` or suspected memory | `failure-modes/crashloop-oom-probes.md` |
 | `reason: CrashLoopBackOff` / high restarts | `failure-modes/crashloop-oom-probes.md` |
-| Events mention `FailedMount` / PVC | `failure-modes/volumes-storage.md` |
+| Events mention `FailedMount` / PVC (any phase) | `failure-modes/volumes-storage.md` |
 | `Running`, no reason, but wrong version / stuck rollout | `failure-modes/rollout-argocd.md` |
 | `Running`, no reason, misbehaving / slow | `get_logs` + metrics (Phase 3) |
 | Manifest has `artifacts_download` / model-server labels | Also read `model-debug.md` after the matching row above |

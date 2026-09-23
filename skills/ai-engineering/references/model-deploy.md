@@ -136,15 +136,15 @@ Present a short comparison and confirm when more than one viable path exists —
 
 ## Hard cases (GPU memory util, VLM, embed/rerank, image tags)
 
-### `gpu_memory_utilization` on small GPUs
+### GPU memory utilization on small GPUs
 
-Catalogue / vLLM defaults often set **`gpu_memory_utilization` ≈ 0.90**. On **small GPUs** (T4, L4, single small consumer GPU) that frequently causes **CUDA OOM at load** even when the catalogue listed that shape.
+Catalogue / vLLM defaults often set **`--gpu-memory-utilization` ≈ 0.90** on the model-server **command/args or env** (this is **not** a TrueFoundry top-level manifest field). On **small GPUs** (T4, L4, single small consumer GPU) that frequently causes **CUDA OOM at load** even when the catalogue listed that shape.
 
-When deploying onto small GPUs, or when the user reports OOM on first start:
+When deploying onto small GPUs, or when the user reports CUDA / GPU OOM on first start:
 
-- Lower utilization toward **0.70–0.80** (args/env — match how the chosen image expects the flag, commonly `--gpu-memory-utilization`).
+- Lower the flag toward **0.70–0.80** in args/env — match how the chosen image names it (commonly `--gpu-memory-utilization`). Do not add a fake `gpu_memory_utilization:` key at the service root.
 - Also consider: lower max model length, AWQ/GPTQ/FP8 quant variant, or a larger GPU / higher TP.
-- Do not only “add another replica” — OOM at load is per-replica memory.
+- Do not only “add another replica” — CUDA OOM at load is per-replica GPU memory. Container `OOMKilled` is a separate memory-*limit* problem (`model-debug.md`).
 
 ### Vision-language / multimodal
 
@@ -232,7 +232,7 @@ HuggingFace LLM catalogue specs are the wrong path for pickle/joblib/MLflow skle
 - [ ] Did I call `get_model_deployment_specs` (or NIM) before hand-writing a vLLM service — except classical ML?
 - [ ] For gated models, did I pass a secret FQN rather than a raw token?
 - [ ] If Hub tags looked wrong / `any-to-any`, did I retry with an explicit `pipelineTagOverride`?
-- [ ] On small GPUs, did I consider lowering `gpu_memory_utilization`?
+- [ ] On small GPUs, did I consider lowering `--gpu-memory-utilization` in args/env (not a top-level field)?
 - [ ] Did I prefer `isAvailableInWorkspace: true` GPU options?
 - [ ] On API failure, did I attempt override / similar-model recovery?
 - [ ] Did I `validate_manifest` → `apply_manifest` → verify pods?

@@ -241,9 +241,7 @@ Docs: [applications](https://www.truefoundry.com/docs/introduction-to-a-service)
 | **Deploy a model from HuggingFace / model catalogue / NIM** (vLLM, SGLang, …) — includes smoke test, Gateway, sticky, GPU util | `model-deploy.md` |
 | **Debug a deployed model** (download vs server, StatefulSet empty events, recipes, fix+apply) | `model-debug.md` |
 | Classical ML (sklearn/XGBoost) vs LLM catalogue | `model-deploy.md` (Classical ML section) |
-| Create / mount a **volume** (PVC, model cache) | `volume-create.md` (mount failures → `failure-modes/volumes-storage.md`) |
 | Deploy **notebook / rstudio / ssh-server** (incl. OAuth access) | `notebook-ssh.md` |
-| **Workflow / Spark / application-set** authoring | `workflow-spark.md` |
 | Autoscaling, scale-to-0, cost right-size | `autoscaling.md` |
 | Endpoints, sticky sessions, SSL/custom domain, connectivity | `networking.md` |
 | Secrets / HF tokens / registry creds | `secrets.md` |
@@ -256,12 +254,11 @@ Docs: [applications](https://www.truefoundry.com/docs/introduction-to-a-service)
 | Pods Pending / FailedScheduling / GPU / Karpenter | `failure-modes/pending-scheduling.md` |
 | CrashLoopBackOff / OOMKilled / probe kills / exit 137 | `failure-modes/crashloop-oom-probes.md` |
 | ImagePullBackOff / ErrImagePull | `failure-modes/image-pull.md` |
-| FailedMount / PVC / volume | `failure-modes/volumes-storage.md` |
+| FailedMount / PVC / volume *mount* failures | `failure-modes/volumes-storage.md` |
 | Job runs / cron | `failure-modes/jobs.md` |
 | Stuck rollout / Argo OutOfSync / non-terminal deploy / status not publishing | `failure-modes/rollout-argocd.md` |
 | Cluster disconnected / addons / widespread Pending | `failure-modes/cluster-capacity.md` |
-| ML Repos / Model Registry (non-LLM) | `search_docs` + `get_manifest_json_schema`; classical deploy notes in `model-deploy.md` |
-| Golden eval prompts / expectations for this skill | `ai-engineering/evals/evals.json` |
+| `volume`, `workflow`, `spark-job`, `application-set`, ML Repos, Model Registry (authoring) | none for deploy authoring — work from `get_manifest_json_schema` and `search_docs`, and say so. Volume *mount* failures still use `failure-modes/volumes-storage.md`. Classical deploy notes in `model-deploy.md` |
 
 `redis`, `postgres`, `kafka` and similar ship as both an image and a chart. They are not interchangeable — a chart brings persistence and replication defaults, an image is one container you configure yourself. Ask which they want; never infer from the name.
 
@@ -272,7 +269,8 @@ Read `deploy-common.md` before any deploy. One rule bears repeating here: **depl
 - [ ] Did I read the reference file for what I was about to do (including the failure-mode playbook when debugging)?
 - [ ] Did I identify the application type? It changes which tools can answer.
 - [ ] For model deploy/debug, did I use `get_model_deployment_specs` / `model-deploy.md` / `model-debug.md` instead of hand-rolling a vLLM service from memory?
-- [ ] For notebooks/volumes/workflows/spark, did I use the matching authoring file (`notebook-ssh.md`, `volume-create.md`, `workflow-spark.md`) rather than a service template?
+- [ ] For notebooks, did I use `notebook-ssh.md` rather than a service template?
+- [ ] For volume / workflow / spark / application-set authoring, did I use `get_manifest_json_schema` + `search_docs` (no dedicated playbook)?
 - [ ] For scale-to-0 / sticky / secrets / canary / cluster blast-radius, did I open the matching ops file?
 - [ ] For questions about a deployed application, did I read pod state (`list_k8s_pods` / `reason`) and pull logs, events or metrics instead of inferring from `DEPLOY_SUCCESS`?
 - [ ] If something came back empty, did I check whether the tool could have seen it at all before calling it healthy (including StatefulSet event gaps)?

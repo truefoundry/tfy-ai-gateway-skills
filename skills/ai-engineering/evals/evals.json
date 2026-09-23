@@ -44,11 +44,12 @@
     {
       "id": 4,
       "prompt": "vLLM pod is OOMKilled on a single L4 even though the catalogue suggested that GPU. Fix it.",
-      "expected_output": "Treats catalogue default gpu_memory_utilization (~0.90) as the likely culprit on small GPUs; lowers utilization / max length / switches quant or GPU; regenerates or patches args and applies with approval.",
+      "expected_output": "Treats catalogue default --gpu-memory-utilization (~0.90 in args/env) as the likely culprit on small GPUs; lowers that flag / max length / switches quant or GPU; does not invent a top-level gpu_memory_utilization field; regenerates or patches args and applies with approval.",
       "files": [],
       "expectations": [
-        "Checks main-container logs/events for CUDA OOM vs download failure",
-        "Calls out lowering gpu_memory_utilization (e.g. toward 0.70–0.80) on small GPUs rather than only adding more GPUs",
+        "Checks main-container logs/events for CUDA OOM vs download failure vs container OOMKilled",
+        "Calls out lowering --gpu-memory-utilization in args/env (e.g. toward 0.70–0.80) on small GPUs rather than only adding more GPUs",
+        "Does not add a top-level gpu_memory_utilization key on the service manifest",
         "Considers max model length / quantization / larger GPU as alternatives",
         "Patches from live manifest or regenerates via get_model_deployment_specs, then validate + approval + apply"
       ]
