@@ -51,7 +51,7 @@ Use these instead of hand-writing vLLM/SGLang services. Full workflow: `model-de
 | `get_applied_k8s_manifest` | What was actually applied to the cluster (resolved resources, redacted secrets) | application `id` |
 | `get_application_argocd_resources` | Argo CD resource tree/status — **Helm apps only** | application `id` |
 | `get_pod_template_hash_map` | Maps pod-template-hash → deployment version | When correlating pods to a version |
-| `generate_deployment_endpoint` | Endpoint URL shape for a service | After deploy, for "how do I call it" |
+| `generate_deployment_endpoint` | Suggested HTTP host/path for a **service** or **async-service** | `applicationType`, `workspaceId`, `applicationName`, optional `port` / `preferWildcard` / `baseDomain`. Compose `https://{host}` or `https://{host}{path}`. After every service deploy — see `deployment-links.md`. Not for job/helm/volume |
 
 **Status reading rules for `get_deployment`:**
 

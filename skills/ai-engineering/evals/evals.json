@@ -26,7 +26,8 @@
         "Uses a secret FQN for HF token if the model is gated — never asks the user to paste the raw token",
         "Prefers deployments with isAvailableInWorkspace: true",
         "validate_manifest then apply_manifest; verifies with list_k8s_pods after apply",
-        "Mentions post-deploy smoke test and optional Gateway self-hosted registration"
+        "Mentions post-deploy smoke test and optional Gateway self-hosted registration",
+        "Prints console link ({controlPlaneUrl}/deployments/{applicationId}) and generate_deployment_endpoint URL"
       ]
     },
     {

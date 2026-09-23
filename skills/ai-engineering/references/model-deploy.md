@@ -175,14 +175,15 @@ Recipes and GitHub issues often assume a **newer** vLLM/SGLang image than the ca
 5. `apply_manifest` (approval flow). Never `tfy apply` in the terminal for this path.
 6. `get_deployment` → `list_k8s_pods`. Startup is long (download + load) — do not declare failure in the first few minutes if probes are still progressing.
 7. Hand off deep failures to `model-debug.md`.
+8. Print links per `deployment-links.md` — console `{controlPlaneUrl}/deployments/{applicationId}` **and** the HTTP endpoint from `generate_deployment_endpoint`.
 
 ## Post-deploy product loop (smoke, Gateway, sticky, scale-to-0)
 
-`apply_manifest` success is not “users can call the model.” Finish these when relevant:
+`apply_manifest` success is not “users can call the model.” Finish these when relevant. Links first (`deployment-links.md`), then smoke.
 
 ### 1. Smoke test
 
-After pods are Ready, call the service endpoint (`generate_deployment_endpoint`):
+After pods are Ready, call the service endpoint from `generate_deployment_endpoint` (see `deployment-links.md`):
 
 | Server / task | Minimal check |
 |---|---|
@@ -236,6 +237,7 @@ HuggingFace LLM catalogue specs are the wrong path for pickle/joblib/MLflow skle
 - [ ] Did I prefer `isAvailableInWorkspace: true` GPU options?
 - [ ] On API failure, did I attempt override / similar-model recovery?
 - [ ] Did I `validate_manifest` → `apply_manifest` → verify pods?
+- [ ] Did I print console + endpoint links per `deployment-links.md`?
 - [ ] Did I smoke-test the matching route and offer Gateway / sticky / scale-to-0 when relevant?
 
 For more info: `search_docs` with "deploying an LLM", "model catalogue", "sticky routing", "scale service to 0", "self hosted model".
