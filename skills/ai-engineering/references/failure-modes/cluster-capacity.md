@@ -10,7 +10,7 @@ When **multiple unrelated applications** misbehave the same way, stop debugging 
 1. `get_cluster` / `get_cluster_status` — is the cluster connected? Is tfy-agent reporting?
 2. `list_cluster_addons` — Karpenter, GPU operator, metrics/Prometheus, CSI, ingress.
 3. `list_k8s_nodes` — Ready vs NotReady, pressure conditions, absent GPU labels.
-4. `get_cluster_autoscaler_logs` — provisioning failures.
+4. `get_cluster_autoscaler_logs` — provisioning failures (Azure/GCP). On AWS expect 501 and use Karpenter NodeClaims instead (`pending-scheduling.md`).
 5. Only then return to a single application's playbook.
 
 ## Patterns

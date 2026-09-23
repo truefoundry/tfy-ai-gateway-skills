@@ -72,7 +72,7 @@ Use these instead of hand-writing vLLM/SGLang services. Full workflow: `model-de
 | `list_app_metric_charts` | Prometheus chart catalog | — | Discover chart names/params for an app |
 | `get_application_chart_data` | Prometheus series | Persisted | CPU/memory/throughput trends. Never guess chart names |
 | `list_alerts` | Autopilot alerts | Persisted | Pre-classified issues (OOM, crashloop, etc.) for an application or cluster. **Only registered when autopilot is enabled** (same constraint as `list_application_events`) |
-| `get_cluster_autoscaler_logs` | Cluster autoscaler / Karpenter-ish signal | Persisted | Why nodes are not coming up. Cluster-level, not app-level |
+| `get_cluster_autoscaler_logs` | Provisioning logs: **Azure** cluster-autoscaler or **GCP** NAP | Persisted | **Required** on GPU / capacity Pending when nodes are not appearing (`pending-scheduling.md`). Path param = cluster `id`. **AWS returns 501** — expected; use Karpenter NodeClaim status instead. Not app-level |
 
 Prefer native (`get_logs`, `list_application_events`) for anything older than ~1 hour. Prefer k8s for live crash and schedule diagnosis.
 
@@ -103,7 +103,7 @@ TrueFoundry app pods are labeled `truefoundry.com/application-id=<applicationId>
 
 If the apiVersion is wrong, the call errors — try the version from `list_cluster_addons` / docs rather than inventing.
 
-Platform namespaces (`kube-system`, `argocd`, `istio-system`, `tfy-agent`) are generally **not** readable via these tools (namespace must map to a workspace). Cluster-scoped objects like NodeClaims still work. For Karpenter **controller logs** in `kube-system`, fall back to `get_cluster_autoscaler_logs` or tell the user you cannot read that namespace. For **tfy-agent** logs (status / `DEPLOY_SUCCESS` publishing), see `failure-modes/rollout-argocd.md` — check `get_cluster_status` and the tfy-agent addon first, then ask the user for agent logs; do not pretend you fetched that namespace.
+Platform namespaces (`kube-system`, `argocd`, `istio-system`, `tfy-agent`) are generally **not** readable via these tools (namespace must map to a workspace). Cluster-scoped objects like NodeClaims still work. For Karpenter **controller logs** in `kube-system`, use `get_cluster_autoscaler_logs` on Azure/GCP; on AWS that tool is unimplemented (501) — read NodeClaim/NodePool status instead (`failure-modes/pending-scheduling.md`). For **tfy-agent** logs (status / `DEPLOY_SUCCESS` publishing), see `failure-modes/rollout-argocd.md` — check `get_cluster_status` and the tfy-agent addon first, then ask the user for agent logs; do not pretend you fetched that namespace.
 
 ## Cluster and workspace
 

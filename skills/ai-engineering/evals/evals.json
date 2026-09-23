@@ -101,6 +101,18 @@
         "Falls back to list_k8s_events and get_k8s_pod_logs",
         "Mentions that application-scoped events can miss StatefulSet-backed workloads"
       ]
+    },
+    {
+      "id": 9,
+      "prompt": "My vLLM pod has been Pending for 10 minutes with FailedScheduling insufficient nvidia.com/gpu. What's wrong?",
+      "expected_output": "Follows pending-scheduling: reads FailedScheduling + pod describe + GPU nodes, then checks Karpenter/autoscaler (get_cluster_autoscaler_logs and/or NodeClaims) instead of stopping at the pod event or looking for app logs.",
+      "files": [],
+      "expectations": [
+        "Does not call application container logs as the primary signal for a Pending pod",
+        "Reads FailedScheduling events and describes the pod for GPU requests/tolerations",
+        "Calls get_cluster_autoscaler_logs and/or lists Karpenter NodeClaims/NodePools when no suitable GPU node exists",
+        "On AWS, handles get_cluster_autoscaler_logs 501 by using NodeClaim status rather than giving up"
+      ]
     }
   ]
 }
