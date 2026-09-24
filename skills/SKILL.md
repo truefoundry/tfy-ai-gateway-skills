@@ -1,5 +1,5 @@
 ---
-name: ask-ai-deploy
+name: truefoundry-platform
 description: Answer questions about TrueFoundry, an enterprise AI platform. Covers two products — AI Gateway (LLM proxy, MCP servers, agents, governance) and AI Engineering (deploy services, jobs, notebooks, workflows; deploy HuggingFace/catalogue models with vLLM/SGLang/etc.; ML repos, model registry, fine-tuning). Triggers on TrueFoundry, tfy CLI, Gateway entities/policies, tracing/observability, prompt management, or deploying applications and models — even when the product name isn't stated.
 ---
 
