@@ -1,0 +1,142 @@
+{
+  "skill_name": "ai-engineering",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "My service `checkout-api` in workspace `payments-prod` just went CrashLoopBackOff. Tell me what's wrong and how to fix it.",
+      "expected_output": "Reads troubleshooting.md, resolves clusterId/namespace, lists pods, pulls previous container logs + events, classifies OOM vs probe vs app error, proposes a concrete manifest edit and asks approval before apply_manifest.",
+      "files": [],
+      "expectations": [
+        "Does not conclude health from DEPLOY_SUCCESS or get_application alone",
+        "Calls list_k8s_pods (or equivalent) and inspects reason / container states before proposing a fix",
+        "Uses get_k8s_pod_logs with previous:true on CrashLoopBackOff",
+        "Corroborates exit 137 with events/metrics before calling it OOM",
+        "Edits from the live activeDeployment.manifest (full replace) and validates before apply",
+        "Asks for approval before apply_manifest"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Deploy this HuggingFace model for me: https://huggingface.co/meta-llama/Meta-Llama-3.1-8B-Instruct in workspace llm-dev. Use whatever GPU we have.",
+      "expected_output": "Resolves workspaceId, calls get_model_deployment_specs, handles gated HF token via secret FQN, prefers isAvailableInWorkspace, validates and applies a service manifest, then verifies pods and offers Gateway + smoke-test next steps.",
+      "files": [],
+      "expectations": [
+        "Calls get_model_deployment_specs (not hand-written vLLM YAML from memory)",
+        "Resolves workspace via list_workspaces and uses workspace.id as workspaceId",
+        "Uses a secret FQN for HF token if the model is gated — never asks the user to paste the raw token",
+        "Prefers deployments with isAvailableInWorkspace: true",
+        "validate_manifest then apply_manifest; verifies with list_k8s_pods after apply",
+        "Mentions post-deploy smoke test and optional Gateway self-hosted registration",
+        "Prints console link ({controlPlaneUrl}/deployments/{applicationId}) and generate_deployment_endpoint URL"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "get_model_deployment_specs failed for my any-to-any Hub model. Can we still deploy it?",
+      "expected_output": "Retries with an explicit pipelineTagOverride inferred from the model card / architecture, or uses similar-model recovery; does not give up at the first catalogue error.",
+      "files": [],
+      "expectations": [
+        "Retries get_model_deployment_specs with pipelineTagOverride (e.g. text-generation or image-text-to-text) instead of stopping",
+        "Bases the override on Hub card / architecture family, not a random guess",
+        "If still failing, uses similar-model strategy (generate for sibling, swap artifact/model id) and re-validates",
+        "Does not invent a full vLLM service from scratch unless recovery requires it"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "vLLM pod is OOMKilled on a single L4 even though the catalogue suggested that GPU. Fix it.",
+      "expected_output": "Treats catalogue default --gpu-memory-utilization (~0.90 in args/env) as the likely culprit on small GPUs; lowers that flag / max length / switches quant or GPU; does not invent a top-level gpu_memory_utilization field; regenerates or patches args and applies with approval.",
+      "files": [],
+      "expectations": [
+        "Checks main-container logs/events for CUDA OOM vs download failure vs container OOMKilled",
+        "Calls out lowering --gpu-memory-utilization in args/env (e.g. toward 0.70–0.80) on small GPUs rather than only adding more GPUs",
+        "Does not add a top-level gpu_memory_utilization key on the service manifest",
+        "Considers max model length / quantization / larger GPU as alternatives",
+        "Patches from live manifest or regenerates via get_model_deployment_specs, then validate + approval + apply"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "My Helm app shows DEPLOY_SUCCESS but Argo is OutOfSync and pods never became Ready. Status in the UI looks stale.",
+      "expected_output": "Follows rollout-argocd playbook: sync_application when appropriate, checks tfy-agent health/logs, does not treat empty tool results as healthy.",
+      "files": [],
+      "expectations": [
+        "Does not declare the app healthy from DEPLOY_SUCCESS alone",
+        "Uses sync_application / Argo sync guidance from failure-modes/rollout-argocd.md when OutOfSync",
+        "Checks tfy-agent / status publishing when UI state is stale",
+        "Treats empty list_k8s_* / log results as possible visibility gaps, not proof of health"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "Scale my model service to zero when idle for 15 minutes, and pin chat sessions to the same replica for prefix cache.",
+      "expected_output": "Edits the live service manifest for auto-shutdown / Elasti scale-to-0 and sticky session label; explains cold-start and best-effort stickiness; validate + apply with approval.",
+      "files": [],
+      "expectations": [
+        "Uses autoscaling / scale-to-0 fields from schema/docs (Elasti idle timeout), not pause/resume alone",
+        "Adds tfy_sticky_session_header_name (or schema-equivalent sticky config) and tells the client which header to send",
+        "Warns about cold start on scale-from-zero and best-effort sticky routing",
+        "Edits live manifest, validates, asks approval before apply"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "Create a notebook in workspace ml-sandbox so I can explore this dataset, and give me the URL.",
+      "expected_output": "Authors a notebook application from schema, applies with approval, returns endpoint; covers OAuth/login expectations from notebook-ssh playbook.",
+      "files": [],
+      "expectations": [
+        "Uses get_manifest_json_schema for notebook (not service)",
+        "Sets workspace_fqn correctly and validate_manifest before apply",
+        "Mentions auth / OAuth login behavior for notebook access",
+        "Returns generate_deployment_endpoint (or equivalent) after deploy"
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "list_application_events returned nothing for my model StatefulSet but the pod is CrashLooping. Is it healthy?",
+      "expected_output": "Does not treat empty application events as healthy; falls back to list_k8s_events / pod logs; notes StatefulSet event visibility caveat.",
+      "files": [],
+      "expectations": [
+        "Does not conclude healthy from empty list_application_events",
+        "Falls back to list_k8s_events and get_k8s_pod_logs",
+        "Mentions that application-scoped events can miss StatefulSet-backed workloads"
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "My vLLM pod has been Pending for 10 minutes with FailedScheduling insufficient nvidia.com/gpu. What's wrong?",
+      "expected_output": "Follows pending-scheduling: reads FailedScheduling + pod describe + GPU nodes, then checks Karpenter/autoscaler (get_cluster_autoscaler_logs and/or NodeClaims) instead of stopping at the pod event or looking for app logs.",
+      "files": [],
+      "expectations": [
+        "Does not call application container logs as the primary signal for a Pending pod",
+        "Reads FailedScheduling events and describes the pod for GPU requests/tolerations",
+        "Calls get_cluster_autoscaler_logs and/or lists Karpenter NodeClaims/NodePools when no suitable GPU node exists",
+        "On AWS, handles get_cluster_autoscaler_logs 501 by using NodeClaim status rather than giving up"
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "How is vLLM deployed on TrueFoundry? Do you run multiple models in one pod? How do GPUs and model download work?",
+      "expected_output": "Answers from model-serving-faq: one service per model, TP in-pod, dedicated GPUs by default, HF/artifact download to /opt/truefoundry with optional cache PVC, no shared multi-model fleet.",
+      "files": [],
+      "expectations": [
+        "States each model is its own service / dedicated vLLM container, not a shared multi-model fleet",
+        "Explains multi-GPU as tensor parallelism in the same pod",
+        "Describes download into cluster (HF or truefoundry-artifact) and cache PVC vs emptyDir",
+        "Does not claim vLLM-native KV-cache autoscaling as a current platform default"
+      ]
+    },
+    {
+      "id": 11,
+      "prompt": "We only changed our model service autoscaling min/max from 1-2 to 2-3 in production and it created a new ReplicaSet and killed the existing pod. Is this a bug?",
+      "expected_output": "Reads the app rollout_strategy; explains a replica edit is a new revision; with max surge 0% / unavailable >0 (common model default) the old pod can go down before the new one is Ready — expected, not necessarily a bug; proposes surge/minReplicas/canary/cache mitigations.",
+      "files": [],
+      "expectations": [
+        "Does not call it a definite platform bug without reading rollout_strategy",
+        "Explains new revision + rolling update behavior for replica-only changes",
+        "Calls out max_surge_percentage 0 with few replicas as a downtime cause for GPU models",
+        "Suggests concrete mitigations (raise surge if capacity, minReplicas>=2, canary, cache PVC)"
+      ]
+    }
+  ]
+}
