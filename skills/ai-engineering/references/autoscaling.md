@@ -55,9 +55,10 @@ Docs: scale service to 0 / Elasti.
 
 ## Model-specific warnings
 
-- Scale-to-0 + large models = painful cold starts; suggest keeping minReplicas=1 in prod.
+- Scale-to-0 + large models = painful cold starts; suggest keeping minReplicas=1 in prod only when idle cost matters more than latency.
 - Sticky sessions (`networking.md`) reshuffle on scale-up/down — prefix-cache benefits are best-effort.
 - Do not scale maxReplicas above available GPUs in the workspace.
+- **Changing min/max replicas applies a new deployment revision.** Behavior of the old pod (including brief downtime) depends on `rollout_strategy` — especially catalogue defaults with **max surge 0%**. Read `rollout-strategy.md` before telling the user a replica-only edit is “safe” or a “bug”.
 
 ## Cost / right-sizing
 

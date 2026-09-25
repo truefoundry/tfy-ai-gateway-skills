@@ -235,6 +235,7 @@ HuggingFace LLM catalogue specs are the wrong path for pickle/joblib/MLflow skle
 - [ ] If Hub tags looked wrong / `any-to-any`, did I retry with an explicit `pipelineTagOverride`?
 - [ ] On small GPUs, did I consider lowering `--gpu-memory-utilization` in args/env (not a top-level field)?
 - [ ] Did I prefer `isAvailableInWorkspace: true` GPU options?
+- [ ] For architecture / “how does vLLM work” questions, did I use `model-serving-faq.md`?
 - [ ] On API failure, did I attempt override / similar-model recovery?
 - [ ] Did I `validate_manifest` → `apply_manifest` → verify pods?
 - [ ] Did I print console + endpoint links per `deployment-links.md`?

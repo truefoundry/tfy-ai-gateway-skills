@@ -113,6 +113,30 @@
         "Calls get_cluster_autoscaler_logs and/or lists Karpenter NodeClaims/NodePools when no suitable GPU node exists",
         "On AWS, handles get_cluster_autoscaler_logs 501 by using NodeClaim status rather than giving up"
       ]
+    },
+    {
+      "id": 10,
+      "prompt": "How is vLLM deployed on TrueFoundry? Do you run multiple models in one pod? How do GPUs and model download work?",
+      "expected_output": "Answers from model-serving-faq: one service per model, TP in-pod, dedicated GPUs by default, HF/artifact download to /opt/truefoundry with optional cache PVC, no shared multi-model fleet.",
+      "files": [],
+      "expectations": [
+        "States each model is its own service / dedicated vLLM container, not a shared multi-model fleet",
+        "Explains multi-GPU as tensor parallelism in the same pod",
+        "Describes download into cluster (HF or truefoundry-artifact) and cache PVC vs emptyDir",
+        "Does not claim vLLM-native KV-cache autoscaling as a current platform default"
+      ]
+    },
+    {
+      "id": 11,
+      "prompt": "We only changed our model service autoscaling min/max from 1-2 to 2-3 in production and it created a new ReplicaSet and killed the existing pod. Is this a bug?",
+      "expected_output": "Reads the app rollout_strategy; explains a replica edit is a new revision; with max surge 0% / unavailable >0 (common model default) the old pod can go down before the new one is Ready — expected, not necessarily a bug; proposes surge/minReplicas/canary/cache mitigations.",
+      "files": [],
+      "expectations": [
+        "Does not call it a definite platform bug without reading rollout_strategy",
+        "Explains new revision + rolling update behavior for replica-only changes",
+        "Calls out max_surge_percentage 0 with few replicas as a downtime cause for GPU models",
+        "Suggests concrete mitigations (raise surge if capacity, minReplicas>=2, canary, cache PVC)"
+      ]
     }
   ]
 }
