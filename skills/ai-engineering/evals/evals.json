@@ -68,6 +68,19 @@
       ]
     },
     {
+      "id": 12,
+      "prompt": "Our production deploy has been stuck in WAITING for over 10 minutes and no new pods are coming up. Other apps on this cluster look stuck too. What should we do?",
+      "expected_output": "Checks blast radius (one cluster vs all), suspects tfy-agent publish/sync, recommends restarting only Deployment tfy-agent (not proxy/SDS/ESO), gives kubectl/Argo steps if tools cannot delete agent pods; mentions NATS if all clusters affected.",
+      "files": [],
+      "expectations": [
+        "Establishes whether the issue is one app, one cluster, or all clusters",
+        "Mentions NATS/control plane when symptoms span all clusters",
+        "Recommends restarting only the main tfy-agent Deployment/pods, not tfy-agent-proxy, sds-server, or external-secrets siblings",
+        "If tfy-agent Deployment is not found via tools, instructs Argo CD or kubectl restart of deployment/tfy-agent rather than guessing other workloads",
+        "Does not rewrite the application manifest as the first fix for cluster-wide WAITING"
+      ]
+    },
+    {
       "id": 6,
       "prompt": "Scale my model service to zero when idle for 15 minutes, and pin chat sessions to the same replica for prefix cache.",
       "expected_output": "Edits the live service manifest for auto-shutdown / Elasti scale-to-0 and sticky session label; explains cold-start and best-effort stickiness; validate + apply with approval.",
