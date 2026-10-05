@@ -15,7 +15,7 @@ TrueFoundry services expose HTTP(S) endpoints via the platform ingress. Most “
 
 ## Resolve the endpoint
 
-1. Prefer `generate_deployment_endpoint` (or the endpoint on `get_application` / deployment) over guessing hostnames.
+1. Read the exposed port's `host` and `path` from the deployed manifest (`get_application` → `activeDeployment.manifest.ports`) — see `deployment-links.md`. Never guess a hostname.
 2. Confirm the **port** in the manifest matches what the process listens on (model servers often 8000/8080).
 3. Path matters: vLLM/SGLang OpenAI routes live under `/v1/...`; hitting `/` may 404 even when healthy.
 
@@ -45,7 +45,7 @@ See docs “sticky routing”. Combine with `autoscaling.md` carefully.
 
 | Symptom | Check |
 |---|---|
-| DNS / connection refused | Endpoint host, service Ready pods, rollout stuck (`rollout-argocd.md`) |
+| DNS / connection refused | Endpoint host, service Ready pods, rollout stuck (`failure-modes/rollout-argocd.md`) |
 | 401/403 | Auth headers, workspace policy, Gateway key vs service auth |
 | 404 on `/v1/...` | Wrong base URL path; smoke `/v1/models` first |
 | Works with 1 replica, flaky with N | Sticky header missing for prefix-cache workloads; or non-ready pods in Service |
@@ -54,7 +54,7 @@ See docs “sticky routing”. Combine with `autoscaling.md` carefully.
 
 ## Checklist
 
-- [ ] Did I use `generate_deployment_endpoint` instead of inventing a host?
+- [ ] Did I take the host from the deployed manifest instead of inventing one?
 - [ ] Did I verify pods Ready before blaming networking?
 - [ ] For sticky, did I set the label and tell the client the exact header?
 - [ ] For custom domain/SSL, did I follow docs/schema rather than raw ingress manifests?

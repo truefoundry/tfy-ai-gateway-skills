@@ -28,7 +28,7 @@ If only one app fails with a clear CrashLoop log, stay on application playbooks.
 3. Node / capacity — widespread FailedScheduling (`failure-modes/cluster-capacity.md`).
 4. Alerts — `list_alerts` when available.
 
-Do not claim you can finish cloud account linking or IAM from Ask AI if those require Console/cloud admin steps — give the exact checklist.
+Do not claim you can finish cloud account linking or IAM yourself when those require console or cloud-admin steps — give the user the exact checklist.
 
 ## Onboarding guidance
 
@@ -42,8 +42,8 @@ When the user is **adding** a cluster:
 ## Handoff
 
 - Single-app fix → application failure-mode files.
-- Agent/Argo sync → `rollout-argocd.md`.
-- Need platform engineering beyond documented addon toggles → follow `support-tickets.md`.
+- Agent/Argo sync → `failure-modes/rollout-argocd.md`.
+- Need platform engineering beyond documented addon toggles → follow `references/support-tickets.md`.
 
 ## Checklist
 

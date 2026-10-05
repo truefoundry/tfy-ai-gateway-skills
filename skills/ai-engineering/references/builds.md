@@ -10,6 +10,7 @@ A build runs before any workload exists, so there is no pod, no container and no
 - What the build record tells you
 - Reading the log
 - The image is not what the user expects
+- After a successful build
 - Checklist
 
 ## Getting from an application to its build

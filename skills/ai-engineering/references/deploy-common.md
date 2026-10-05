@@ -13,6 +13,7 @@ These apply to every deploy path. They interleave with the path's own reference 
 - Creating or updating
 - Resolving the workspace
 - Validating and verifying
+- Exposing a port
 - After deploy — always print links
 - Checklist
 
@@ -48,12 +49,15 @@ If the workspace the user named does not exist, or the tenant has none yet, a wo
 
 A deploy is not finished when the call returns. Follow it through `get_deployment` and confirm the workload is running rather than that the rollout was accepted. `troubleshooting.md` covers how.
 
+## Exposing a port
+
+A port with `expose: true` must carry a `host` — the manifest is rejected without one. Do not invent it: call `generate_deployment_endpoint` with `applicationType` (`service` or `async-service`), the workspace `id` as `workspaceId`, the application name as `applicationName`, and the `port`. Put the returned `host` on the port, and its `path` too when the response has one.
+
+The suggestion is derived from the application name, so call it again if the name changes. If it fails because the cluster has no base domain, the port cannot be exposed — say so and set `expose: false`. On an update, the deployed manifest already has its `host`; keep it.
+
 ## After deploy — always print links
 
-After a successful apply (and a basic health check), **always** print the deployment links — do not end on “deployed successfully” alone. Read `deployment-links.md`:
-
-1. **Console:** `{controlPlaneUrl}/deployments/{applicationId}` (`controlPlaneUrl` from `get_me`, `applicationId` from apply / `get_application`).
-2. **HTTP endpoint** (service / async-service / model): call `generate_deployment_endpoint` and print the real URL — never invent a hostname.
+After a successful apply and a basic health check, **always** end with the links in `deployment-links.md` — the console link, and the real endpoint where there is one. Do not end on "deployed successfully" alone.
 
 ## Checklist
 
@@ -63,6 +67,7 @@ After a successful apply (and a basic health check), **always** print the deploy
 - [ ] Did I take `workspace_fqn` from `list_workspaces` instead of constructing it?
 - [ ] Did I describe validation as a shape check rather than a guarantee?
 - [ ] Did I confirm the workload is running, not just that the rollout was accepted?
-- [ ] Did I print the console link and (when applicable) the service endpoint per `deployment-links.md`?
+- [ ] Does every exposed port have a `host` from `generate_deployment_endpoint` (or the deployed manifest, on an update)?
+- [ ] Did I print the links per `deployment-links.md`?
 
 For more info: `search_docs` with "update a deployment", "workspaces".

@@ -12,7 +12,7 @@ Jobs are not long-running services. Debug against a **specific run**, not only t
 3. `get_job_run` for that run.
 4. `get_logs` with `jobRunName` set (and time window around the run).
 5. `list_application_events` with the same `jobRunName` (do **not** also pass `podNames`).
-6. If the run created pods: `list_k8s_pods` + same crash/pending playbooks as services (`failure-modes/crashloop-oom-probes.md`, `pending-scheduling.md`).
+6. If the run created pods: `list_k8s_pods` + same crash/pending playbooks as services (`failure-modes/crashloop-oom-probes.md`, `failure-modes/pending-scheduling.md`).
 
 ## Status reading
 

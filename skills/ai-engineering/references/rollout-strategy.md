@@ -1,6 +1,6 @@
 ---
 name: rollout-strategy
-description: Explain and configure rolling update / canary / blue-green rollout strategy — including why changing replica min/max can create a new ReplicaSet and briefly take the old pod down. Read when users ask about downtime on config changes, replica scaling behavior, surge/unavailable, or canary.
+description: Explain and configure rolling update / canary / blue-green rollout strategy — including why changing replica min/max can create a new ReplicaSet and briefly take the old pod down. Read when users ask about downtime on config changes, replica scaling behavior, surge/unavailable, or want to set up canary / blue-green / traffic splitting.
 ---
 
 Any **manifest apply** that creates a new deployment revision (image, env, resources, **replicas / autoscaling min·max**, probes, …) is rolled out according to `rollout_strategy` on the service. That is why a “small” replica-count edit can look like a full redeploy: Kubernetes/Argo replaces pods under the configured surge and unavailable limits.
@@ -39,7 +39,7 @@ Implications:
 
 - **Surge 0%** → the platform will **not** bring up an extra new pod before stopping an old one when that would exceed desired count. With **1 replica**, the only pod can be terminated **before** the replacement is Ready → **downtime** (and a long model reload).
 - **Unavailable 25%** with few replicas rounds in ways that still allow the sole replica to go down.
-- **Surge > 0%** needs spare GPU/CPU capacity or the new pod stays Pending (`pending-scheduling.md`) while old pods may already be draining.
+- **Surge > 0%** needs spare GPU/CPU capacity or the new pod stays Pending (`failure-modes/pending-scheduling.md`) while old pods may already be draining.
 
 Recommended reading for users: https://www.truefoundry.com/docs/rollout-strategy
 
@@ -66,15 +66,22 @@ Do **not** tell the user “replica changes never recreate pods.” Do **not** s
 - **Canary** — shift a traffic percentage to the new revision in steps; pause/promote. Use when they need controlled production exposure.
 - **Blue-green** — bring up the full new set, cut traffic over, then tear down old.
 
-Exact step fields vary — `get_manifest_json_schema` + docs. During canary, watch new pods + smoke tests; stuck analysis → `failure-modes/rollout-argocd.md`.
+Skip both for a one-replica dev app, where a rolling update with sensible surge is enough.
+
+To enable one:
+
+1. Start from the live manifest (`deploy-common.md`). Take the `rollout_strategy` fields from `get_manifest_json_schema` and `search_docs` ("canary", "rollout strategy") — exact step fields vary.
+2. Check the probes: failed probes abort progression (`failure-modes/crashloop-oom-probes.md`).
+3. `validate_manifest` → explain the traffic steps → `apply_manifest` (approval).
+4. Watch the new pods and smoke-test before calling it done. A canary that does not advance → `failure-modes/rollout-argocd.md`. To roll back, re-apply the previous manifest (from `list_application_deployments`) after approval.
 
 ## Diagnose a bad rollout
 
 | Observation | Next |
 |---|---|
 | New RS, old pod terminating, surge 0% | Expected under strategy — explain + mitigate |
-| New pod Pending (GPU) while old already gone | Capacity + Karpenter (`pending-scheduling.md`) compounded by surge 0% |
-| Rollout stuck / OutOfSync | `rollout-argocd.md` |
+| New pod Pending (GPU) while old already gone | Capacity + Karpenter (`failure-modes/pending-scheduling.md`) compounded by surge 0% |
+| Rollout stuck / OutOfSync | `failure-modes/rollout-argocd.md` |
 | Canary not advancing | Rollout CR / analysis metrics |
 
 ## Checklist
@@ -82,6 +89,7 @@ Exact step fields vary — `get_manifest_json_schema` + docs. During canary, wat
 - [ ] Did I read the app’s actual `rollout_strategy` before calling behavior a bug?
 - [ ] For replica-only prod changes on GPU models, did I warn about surge 0% / single-replica downtime?
 - [ ] Did I propose concrete surge / min-replica / canary / cache mitigations?
+- [ ] For canary / blue-green, did I take the fields from the schema and docs and check the probes?
 - [ ] Did I validate + apply strategy edits only with approval?
 
 For more info: `search_docs` with "rollout strategy", "canary", "rolling update", "autoscaling".

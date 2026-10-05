@@ -1,5 +1,5 @@
 {
-  "skill_name": "ai-engineering",
+  "skill_name": "truefoundry-platform",
   "evals": [
     {
       "id": 1,
@@ -27,7 +27,7 @@
         "Prefers deployments with isAvailableInWorkspace: true",
         "validate_manifest then apply_manifest; verifies with list_k8s_pods after apply",
         "Mentions post-deploy smoke test and optional Gateway self-hosted registration",
-        "Prints console link ({controlPlaneUrl}/deployments/{applicationId}) and generate_deployment_endpoint URL"
+        "Prints the console link ({controlPlaneUrl}/deployments/{applicationId}) and the endpoint from the deployed manifest's ports[].host / path, not a constructed host"
       ]
     },
     {
@@ -44,11 +44,12 @@
     },
     {
       "id": 4,
-      "prompt": "vLLM pod is OOMKilled on a single L4 even though the catalogue suggested that GPU. Fix it.",
-      "expected_output": "Treats catalogue default --gpu-memory-utilization (~0.90 in args/env) as the likely culprit on small GPUs; lowers that flag / max length / switches quant or GPU; does not invent a top-level gpu_memory_utilization field; regenerates or patches args and applies with approval.",
+      "prompt": "My vLLM pod on a single L4 keeps crashing during model load with `torch.OutOfMemoryError: CUDA out of memory`, even though the catalogue suggested that GPU. Fix it.",
+      "expected_output": "Recognises a CUDA (GPU memory) OOM rather than a container OOMKilled; treats the catalogue default --gpu-memory-utilization (~0.90, in args/env) as the likely culprit on a small GPU; lowers that flag / max length / switches quant or GPU; does not invent a top-level gpu_memory_utilization field; patches from the live manifest or regenerates, and applies with approval.",
       "files": [],
       "expectations": [
         "Checks main-container logs/events for CUDA OOM vs download failure vs container OOMKilled",
+        "Does not raise the container memory limit as the fix for a CUDA out-of-memory error",
         "Calls out lowering --gpu-memory-utilization in args/env (e.g. toward 0.70–0.80) on small GPUs rather than only adding more GPUs",
         "Does not add a top-level gpu_memory_utilization key on the service manifest",
         "Considers max model length / quantization / larger GPU as alternatives",
@@ -68,19 +69,6 @@
       ]
     },
     {
-      "id": 12,
-      "prompt": "Our production deploy has been stuck in WAITING for over 10 minutes and no new pods are coming up. Other apps on this cluster look stuck too. What should we do?",
-      "expected_output": "Checks blast radius (one cluster vs all), suspects tfy-agent publish/sync, recommends restarting only Deployment tfy-agent (not proxy/SDS/ESO), gives kubectl/Argo steps if tools cannot delete agent pods; mentions NATS if all clusters affected.",
-      "files": [],
-      "expectations": [
-        "Establishes whether the issue is one app, one cluster, or all clusters",
-        "Mentions NATS/control plane when symptoms span all clusters",
-        "Recommends restarting only the main tfy-agent Deployment/pods, not tfy-agent-proxy, sds-server, or external-secrets siblings",
-        "If tfy-agent Deployment is not found via tools, instructs Argo CD or kubectl restart of deployment/tfy-agent rather than guessing other workloads",
-        "Does not rewrite the application manifest as the first fix for cluster-wide WAITING"
-      ]
-    },
-    {
       "id": 6,
       "prompt": "Scale my model service to zero when idle for 15 minutes, and pin chat sessions to the same replica for prefix cache.",
       "expected_output": "Edits the live service manifest for auto-shutdown / Elasti scale-to-0 and sticky session label; explains cold-start and best-effort stickiness; validate + apply with approval.",
@@ -95,13 +83,13 @@
     {
       "id": 7,
       "prompt": "Create a notebook in workspace ml-sandbox so I can explore this dataset, and give me the URL.",
-      "expected_output": "Authors a notebook application from schema, applies with approval, returns endpoint; covers OAuth/login expectations from notebook-ssh playbook.",
+      "expected_output": "Authors a notebook application from schema, applies with approval, returns the console link and the notebook URL from list_applications; covers OAuth/login expectations from notebook-ssh playbook.",
       "files": [],
       "expectations": [
         "Uses get_manifest_json_schema for notebook (not service)",
         "Sets workspace_fqn correctly and validate_manifest before apply",
         "Mentions auth / OAuth login behavior for notebook access",
-        "Returns generate_deployment_endpoint (or equivalent) after deploy"
+        "Returns the console link and the notebook URL from list_applications → activeDeployment.metadata.endpoints; does not call generate_deployment_endpoint for a notebook (it rejects that type)"
       ]
     },
     {
@@ -149,6 +137,82 @@
         "Explains new revision + rolling update behavior for replica-only changes",
         "Calls out max_surge_percentage 0 with few replicas as a downtime cause for GPU models",
         "Suggests concrete mitigations (raise surge if capacity, minReplicas>=2, canary, cache PVC)"
+      ]
+    },
+    {
+      "id": 12,
+      "prompt": "Our production deploy has been stuck in WAITING for over 10 minutes and no new pods are coming up. Other apps on this cluster look stuck too. What should we do?",
+      "expected_output": "Checks blast radius (one cluster vs all), suspects tfy-agent publish/sync, recommends restarting only Deployment tfy-agent (not proxy/SDS/ESO), gives kubectl/Argo steps if tools cannot delete agent pods; mentions NATS if all clusters affected.",
+      "files": [],
+      "expectations": [
+        "Establishes whether the issue is one app, one cluster, or all clusters",
+        "Mentions NATS/control plane when symptoms span all clusters",
+        "Recommends restarting only the main tfy-agent Deployment/pods, not tfy-agent-proxy, sds-server, or external-secrets siblings",
+        "If tfy-agent Deployment is not found via tools, instructs Argo CD or kubectl restart of deployment/tfy-agent rather than guessing other workloads",
+        "Does not rewrite the application manifest as the first fix for cluster-wide WAITING",
+        "Gives the user the `kubectl rollout restart deployment/tfy-agent` command to run rather than claiming to have restarted it, and does not suggest deleting pods by label"
+      ]
+    },
+    {
+      "id": 13,
+      "prompt": "My vLLM service shows reason OOMKilled and restarts every few hours. Fix it.",
+      "expected_output": "Treats OOMKilled as the container hitting its memory limit: pulls memory metrics and the applied memory limit, distinguishes limit-too-low from a leak, and proposes raising memory resources from the live manifest — not lowering --gpu-memory-utilization.",
+      "files": [],
+      "expectations": [
+        "Confirms reason OOMKilled from list_k8s_pods rather than inferring from exit code 137",
+        "Pulls memory usage via list_app_metric_charts → get_application_chart_data and compares it with the applied memory limit",
+        "Proposes raising memory_limit / memory_request (or flags a leak if usage climbs steadily) rather than changing --gpu-memory-utilization",
+        "Edits from activeDeployment.manifest, validates, and asks approval before apply_manifest"
+      ]
+    },
+    {
+      "id": 14,
+      "prompt": "I want to understand what is happening with this service - emotion-class-svc - why is this not working?",
+      "expected_output": "Lists applications named emotion-class-svc; when more than one workspace has one, shows the matches with their workspaces and asks which the user means before diagnosing anything.",
+      "files": [],
+      "expectations": [
+        "Calls list_applications filtered by the name",
+        "If more than one workspace has an application with that name, lists them with their workspaces and asks which one — does not diagnose the first match",
+        "Only after the application is settled, resolves clusterId/namespace and reads pod state with list_k8s_pods"
+      ]
+    },
+    {
+      "id": 15,
+      "prompt": "Bump the replicas of checkout-api in workspace payments-prod to 3.",
+      "expected_output": "Treats this as an update: fetches the deployed manifest, changes only replicas, keeps every env var, secret, resource and probe, validates, and applies with approval — without rebuilding.",
+      "files": [],
+      "expectations": [
+        "Finds checkout-api in payments-prod and calls get_application for activeDeployment.manifest",
+        "Changes only the replica count and carries every other field over — does not build a fresh manifest from the schema",
+        "Uses apply_manifest of the edited manifest (no rebuild, no tfy deploy) even if the app was originally built from source",
+        "validate_manifest, then apply_manifest with approval, then confirms pods are running"
+      ]
+    },
+    {
+      "id": 16,
+      "prompt": "Deploy the FastAPI app in this repo as a service in workspace dev-ws and expose it on port 8000.",
+      "expected_output": "Checks whether the name is taken in dev-ws, asks for inputs it would otherwise guess, sets a host on the exposed port from generate_deployment_endpoint, builds with build_source local via tfy deploy, reads the build logs, and prints the console link and the endpoint from the deployed manifest.",
+      "files": [],
+      "expectations": [
+        "Checks list_applications for the name in dev-ws before asking questions",
+        "Takes workspace_fqn from list_workspaces",
+        "Sets ports[].host from generate_deployment_endpoint for the exposed port instead of inventing one",
+        "Uses build_source: local with local_build decided by `docker info`, and tfy deploy rather than apply_manifest or tfy apply",
+        "Reads the build logs (builds.md) instead of reporting success when the deploy call returns",
+        "Prints the console link and the endpoint from the deployed manifest"
+      ]
+    },
+    {
+      "id": 17,
+      "prompt": "Add a rate limit of 100 requests per minute for the team ml-team across all models.",
+      "expected_output": "Reads rate-limiting.md, fetches the existing rate-limit config and merges the new rule into it, keeps the config's top-level name, validates then applies, and links the rate-limiting settings page with the real controlPlaneUrl.",
+      "files": [],
+      "expectations": [
+        "Reads ai-gateway/references/rate-limiting.md before building anything",
+        "Calls get_gateway_config and merges the new rule with the existing rules rather than replacing them",
+        "Includes the existing config's top-level name in the manifest",
+        "Calls validate_manifest and waits for valid: true before apply_manifest (not in the same parallel batch)",
+        "Shows {controlPlaneUrl}/llm-gateway/settings?configTab=rate-limiting with the real controlPlaneUrl from get_me"
       ]
     }
   ]

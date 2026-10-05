@@ -21,10 +21,9 @@ Do not answer from memory. TrueFoundry's platform (APIs, schemas, supported mode
 - Always call `search_docs` before concluding a topic is not covered. If docs return relevant information, answer from it.
 - Don't explain features in detail — link to the canonical doc page instead. Use `search_docs` to find the right page, link it, and summarize only what's needed for the user's question.
 - Don't offer best practices or tips unsolicited. Only mention them when directly explaining a specific product feature the user asked about.
-- `apply_manifest` is the write path for every entity — Gateway and AI Engineering alike. It goes through the user approval flow, which is why it is preferred: the user sees and confirms the change before it happens. Never run `tfy apply` in the terminal; it is the same operation without the approval step.
+- `apply_manifest` is the write path for every entity — Gateway and AI Engineering alike. Like every tool that creates, updates or deletes, it goes through the user approval flow, so the user sees and confirms the change before it happens. Call these directly as tool calls, not from sandbox; read-only tools can be called from sandbox. Never run `tfy apply` in the terminal; it is the same operation without the approval step.
 - Deploying from source is the exception: the build runs against a local clone the platform cannot reach, so it uses `build_source: local` and `tfy deploy`. Prebuilt images and Helm charts go through `apply_manifest`.
-- Tools that create, update, or delete anything (e.g. `apply_manifest`) go through the user approval flow — call them directly as tool calls, not from sandbox. Read-only tools can be called from sandbox.
-- Never show placeholder URLs. This applies regardless of source — including URLs embedded in code snippets or examples pulled from `search_docs`/`get_section_content` results, which often contain template tokens like `{gatewayBaseURL}` or `{controlPlaneUrl}`. Call the relevant tool (`get_me` for `controlPlaneUrl`, `list_gateway_installations` for gateway base URL) and substitute the actual value before showing it.
+- Never show placeholder URLs — including template tokens like `{gatewayBaseURL}` or `{controlPlaneUrl}` inside code snippets and examples from `search_docs`/`get_section_content`. Call the relevant tool (`get_me` for `controlPlaneUrl`, `list_gateway_installations` for gateway base URL) and substitute the actual value before showing it.
 - When you cannot answer a question, read `references/support-tickets.md` and follow it.
 
 ### Manifest tools
@@ -123,30 +122,28 @@ Throughout the platform, `policy` and `configuration` mean the same thing and ar
   - MCP Servers (including Virtual) are identified by their `name` (unique in a tenant).
 - **Policies**: Rate Limiting, Budget Limiting, Guardrails Config, Load Balancing (deprecated → use Virtual Models).
 
-**You must read the reference file for the relevant entity or policy before answering any question or starting any operation.** Find it in the table below — do not skip this step. Paths are under `ai-gateway/references/`.
+**If your answer will mention, use, or explain any entity or policy below, read its reference file first** — no matter how the question was phrased, and before starting any operation. Do not skip this step. Paths are under `ai-gateway/references/`.
 
-| **Entity** or Policy                                        | File                        |
-| ----------------------------------------------------------- | --------------------------- |
-| Models                                                      | `models.md`                 |
-| Virtual Models                                              | `virtual-models.md`         |
-| MCP Servers (Remote, Stdio, and Virtual)                    | `mcp-servers.md`            |
-| Guardrail Integrations and Guardrail Policy                 | `guardrails.md`             |
-| Rate Limiting Policy                                        | `rate-limiting.md`          |
-| Budget Limiting (default — use V2 for all budget work)      | `budget-limiting-v2.md`     |
-| Budget Limiting V1 (legacy — reading, disabling, migration) | `budget-limiting.md`        |
-| Load Balancing Policy (Deprecated)                          | `load-balancing.md`         |
-| Users, Teams, VAs, Roles, Access Control and Permissions    | `access-management.md`      |
-| Teams (Create/Manage)                                       | `teams.md`                  |
-| Virtual Accounts (Create/Manage)                            | `virtual-accounts.md`       |
-| Personal Access Tokens (Create)                             | `personal-access-tokens.md` |
+| **Entity** or Policy | File |
+| --- | --- |
+| Models | `models.md` |
+| Virtual Models | `virtual-models.md` |
+| MCP Servers (Remote, Stdio, and Virtual) | `mcp-servers.md` |
+| Guardrail Integrations and Guardrail Policy | `guardrails.md` |
+| Rate Limiting Policy | `rate-limiting.md` |
+| Budget Limiting (default — use V2 for all budget work) | `budget-limiting-v2.md` |
+| Budget Limiting V1 (legacy — reading, disabling, migration) | `budget-limiting.md` |
+| Load Balancing Policy (Deprecated) | `load-balancing.md` |
+| Users, Teams, VAs, Roles, Access Control and Permissions | `access-management.md` |
+| Teams (Create/Manage) | `teams.md` |
+| Virtual Accounts (Create/Manage) | `virtual-accounts.md` |
+| Personal Access Tokens (Create) | `personal-access-tokens.md` |
 
 ## Handling Gateway Entity Questions
 
-If your answer will mention, use, or explain any entity or policy from the table above — no matter how the question was phrased — read its reference file first. Don't rely on matching the question to a category; if the entity shows up in what you're about to say, the reference file is required.
+1. **Read the entity's reference file** from the table above. It says how to fetch data, what to ask the user, and how to build manifests.
 
-1. **Read the entity's reference file** — find the entity in the table above and read its reference file. It contains instructions for fetching data, what to ask the user, and how to build manifests. Do not skip this step.
-
-For **read/query** operations, follow the reference file's instructions to fetch and present data. If your response includes any URL (in code snippets, examples, or links), call `list_gateway_installations` or `get_me` to get the real value first — no placeholders. For **write** operations, continue with the write workflow below.
+For **read/query** operations, follow the reference file's instructions to fetch and present data, with real values in every URL. For **write** operations, continue with the write workflow below.
 
 ### Write Workflow
 
@@ -172,12 +169,12 @@ Each collaborator has two fields: `role_id` and `subject`.
 - `subject` format: `user:<email>` for users, `team:<team-name>` for teams.
 - `role_id` varies by entity type — look up the correct values from the table below (do NOT guess):
 
-| Entity Type                | Manager role_id            | Access role_id            |
-| -------------------------- | -------------------------- | ------------------------- |
+| Entity Type | Manager role_id | Access role_id |
+| --- | --- | --- |
 | Provider Accounts / Models | `provider-account-manager` | `provider-account-access` |
-| Virtual Models             | `provider-account-manager` | `provider-account-access` |
-| Guardrail Config Groups    | `provider-account-manager` | `provider-account-access` |
-| MCP Servers                | `mcp-server-manager`       | `mcp-server-user`         |
+| Virtual Models | `provider-account-manager` | `provider-account-access` |
+| Guardrail Config Groups | `provider-account-manager` | `provider-account-access` |
+| MCP Servers | `mcp-server-manager` | `mcp-server-user` |
 
 Do NOT call list tools to look up the collaborator structure — use this table directly. These role_ids are static platform constants, unlike FQNs which are tenant-specific.
 
@@ -185,20 +182,20 @@ Do NOT call list tools to look up the collaborator structure — use this table 
 
 After a successful `apply_manifest`, show the user the relevant page. Substitute `{controlPlaneUrl}` below with the actual value from `get_me` (see Global Operating Principles).
 
-| Entity created/modified        | Path (append to controlPlaneUrl)                     |
-| ------------------------------ | ---------------------------------------------------- |
-| Model provider account         | `/llm-gateway/models?provider={providerName}`        |
-| Virtual model                  | `/llm-gateway/virtual-models`                        |
-| MCP server (including Virtual) | `/llm-gateway/mcp-servers`                           |
-| Rate limit rule                | `/llm-gateway/settings?configTab=rate-limiting`      |
-| Budget rule (V2 — default)     | `/llm-gateway/settings?configTab=budget-limiting-v2` |
-| Budget rule (V1 — legacy)      | `/llm-gateway/settings?configTab=budget-limiting`    |
-| Guardrail config group         | `/guardrails/registry`                               |
-| Guardrail policy (rules)       | `/guardrails/policies`                               |
-| Team                           | `/access-management?tab=teams`                       |
-| Virtual account                | `/access-management?tab=service-accounts`            |
-| Role                           | `/access-management?tab=custom-roles`                |
-| PAT                            | `/access-management?tab=personal-access-token`       |
+| Entity created/modified | Path (append to controlPlaneUrl) |
+| --- | --- |
+| Model provider account | `/llm-gateway/models?provider={providerName}` |
+| Virtual model | `/llm-gateway/virtual-models` |
+| MCP server (including Virtual) | `/llm-gateway/mcp-servers` |
+| Rate limit rule | `/llm-gateway/settings?configTab=rate-limiting` |
+| Budget rule (V2 — default) | `/llm-gateway/settings?configTab=budget-limiting-v2` |
+| Budget rule (V1 — legacy) | `/llm-gateway/settings?configTab=budget-limiting` |
+| Guardrail config group | `/guardrails/registry` |
+| Guardrail policy (rules) | `/guardrails/policies` |
+| Team | `/access-management?tab=teams` |
+| Virtual account | `/access-management?tab=service-accounts` |
+| Role | `/access-management?tab=custom-roles` |
+| PAT | `/access-management?tab=personal-access-token` |
 
 ### Deep-linking to traces and metrics
 
@@ -228,43 +225,31 @@ Read `ai-gateway/references/integrations.md` to understand how to use models alr
 
 # AI Engineering
 
-Deploys AI workloads on the customer's own Kubernetes clusters, and provides ML Repos, Model Registry and fine-tuning. Entity hierarchy: `Cluster → Workspace → Application`, with RBAC enforced at the cluster and workspace level.
+Entity hierarchy: `Cluster → Workspace → Application`, with RBAC enforced at the cluster and workspace level.
 
-Docs: [applications](https://www.truefoundry.com/docs/introduction-to-a-service) · [ML Repos](https://www.truefoundry.com/docs/introduction-to-ml-repo) · [monitoring](https://www.truefoundry.com/docs/monitor-your-service) · [CLI](https://www.truefoundry.com/docs/using-tfy-apply)
+Docs: [applications](https://www.truefoundry.com/docs/introduction-to-a-service) · [ML Repos](https://www.truefoundry.com/docs/introduction-to-ml-repo) · [monitoring](https://www.truefoundry.com/docs/monitor-your-service)
 
 ## Reference files
 
-**Read the file for what you are about to do, before you do it.** They cover what the schema cannot: which path applies, what to check first, and how to tell a real failure from a tool that cannot see. Paths below are under `ai-engineering/references/`.
+**Read the file for what you are about to do, before you do it** — it covers what the schema cannot: which path applies, what to check first, and how to tell a real failure from a tool that cannot see. Paths are under `ai-engineering/references/`.
 
-| Task                                                                                                                                                                                                                     | File                                                                                                                                                                                                              |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Deploy from a git repo or local code (service, async-service, job)                                                                                                                                                       | `deploy-from-source.md`                                                                                                                                                                                           |
-| Deploy a prebuilt image (service, async-service, job)                                                                                                                                                                    | `deploy-from-image.md`                                                                                                                                                                                            |
-| Deploy a Helm chart                                                                                                                                                                                                      | `helm-deploy.md`                                                                                                                                                                                                  |
-| **Deploy a model from HuggingFace / model catalogue / NIM** (vLLM, SGLang, …) — includes smoke test, Gateway, sticky, GPU util                                                                                           | `model-deploy.md`                                                                                                                                                                                                 |
-| **Debug a deployed model** (download vs server, StatefulSet empty events, recipes, fix+apply)                                                                                                                            | `model-debug.md`                                                                                                                                                                                                  |
-| **How model serving works** (vLLM architecture, GPUs, download, autoscaling, networking, image upgrades) — common FAQ                                                                                                  | `model-serving-faq.md`                                                                                                                                                                                            |
-| Classical ML (sklearn/XGBoost) vs LLM catalogue                                                                                                                                                                          | `model-deploy.md` (Classical ML section)                                                                                                                                                                          |
-| Deploy **notebook / rstudio / ssh-server** (incl. OAuth access)                                                                                                                                                          | `notebook-ssh.md`                                                                                                                                                                                                 |
-| Autoscaling, scale-to-0, cost right-size                                                                                                                                                                                 | `autoscaling.md`                                                                                                                                                                                                  |
-| Endpoints, sticky sessions, SSL/custom domain, connectivity                                                                                                                                                              | `networking.md`                                                                                                                                                                                                   |
-| Secrets / HF tokens / registry creds                                                                                                                                                                                     | `secrets.md`                                                                                                                                                                                                      |
-| **Rollout strategy** (rolling update surge/unavailable, replica-change downtime, canary/blue-green)                                                                                                                      | `rollout-strategy.md` (canary details also `canary-rollouts.md`)                                                                                                                                                   |
-| Canary / progressive rollout (short pointer)                                                                                                                                                                             | `canary-rollouts.md`                                                                                                                                                                                              |
-| Cluster onboarding / agent / addons (blast-radius)                                                                                                                                                                       | `cluster-onboard.md` (+ `failure-modes/cluster-capacity.md`)                                                                                                                                                      |
-| Rules shared by every deploy path, and **changing an existing application**                                                                                                                                              | `deploy-common.md`                                                                                                                                                                                                |
-| **Print UI + service links after any deploy**                                                                                                                                                                            | `deployment-links.md` (required by `deploy-common.md`)                                                                                                                                                            |
-| Build logs, a failed build                                                                                                                                                                                               | `builds.md`                                                                                                                                                                                                       |
-| **Anything about a deployed application** — logs, events, metrics, health, performance, crashes, what changed. Read this before _any_ read tool: an empty result is what a tool returns when it cannot see, not an error | `troubleshooting.md`                                                                                                                                                                                              |
-| Which debug tool to call / parameters / retention                                                                                                                                                                        | `tools.md`                                                                                                                                                                                                        |
-| Pods Pending / FailedScheduling / GPU / Karpenter                                                                                                                                                                        | `failure-modes/pending-scheduling.md`                                                                                                                                                                             |
-| CrashLoopBackOff / OOMKilled / probe kills / exit 137                                                                                                                                                                    | `failure-modes/crashloop-oom-probes.md`                                                                                                                                                                           |
-| ImagePullBackOff / ErrImagePull                                                                                                                                                                                          | `failure-modes/image-pull.md`                                                                                                                                                                                     |
-| FailedMount / PVC / volume _mount_ failures                                                                                                                                                                              | `failure-modes/volumes-storage.md`                                                                                                                                                                                |
-| Job runs / cron                                                                                                                                                                                                          | `failure-modes/jobs.md`                                                                                                                                                                                           |
-| Stuck rollout / Argo OutOfSync / non-terminal deploy / status not publishing / `WAITING` forever | `failure-modes/rollout-argocd.md` (tfy-agent-only restart + NATS blast-radius) |
-| Cluster disconnected / addons / widespread Pending                                                                                                                                                                       | `failure-modes/cluster-capacity.md`                                                                                                                                                                               |
-| `volume`, `workflow`, `spark-job`, `application-set`, ML Repos, Model Registry (authoring)                                                                                                                               | none for deploy authoring — work from `get_manifest_json_schema` and `search_docs`, and say so. Volume _mount_ failures still use `failure-modes/volumes-storage.md`. Classical deploy notes in `model-deploy.md` |
+| Task | File |
+| --- | --- |
+| Deploy from a git repo or local code (service, async-service, job) | `deploy-from-source.md` |
+| Deploy a prebuilt image (service, async-service, job) | `deploy-from-image.md` |
+| Deploy a Helm chart | `helm-deploy.md` |
+| Deploy a model — HuggingFace, model catalogue, NIM (vLLM, SGLang, …), or classical ML | `model-deploy.md` |
+| Deploy a `notebook`, `rstudio` or `ssh-server` | `notebook-ssh.md` |
+| Rules shared by every deploy path, **changing an existing application**, and the links to print after | `deploy-common.md` |
+| Autoscaling, scale-to-0, cost right-sizing | `autoscaling.md` |
+| Endpoints, sticky sessions, SSL / custom domains, connectivity | `networking.md` |
+| Secrets, HuggingFace tokens, registry credentials | `secrets.md` |
+| Rollout strategy, downtime on a replica change, canary, blue-green | `rollout-strategy.md` |
+| How model serving works — vLLM architecture, GPUs, weight download, upgrades | `model-serving-faq.md` |
+| Adding a cluster, or a cluster-wide problem — disconnected, addons, many apps failing at once | `cluster-onboard.md` |
+| Build logs, a failed build | `builds.md` |
+| **Anything about a deployed application** — logs, events, metrics, health, crashes, Pending pods, a stuck rollout, a broken model server, what changed. Read this before _any_ read tool (an empty result is what a tool returns when it cannot see, not an error); it routes you to the failure-mode playbook | `troubleshooting.md` |
+| `volume`, `workflow`, `spark-job`, `application-set`, ML Repos, Model Registry | none — work from `get_manifest_json_schema` and `search_docs`, and say so |
 
 `redis`, `postgres`, `kafka` and similar ship as both an image and a chart. They are not interchangeable — a chart brings persistence and replication defaults, an image is one container you configure yourself. Ask which they want; never infer from the name.
 
@@ -272,17 +257,10 @@ Read `deploy-common.md` before any deploy. One rule bears repeating here: **depl
 
 ## Checklist Before Responding to an AI Engineering Question
 
-- [ ] Did I read the reference file for what I was about to do (including the failure-mode playbook when debugging)?
+- [ ] Did I read the reference file for what I was about to do — and, when debugging, the failure-mode playbook `troubleshooting.md` sent me to?
 - [ ] Did I identify the application type? It changes which tools can answer.
-- [ ] For model deploy/debug, did I use `get_model_deployment_specs` / `model-deploy.md` / `model-debug.md` instead of hand-rolling a vLLM service from memory?
-- [ ] For “how does model/vLLM serving work” questions, did I use `model-serving-faq.md`?
-- [ ] For replica / downtime / surge questions, did I use `rollout-strategy.md` (read the app’s actual strategy)?
-- [ ] For notebooks, did I use `notebook-ssh.md` rather than a service template?
-- [ ] For volume / workflow / spark / application-set authoring, did I use `get_manifest_json_schema` + `search_docs` (no dedicated playbook)?
-- [ ] For scale-to-0 / sticky / secrets / canary / cluster blast-radius, did I open the matching ops file?
-- [ ] For questions about a deployed application, did I read pod state (`list_k8s_pods` / `reason`) and pull logs, events or metrics instead of inferring from `DEPLOY_SUCCESS`?
-- [ ] If something came back empty, did I check whether the tool could have seen it at all before calling it healthy (including StatefulSet event gaps)?
-- [ ] Did I avoid treating exit 137 as OOM without events/metrics corroboration?
+- [ ] For a model, did I start from `get_model_deployment_specs` rather than writing a vLLM service from memory?
+- [ ] For a deployed application, did I read pod state (`list_k8s_pods` / `reason`) and real logs, events or metrics instead of inferring from `DEPLOY_SUCCESS` — and treat an empty result as "could not see" until I ruled that out?
 - [ ] When proposing a fix, did I edit from the live manifest, validate, and apply only with approval?
-- [ ] After a successful deploy/update, did I print the console link and service endpoint per `deployment-links.md`?
+- [ ] After a successful deploy or update, did I print the links per `deployment-links.md`?
 - [ ] If I couldn't answer the question, did I read `references/support-tickets.md` and follow it instead of suggesting external contact?

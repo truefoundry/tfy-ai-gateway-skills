@@ -34,7 +34,7 @@ Otherwise use `ask_user_question` for each of these — do NOT choose on the use
 
 | Input | Why it cannot be guessed |
 |---|---|
-| Port | Must match what the image actually serves. A service on the wrong port looks healthy and answers nothing. |
+| Port, and whether to expose it | Must match what the image actually serves. A service on the wrong port looks healthy and answers nothing. An exposed port needs a `host` — see **Exposing a port** in `deploy-common.md`. |
 | Environment variables | Databases refuse to start without them — `postgres` needs a password variable set. |
 | Secrets | Referenced by FQN (`tfy-secret://...`), never pasted as literal values. |
 | Persistence | A stateful image with no volume loses its data when the pod is replaced. Raise this before deploying, not after. |
@@ -48,7 +48,7 @@ Build the manifest as JSON → `validate_manifest` → fix and re-validate until
 
 Nothing is built here, so there is no local source and no reason to use the CLI — this always goes through `apply_manifest`.
 
-After applying, confirm the workload is running. A successful apply means the rollout was accepted, not that the image pulled or that the container stayed up. Then print links per `deployment-links.md` (console + `generate_deployment_endpoint` for services).
+After applying, confirm the workload is running. A successful apply means the rollout was accepted, not that the image pulled or that the container stayed up. Then print the links in `deployment-links.md`.
 
 ## Manifest structure
 
@@ -74,7 +74,7 @@ env:
 
 ## Diagnosing a workload that will not start
 
-Start with `list_k8s_pods` and read the pod's `phase` and `problem`, then follow `troubleshooting.md`. Do not start from logs: whether logs exist at all is what the pod state tells you, and the three failure modes here are distinguished by that field rather than by what the logs contain.
+Start with `list_k8s_pods` and read the pod's `phase` and `reason`, then follow `troubleshooting.md`. Do not start from logs: whether logs exist at all is what the pod state tells you, and the three failure modes here are distinguished by that field rather than by what the logs contain.
 
 The ones specific to deploying an image: `ImagePullBackOff` means the registry refused or the tag is wrong, so the container never ran and there is nothing to read. `CrashLoopBackOff` on a first deploy is usually a missing environment variable or a command the image does not expect. `Pending` means the resource requests cannot be satisfied by any node.
 
@@ -89,6 +89,6 @@ The ones specific to deploying an image: `ImagePullBackOff` means the registry r
 - [ ] Did I take `workspace_fqn` from `list_workspaces` instead of constructing it?
 - [ ] Are secrets referenced by FQN rather than pasted as values?
 - [ ] Did I confirm the pods are running, rather than reporting success when apply returned?
-- [ ] Did I print the console link and service endpoint per `deployment-links.md`?
+- [ ] Did I print the links per `deployment-links.md`?
 
 For more info: `search_docs` with "deploy a prebuilt image", "introduction to a service".

@@ -49,6 +49,8 @@ What is available by type:
 | `helm` | `list_application_events` | **none at application level** — pod-level only | Also `get_application_argocd_resources` |
 | `notebook`, `rstudio`, `ssh-server` | `list_application_events` | `get_logs` | Author/access: `notebook-ssh.md`. Auth/OAuth issues are often app logs + probes, not schedule |
 
+`list_application_events` (and `list_alerts`) exist only when autopilot is enabled on the control plane. If they are not among your tools, use `list_k8s_events` for events and say that only the last ~1h is visible.
+
 Do NOT call `get_logs` on a Helm application and report "no logs found". There is no application-level log stream for a Helm release — the logs are pod-level and reachable.
 
 If many apps fail the same way at once, jump to `failure-modes/cluster-capacity.md` before a deep single-app dive.
@@ -68,7 +70,7 @@ Each pod returns `phase`, `restarts`, and optional **`reason`** (e.g. `CrashLoop
 | `reason: CrashLoopBackOff` / high restarts | `failure-modes/crashloop-oom-probes.md` |
 | Events mention `FailedMount` / PVC (any phase) | `failure-modes/volumes-storage.md` |
 | `Running`, no reason, but wrong version / stuck rollout | `failure-modes/rollout-argocd.md` |
-| Status stuck `WAITING` / stale active version / “no new pods” while cluster may be fine | Blast radius + **tfy-agent** — `failure-modes/rollout-argocd.md` (restart only main `tfy-agent`; if all clusters, consider NATS) |
+| Status stuck `WAITING` / stale active version / “no new pods” while cluster may be fine | `failure-modes/rollout-argocd.md` — establish blast radius (one app, one cluster, all clusters) before acting |
 | `Running`, no reason, misbehaving / slow | `get_logs` + metrics (Phase 3) |
 | Manifest has `artifacts_download` / model-server labels | Also read `model-debug.md` after the matching row above |
 
@@ -146,7 +148,15 @@ Events work normally. Logs do not.
 2. `get_k8s_pod_logs` with that `podName`.
 3. Sync/health: `get_application_argocd_resources`.
 
-**Never construct a pod name.** Subcharts and ReplicaSet hashes make names unpredictable. List, then read.
+**Never construct a pod name.** Subcharts append their own suffixes to the release name:
+
+```
+release      my-cache
+StatefulSet  my-cache-master
+pod          my-cache-master-0        # <set>-<ordinal>
+```
+
+`my-cache-0` does not exist, and a query for a pod that does not exist returns empty rather than an error. Deployment-backed pods carry a generated ReplicaSet hash (`my-api-7d4b9c8f2a-x4kqp`) and are equally unpredictable. List, then read.
 
 ## Notebooks / SSH / RStudio
 

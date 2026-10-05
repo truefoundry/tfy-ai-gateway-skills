@@ -26,6 +26,7 @@ Before calling tools, resolve:
 | Input | How |
 |---|---|
 | Target **workspace** | `list_workspaces` → use `id` as `workspaceId` and `fqn` on the manifest |
+| **Is it already deployed?** | `list_applications` filtered by the name the user gave, or by the model's name (catalogue specs name the service after the model id); look only in the target workspace. If it is there you are updating — read **Creating or updating** in `deploy-common.md` before generating specs or asking about GPUs |
 | Model source | HuggingFace URL (`https://huggingface.co/<org>/<model>`) **or** TrueFoundry `modelVersionFqn` |
 | HF token (gated/private) | Secret FQN via `list_secrets` / `list_secret_groups` — never ask the user to paste the raw token into chat |
 | Preferred server (optional) | vLLM / SGLang / TRT-LLM / Infinity / TEI / NIM — otherwise pick from recommendations |
@@ -75,6 +76,7 @@ data:
 
 - Prefer options with `isAvailableInWorkspace: true`. If none are available, say which GPUs the catalogue wanted and what the workspace actually has (`list_cluster_addons` / nodepools via workspace), then ask whether to proceed with an unavailable shape (may stay Pending — see `failure-modes/pending-scheduling.md`).
 - Each `deployments[].spec` is already a service manifest — merge workspace_fqn (API usually sets it), validate, apply. Do **not** rebuild from scratch unless recovery requires it.
+- The spec's `ports[].host` was generated from the spec's `name`. If you change the name, regenerate the host — **Exposing a port** in `deploy-common.md`.
 - Read `deploy-common.md` before apply: updating an existing name replaces the whole manifest.
 
 ## Pipeline tags and modality table
@@ -169,13 +171,13 @@ Recipes and GitHub issues often assume a **newer** vLLM/SGLang image than the ca
 ## Apply and verify
 
 1. Take the chosen `deployments[].spec`.
-2. Ensure `name` is unique in the workspace (or confirm update per `deploy-common.md`).
+2. If the chosen spec's `name` differs from the one you checked under **Inputs to collect**, check it too — it must not already exist in the workspace unless you are updating (`deploy-common.md`).
 3. Apply hard-case tweaks (GPU util, sticky label, auto-shutdown) **before** first apply when the user asked for them.
 4. `get_manifest_json_schema` for `service` if you edited heavily; always `validate_manifest`.
 5. `apply_manifest` (approval flow). Never `tfy apply` in the terminal for this path.
 6. `get_deployment` → `list_k8s_pods`. Startup is long (download + load) — do not declare failure in the first few minutes if probes are still progressing.
 7. Hand off deep failures to `model-debug.md`.
-8. Print links per `deployment-links.md` — console `{controlPlaneUrl}/deployments/{applicationId}` **and** the HTTP endpoint from `generate_deployment_endpoint`.
+8. Print the links per `deployment-links.md` — the console link and the endpoint from the deployed manifest's `ports`.
 
 ## Post-deploy product loop (smoke, Gateway, sticky, scale-to-0)
 
@@ -183,7 +185,7 @@ Recipes and GitHub issues often assume a **newer** vLLM/SGLang image than the ca
 
 ### 1. Smoke test
 
-After pods are Ready, call the service endpoint from `generate_deployment_endpoint` (see `deployment-links.md`):
+After pods are Ready, call the endpoint from `deployment-links.md`. If the spec has no exposed port, there is no public URL to smoke-test — say so.
 
 | Server / task | Minimal check |
 |---|---|
@@ -230,15 +232,15 @@ HuggingFace LLM catalogue specs are the wrong path for pickle/joblib/MLflow skle
 ## Checklist
 
 - [ ] Did I resolve `workspaceId` from `list_workspaces`?
+- [ ] Did I check whether the model is already deployed in that workspace before generating specs or asking about GPUs?
 - [ ] Did I call `get_model_deployment_specs` (or NIM) before hand-writing a vLLM service — except classical ML?
 - [ ] For gated models, did I pass a secret FQN rather than a raw token?
 - [ ] If Hub tags looked wrong / `any-to-any`, did I retry with an explicit `pipelineTagOverride`?
 - [ ] On small GPUs, did I consider lowering `--gpu-memory-utilization` in args/env (not a top-level field)?
 - [ ] Did I prefer `isAvailableInWorkspace: true` GPU options?
-- [ ] For architecture / “how does vLLM work” questions, did I use `model-serving-faq.md`?
 - [ ] On API failure, did I attempt override / similar-model recovery?
 - [ ] Did I `validate_manifest` → `apply_manifest` → verify pods?
-- [ ] Did I print console + endpoint links per `deployment-links.md`?
+- [ ] Did I print the links per `deployment-links.md`?
 - [ ] Did I smoke-test the matching route and offer Gateway / sticky / scale-to-0 when relevant?
 
 For more info: `search_docs` with "deploying an LLM", "model catalogue", "sticky routing", "scale service to 0", "self hosted model".
