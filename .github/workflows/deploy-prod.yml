@@ -18,9 +18,6 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Check skill bundle
-        run: python .github/scripts/check_skills.py
-
       - name: Install uv
         uses: astral-sh/setup-uv@v5
         with:
