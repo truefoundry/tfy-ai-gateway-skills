@@ -65,7 +65,7 @@ Do these in order:
 
 **Before** concluding the pod is incompatible with a NodePool, you must have read **both** the pod scheduling fields and the NodePool requirements, **and** attempted autoscaler logs or NodeClaim status. Guessing from the pod event alone causes wrong "relax the GPU count" advice when the real issue is quota, zone, capacity-type, or AMI.
 
-Karpenter **controller** pods live in a system namespace (often `kube-system` / `karpenter`) and are usually **not** readable via workspace-scoped `get_k8s_pod_logs`. Prefer `get_cluster_autoscaler_logs` (non-AWS) or NodeClaim status (AWS). If you still need controller logs, ask the user / follow `support-tickets.md` with the NodeClaim evidence you already have — do not pretend you fetched `kube-system`.
+Karpenter **controller** pods live in a system namespace (often `kube-system` / `karpenter`) and are usually **not** readable via workspace-scoped `get_k8s_pod_logs`. Prefer `get_cluster_autoscaler_logs` (non-AWS) or NodeClaim status (AWS). If you still need controller logs, ask the user / follow `references/support-tickets.md` with the NodeClaim evidence you already have — do not pretend you fetched `kube-system`.
 
 ## What not to do
 

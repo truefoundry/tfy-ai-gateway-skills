@@ -1,0 +1,3 @@
+# Prettier pads every markdown table column to its widest cell, which multiplied SKILL.md's size
+# past the 20,000 limit enforced on upload. Skill files are hand-formatted.
+skills/**/*.md

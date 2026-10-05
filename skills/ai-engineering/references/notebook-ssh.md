@@ -18,7 +18,7 @@ description: Deploy and debug notebook, rstudio, and ssh-server applications —
 3. Fill required fields (name, workspace_fqn, resources, image if configurable). Prefer platform defaults for Jupyter images unless the user specified one.
 4. Attach volumes/datasets via documented volume mounts when they need persistent home or data. If the volume application does not exist yet, author it from `get_manifest_json_schema` + `search_docs` for `volume` (no dedicated playbook).
 5. `validate_manifest` → `apply_manifest` (approval).
-6. Return links per `deployment-links.md`: console `{controlPlaneUrl}/deployments/{applicationId}` **and** the notebook/SSH endpoint — do not invent hostnames.
+6. Return the links per `deployment-links.md`: the console link, and for a notebook or RStudio the URL from `list_applications` → `activeDeployment.metadata.endpoints`. Do not invent hostnames.
 
 For “explore this dataset” requests: create/attach storage, then notebook — not a one-off job unless they asked for batch.
 
@@ -46,8 +46,7 @@ User code errors inside Jupyter are **not** platform CrashLoops — read noteboo
 
 - [ ] Did I use the notebook/rstudio/ssh-server schema (not `service`)?
 - [ ] Did I explain OAuth/browser login for URL access?
-- [ ] Did I return the real endpoint after apply?
-- [ ] Did I print the console link per `deployment-links.md`?
+- [ ] Did I print the console link, and the notebook / RStudio URL from `list_applications`, per `deployment-links.md`?
 - [ ] For failures, did I reuse shared failure-mode playbooks?
 
 For more info: `search_docs` with "notebook", "ssh server", "rstudio".

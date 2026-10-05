@@ -7,28 +7,28 @@ Never put raw secret values in chat, manifests committed to git, or `env` plain 
 
 ## Contents
 - Find existing secrets
-- Create secrets (when allowed)
+- Create secrets
 - Reference in manifests
 - Common use cases
 - Checklist
 
 ## Find existing secrets
 
-1. `list_secret_groups` / `list_secrets` (exact tool names per `tools.md` / MCP catalogue).
+1. `list_secret_groups` — the groups the user can access, each with its secrets. Values are never returned. `list_secrets` lists secrets directly.
 2. Match by name/FQN for HF tokens, NGC keys, Docker registry, DB passwords.
 3. Use the **FQN** in the application manifest — not the decrypted value.
 
-If the user pastes a raw token, ask them to store it as a TrueFoundry secret (or create via API if your tools support write) and then reference the FQN. Do not echo the token back.
+If the user pastes a raw token, do not echo it back and do not put it in a manifest. Ask them to store it as a TrueFoundry secret (below) and give you the FQN.
 
-## Create secrets (when allowed)
+## Create secrets
 
-When MCP/tools support creating secrets or the user will create in UI:
+No tool you have stores a secret **value**. `apply_manifest` can create a secret **group** (`type: secret-group` — it needs the secret store's `integration_fqn`; take the schema from `get_manifest_json_schema`), but the group starts empty and values are added in the console.
 
-- Put secrets in the correct **secret group** / workspace scope the app can read.
+So when the secret does not exist yet, give the user the steps — Secret Groups → the group → add secret → copy its FQN — and ask them for the **FQN only**.
+
+- Put secrets in a **secret group** the application's workspace can read.
 - Name clearly (`hf-token-prod`, `ngc-api-key`).
 - For model deploy: pass `huggingfaceHubTokenSecretFqn` into `get_model_deployment_specs` and/or set the env the downloader expects (`HF_TOKEN` / `HUGGING_FACE_HUB_TOKEN` via secret ref).
-
-If write tools are unavailable, give precise UI steps: Secret Group → add secret → copy FQN → paste into deploy form / tell you the FQN only.
 
 ## Reference in manifests
 

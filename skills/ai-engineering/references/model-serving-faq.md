@@ -57,7 +57,7 @@ Typical path:
 
 - Sticky sessions (label `tfy_sticky_session_header_name`) improve prefix-cache affinity (`networking.md`).
 - Registered on the AI Gateway as a **self-hosted** OpenAI-compatible model (vLLM base often needs `/v1`). See `model-deploy.md` post-deploy loop and `ai-gateway/references/models.md`.
-- Always resolve the real URL with `deployment-links.md` / `generate_deployment_endpoint`.
+- Take the real URL from the deployed manifest's `ports` — see `deployment-links.md`.
 
 ## How do vLLM (image) upgrades work?
 

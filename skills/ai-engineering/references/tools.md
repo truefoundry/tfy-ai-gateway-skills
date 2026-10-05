@@ -28,6 +28,7 @@ Almost every debug call needs some combination of `applicationId`, `workspaceId`
 | Deployment history | `list_application_deployments` | Past versions, status progression |
 | One deployment + builds | `get_deployment` | Needs application `id` + deployment `id`. Includes `deploymentBuilds` and status history |
 | FQN → id | `get_id_from_fqn` | When the user pasted an FQN |
+| Secret FQN | `list_secret_groups` | Groups with their secrets; values are never returned. See `secrets.md` |
 
 Never construct FQNs, pod names, or image URIs. List, then take values from the response.
 
@@ -51,7 +52,7 @@ Use these instead of hand-writing vLLM/SGLang services. Full workflow: `model-de
 | `get_applied_k8s_manifest` | What was actually applied to the cluster (resolved resources, redacted secrets) | application `id` |
 | `get_application_argocd_resources` | Argo CD resource tree/status — **Helm apps only** | application `id` |
 | `get_pod_template_hash_map` | Maps pod-template-hash → deployment version | When correlating pods to a version |
-| `generate_deployment_endpoint` | Suggested HTTP host/path for a **service** or **async-service** | `applicationType`, `workspaceId`, `applicationName`, optional `port` / `preferWildcard` / `baseDomain`. Compose `https://{host}` or `https://{host}{path}`. After every service deploy — see `deployment-links.md`. Not for job/helm/volume |
+| `generate_deployment_endpoint` | **Suggests** a `host` / `path` for a port you are about to expose — **service** or **async-service** only; other types are rejected | `applicationType`, `workspaceId`, `applicationName`, optional `port` / `preferWildcard` / `baseDomain`. Use while building a manifest (`deploy-common.md`). A deployed application's URL is in its manifest's `ports` — `deployment-links.md` |
 
 **Status reading rules for `get_deployment`:**
 
@@ -67,12 +68,12 @@ Use these instead of hand-writing vLLM/SGLang services. Full workflow: `model-de
 | `get_logs` | Native app logs | Persisted | Historical stdout/stderr for service/async/job/notebook. Needs `applicationId` or `applicationFqn`. Optional `podName`/`deploymentId`/`jobRunName`/`searchString`. Default limit is large — pass a smaller `limit` and a tight `startTs`/`endTs` |
 | `get_build_logs` | Build pipeline | Persisted | Build failures. Path param = build `name` (`pipelineRunName`). **Always pass build `logsStartTs` as `startTs`** |
 | `get_k8s_pod_logs` | Live container | Pod lifetime | Crashloops: set `previous: true`. Needs `clusterId` + one of `podName` / `deploymentName` / `jobName` / `labelSelector` |
-| `list_application_events` | Native events | Persisted | Pull/schedule/mount failures over days. `applicationId` or `applicationFqn`; optional `podNames`, `jobRunName`, time range (default last 24h) |
+| `list_application_events` | Native events | Persisted | Pull/schedule/mount failures over days. `applicationId` or `applicationFqn`; optional `podNames`, `jobRunName`, time range (default last 24h). **Only registered when autopilot is enabled** — if it is not in your tools, use `list_k8s_events` and say that only the last ~1h is visible |
 | `list_k8s_events` | Live k8s events | ~1h | Fresh `FailedScheduling`, `FailedMount`, `Failed`. Narrow with `fieldSelector` e.g. `reason=FailedScheduling` |
 | `list_app_metric_charts` | Prometheus chart catalog | — | Discover chart names/params for an app |
 | `get_application_chart_data` | Prometheus series | Persisted | CPU/memory/throughput trends. Never guess chart names |
-| `list_alerts` | Autopilot alerts | Persisted | Pre-classified issues (OOM, crashloop, etc.) for an application or cluster. **Only registered when autopilot is enabled** (same constraint as `list_application_events`) |
-| `get_cluster_autoscaler_logs` | Provisioning logs: **Azure** cluster-autoscaler or **GCP** NAP | Persisted | **Required** on GPU / capacity Pending when nodes are not appearing (`pending-scheduling.md`). Path param = cluster `id`. **AWS returns 501** — expected; use Karpenter NodeClaim status instead. Not app-level |
+| `list_alerts` | Autopilot alerts | Persisted | Pre-classified issues (OOM, crashloop, etc.) for an application or cluster. **Only registered when autopilot is enabled** (same as `list_application_events`) — if it is missing, skip it |
+| `get_cluster_autoscaler_logs` | Provisioning logs: **Azure** cluster-autoscaler or **GCP** NAP | Persisted | **Required** on GPU / capacity Pending when nodes are not appearing (`failure-modes/pending-scheduling.md`). Path param = cluster `id`. **AWS returns 501** — expected; use Karpenter NodeClaim status instead. Not app-level |
 
 Prefer native (`get_logs`, `list_application_events`) for anything older than ~1 hour. Prefer k8s for live crash and schedule diagnosis.
 
@@ -103,7 +104,7 @@ TrueFoundry app pods are labeled `truefoundry.com/application-id=<applicationId>
 
 If the apiVersion is wrong, the call errors — try the version from `list_cluster_addons` / docs rather than inventing.
 
-Platform namespaces (`kube-system`, `argocd`, `istio-system`, `tfy-agent`) are generally **not** readable via these tools (namespace must map to a workspace). Cluster-scoped objects like NodeClaims still work. For Karpenter **controller logs** in `kube-system`, use `get_cluster_autoscaler_logs` on Azure/GCP; on AWS that tool is unimplemented (501) — read NodeClaim/NodePool status instead (`failure-modes/pending-scheduling.md`). For **stuck `WAITING` / status not publishing**, follow `failure-modes/rollout-argocd.md`: check `get_cluster_status` + `list_cluster_addons`, establish blast radius (one cluster vs all → NATS), then instruct a restart of **only** Deployment `tfy-agent` (not proxy/SDS/ESO). There is usually **no** MCP delete-pod for the agent namespace — give the user `kubectl -n tfy-agent rollout restart deployment/tfy-agent` or Argo CD steps. For **tfy-agent** logs, ask the user; do not pretend you fetched that namespace.
+Platform namespaces (`kube-system`, `argocd`, `istio-system`, `tfy-agent`) are generally **not** readable via these tools (namespace must map to a workspace). Cluster-scoped objects like NodeClaims still work. For Karpenter **controller logs** in `kube-system`, use `get_cluster_autoscaler_logs` on Azure/GCP; on AWS that tool is unimplemented (501) — read NodeClaim/NodePool status instead (`failure-modes/pending-scheduling.md`). For **stuck `WAITING` / status not publishing** — including the tfy-agent restart, which the user has to run — follow `failure-modes/rollout-argocd.md`. For **tfy-agent** logs, ask the user; do not pretend you fetched that namespace.
 
 ## Cluster and workspace
 
@@ -140,7 +141,7 @@ Call these as real tool calls (not from sandbox). They go through user approval.
 | `pause_application` / `resume_application` | Scale to zero / bring back |
 | `sync_application` | Force Argo CD sync when resources are OutOfSync / stuck without a new deploy |
 
-Never run `tfy apply` in the terminal for the same reason as Gateway — it bypasses approval. Exception: `build_source: local` (see `deploy-from-source.md`).
+Never run `tfy apply` in the terminal — it is `apply_manifest` without the approval step. Deploying from source is different: it uses `tfy deploy` (`deploy-from-source.md`).
 
 ## Bounds and empty results
 

@@ -38,7 +38,7 @@ Then split on evidence:
 | Init / early logs: download, HF Hub, 401, disk, PVC | **Model download** | Section below |
 | Download finished; main container restarting; vLLM/SGLang stack traces | **Model server** | Section below |
 | Ready but 4xx/5xx on `/v1/chat/completions` or embeddings | Runtime config / template / max length | Server logs + research |
-| Many model apps stuck together | Cluster / agent | `failure-modes/cluster-capacity.md`, `rollout-argocd.md` |
+| Many model apps stuck together | Cluster / agent | `failure-modes/cluster-capacity.md`, `failure-modes/rollout-argocd.md` |
 
 Always inspect **all** containers: init (`tfy-model-downloader` or similar) **and** the main server. Use `get_k8s_pod_logs` with `container=<name>` and `previous: true` on crashloops.
 
@@ -89,7 +89,7 @@ Re-read applied resources with `get_applied_k8s_manifest` — catalogue recommen
 
 ## Hard cases (GPU util, probes, wrong tag, image drift)
 
-1. **Small-GPU CUDA OOM at load** — treat default `--gpu-memory-utilization ≈ 0.90` (in args/env, not a top-level manifest field) as a first suspect; try 0.70–0.80 before only scaling GPUs. See `model-deploy.md`. Do not confuse with container `OOMKilled`.
+1. **Small-GPU CUDA OOM at load** — first suspect is the catalogue default `--gpu-memory-utilization ≈ 0.90`. The fix is in **GPU memory utilization on small GPUs** in `model-deploy.md`. Do not confuse with container `OOMKilled`.
 2. **Wrong Hub task** — regenerate with `pipelineTagOverride` from the modality table in `model-deploy.md`.
 3. **Probe vs OOM** — exit 137 + Unhealthy probe events often means slow startup, not memory; lengthen probes first when download/load logs look healthy.
 4. **Recipe newer than image** — bump vLLM/SGLang image tag carefully; re-validate; expect longer pull + startup.
@@ -116,7 +116,7 @@ Fixes are **service manifest** updates:
 
 1. Start from `get_application` → `activeDeployment.manifest` (full replace — `deploy-common.md`).
 2. Prefer regenerating with `get_model_deployment_specs` (correct `pipelineTagOverride`, token, workspace) and merging user-specific bits (name, mounts, autoscaling, sticky labels) when the catalogue can produce a better baseline.
-3. Otherwise surgically patch only real service fields: `resources`, `image`, command/args, env, probes, `artifacts_download`. To change GPU memory fraction, edit the **server flag in args/env** (e.g. `--gpu-memory-utilization`) — never invent a top-level `gpu_memory_utilization` manifest key.
+3. Otherwise surgically patch only real service fields: `resources`, `image`, command/args, env, probes, `artifacts_download`. GPU memory fraction is a **server flag in args/env** (e.g. `--gpu-memory-utilization`), not a manifest field.
 4. `validate_manifest` → explain the diff → `apply_manifest` (approval). For trivial “redeploy same spec” use `redeploy_application`.
 5. Verify with pods + logs (+ `list_k8s_events` if application events stay empty). For inference errors, re-run the smoke curl from `model-deploy.md`.
 
@@ -129,7 +129,7 @@ This same **diagnose → research → patch manifest → ask approval → apply 
 - [ ] For CrashLoop, did I use `previous: true` and the correct `container`?
 - [ ] If `list_application_events` was empty, did I fall back to `list_k8s_events` / pod logs?
 - [ ] Did I separate container `OOMKilled` (memory limits) from CUDA OOM (args/env GPU util)?
-- [ ] Did I patch `--gpu-memory-utilization` via args/env (not a fake top-level field), and consider probes / pipeline tag / image tag before inventing flags?
+- [ ] Did I consider probes, pipeline tag and image tag before inventing engine flags?
 - [ ] Did I search recipes + GitHub for the exact model/error?
 - [ ] Did I propose a concrete manifest diff and apply only after approval?
 - [ ] Did I verify pods/logs (and smoke test) after the fix?

@@ -1,6 +1,6 @@
 ---
 name: rollout-argocd
-description: Deploy stuck, OutOfSync, Argo CD compare failed, rollout not progressing, WAITING forever, status/active version not updating, canary stuck, sync required. Read when deployment status is not terminal, UI shows sync errors, pods mismatch the desired version, control plane never reaches DEPLOY_SUCCESS, or “no new pods / stuck in waiting” and the fix may be restarting tfy-agent.
+description: Read when a deploy is stuck — status not terminal or WAITING forever, Argo CD OutOfSync or compare failed, active version not updating, pods on the wrong version, canary not advancing. Covers blast radius (one app, one cluster, all clusters), sync, and restarting only the main tfy-agent Deployment.
 ---
 
 TrueFoundry applies workloads through Argo CD (and often Argo Rollouts). **tfy-agent** on the compute cluster watches those objects and publishes application state (active version, deployment status, events) back to the control plane over **NATS**. A deploy can look fine in the cluster while the UI is stuck in `WAITING` — or the reverse — depending on which layer failed.
@@ -56,7 +56,7 @@ tfy-agent is what turns "Argo Synced / pods Running" into control-plane `DEPLOY_
 | Many apps stop updating status at once on one cluster | Cluster "connected" flapping or false | Agent — `get_cluster_status`, addon health, then restart |
 | Same symptom on **every** cluster | NATS / control plane | Flag NATS; do not treat as one bad app manifest |
 
-### What Ask AI can check
+### What you can check
 
 1. `get_cluster_status` — is the cluster agent connected?
 2. `list_cluster_addons` — find **tfy-agent**; note sync/health. Missing/unhealthy agent explains widespread status lag.
@@ -67,7 +67,7 @@ Workspace-scoped `*_k8s_*` tools usually **cannot** read the `tfy-agent` namespa
 
 ## Restart tfy-agent (exact Deployment only)
 
-**Goal:** bounce the main agent so it reconnects and resumes publishing / syncing. Field fix that often unblocks stuck `WAITING`: delete/restart pods of Deployment **`tfy-agent`** only.
+**Goal:** bounce the main agent so it reconnects and resumes publishing / syncing. Field fix that often unblocks stuck `WAITING`: restart Deployment **`tfy-agent`** only.
 
 ### What to restart
 
@@ -79,32 +79,24 @@ Workspace-scoped `*_k8s_*` tools usually **cannot** read the `tfy-agent` namespa
 
 If unsure which Deployment is the main agent: prefer the one whose name is **exactly** `tfy-agent`. Never bulk-delete `tfy-agent-*`.
 
-### How to restart (Ask AI has no MCP delete-pod for the agent namespace)
+### How to restart (the user runs it)
 
-There is typically **no** approved MCP tool to delete pods in the platform `tfy-agent` namespace. Do **not** invent a tool call that would delete workspace app pods instead.
+No tool you have restarts or deletes pods in the `tfy-agent` namespace, so this is a command the **user** runs — it does not go through the approval flow, and you should not present it as something you did. Do **not** substitute a tool call that would delete or restart application pods instead.
 
-1. Confirm blast radius = this cluster (or proceed per-cluster after NATS callout).
-2. Confirm via `list_cluster_addons` / docs that tfy-agent is supposed to be installed.
-3. Ask for approval, then give the user **exact** commands (or Argo CD steps). Prefer rollout restart over hunting pod names:
+1. Confirm blast radius = this cluster (or proceed per-cluster after the NATS callout).
+2. Confirm via `list_cluster_addons` that tfy-agent is installed on that cluster.
+3. Tell the user what the restart does and why you think it applies, then give them the exact commands:
 
 ```bash
-# Preferred — restarts only Deployment/tfy-agent
 kubectl -n tfy-agent rollout restart deployment/tfy-agent
 kubectl -n tfy-agent rollout status deployment/tfy-agent
 ```
 
-If they use Argo CD for the addon: open the **tfy-agent** Application → hard refresh / sync if needed → restart **only** the `tfy-agent` Deployment (not sibling Deployments in the same app).
+`rollout restart` replaces only the pods of that one Deployment. Do not offer deleting pods by label as an alternative: you cannot see that namespace, so you cannot check what else a selector would match.
 
-Alternative (delete pods so the ReplicaSet recreates them) — only pods of that Deployment:
+If they manage the addon through Argo CD: open the **tfy-agent** Application and restart **only** the `tfy-agent` Deployment (not sibling Deployments in the same app).
 
-```bash
-kubectl -n tfy-agent get deploy tfy-agent
-kubectl -n tfy-agent delete pod -l app.kubernetes.io/name=tfy-agent
-# If that label selects extra workloads, do NOT use it — delete by pod name
-# only for pods belonging to deployment/tfy-agent (from kubectl get pods -n tfy-agent -o wide)
-```
-
-Adjust namespace if their install uses a different one (still target Deployment name `tfy-agent`).
+If their install uses a different namespace, the Deployment name is still `tfy-agent`.
 
 ### If Deployment `tfy-agent` is not found
 
@@ -113,8 +105,8 @@ Adjust namespace if their install uses a different one (still target Deployment 
 3. Example guidance:
 
 ```bash
-kubectl get deploy -A | grep -E 'tfy-agent$'
-# then: kubectl -n <ns> rollout restart deployment/tfy-agent
+kubectl get deploy -A --field-selector metadata.name=tfy-agent
+# then: kubectl -n <namespace from the output> rollout restart deployment/tfy-agent
 ```
 
 4. Optionally `list_cluster_addons` / `get_cluster_status` evidence that the agent addon is missing or unhealthy → `cluster-onboard.md` / support ticket if the addon itself is gone.
@@ -123,7 +115,7 @@ kubectl get deploy -A | grep -E 'tfy-agent$'
 
 1. Re-check `get_cluster_status`.
 2. Re-check the stuck application’s `get_deployment` / `get_application_state` — status should leave `WAITING` or active version should catch up within a few minutes.
-3. If still stuck on **all** clusters → escalate NATS / control plane (`support-tickets.md`) rather than repeatedly deleting agent pods.
+3. If still stuck on **all** clusters → escalate NATS / control plane (`references/support-tickets.md`) rather than restarting agents again.
 4. If still stuck on **one** app only with bad pods → return to app failure-mode files.
 
 `sync_application` rewrites Argo `operationState` so the agent can publish `DEPLOY_SUCCESS` again when status was cleared and `operationState` left empty while the app stayed Synced/Healthy. Use it when that pattern fits; it does not replace fixing a stuck agent.
