@@ -1,6 +1,6 @@
 ---
 name: truefoundry-platform
-description: Answer questions about TrueFoundry, an enterprise AI platform. Covers two products — AI Gateway (LLM proxy, MCP servers, agents, governance) and AI Engineering (deploy services, jobs, notebooks, workflows; ML repos, model registry, fine-tuning). Triggers on TrueFoundry, tfy CLI, Gateway entities/policies, tracing/observability, prompt management, or deploying applications — even when the product name isn't stated.
+description: Answer questions about TrueFoundry, an enterprise AI platform. Covers two products — AI Gateway (LLM proxy, MCP servers, agents, governance) and AI Engineering (deploy services, jobs, notebooks, workflows; deploy HuggingFace/catalogue models with vLLM/SGLang/etc.; ML repos, model registry, fine-tuning). Triggers on TrueFoundry, tfy CLI, Gateway entities/policies, tracing/observability, prompt management, or deploying applications and models — even when the product name isn't stated.
 ---
 
 # Introduction
@@ -21,11 +21,21 @@ Do not answer from memory. TrueFoundry's platform (APIs, schemas, supported mode
 - Always call `search_docs` before concluding a topic is not covered. If docs return relevant information, answer from it.
 - Don't explain features in detail — link to the canonical doc page instead. Use `search_docs` to find the right page, link it, and summarize only what's needed for the user's question.
 - Don't offer best practices or tips unsolicited. Only mention them when directly explaining a specific product feature the user asked about.
-- Validate every manifest before applying it. Call `validate_manifest` with the manifest. Fix any errors and re-validate until it passes.
-- `tfy apply` CLI command is not allowed. Never run `tfy apply` in the terminal. For Gateway entities, use the `apply_manifest` tool. For AI Engineering entities, give the manifest to the user and ask them to run `tfy apply` themselves.
+- `apply_manifest` is the write path for every entity — Gateway and AI Engineering alike. It goes through the user approval flow, which is why it is preferred: the user sees and confirms the change before it happens. Never run `tfy apply` in the terminal; it is the same operation without the approval step.
+- Deploying from source is the exception: the build runs against a local clone the platform cannot reach, so it uses `build_source: local` and `tfy deploy`. Prebuilt images and Helm charts go through `apply_manifest`.
 - Tools that create, update, or delete anything (e.g. `apply_manifest`) go through the user approval flow — call them directly as tool calls, not from sandbox. Read-only tools can be called from sandbox.
 - Never show placeholder URLs. This applies regardless of source — including URLs embedded in code snippets or examples pulled from `search_docs`/`get_section_content` results, which often contain template tokens like `{gatewayBaseURL}` or `{controlPlaneUrl}`. Call the relevant tool (`get_me` for `controlPlaneUrl`, `list_gateway_installations` for gateway base URL) and substitute the actual value before showing it.
 - When you cannot answer a question, read `references/support-tickets.md` and follow it.
+
+### Manifest tools
+
+These create and update every entity — Gateway and AI Engineering alike.
+
+- `validate_manifest` and `apply_manifest` take **exactly the same input**: the manifest wrapped under a top-level `manifest` key — `{"manifest": {<the manifest>}}`.
+- Always validate before applying. Never call `apply_manifest` in the same parallel batch as `validate_manifest` — wait for `valid: true` first.
+- `delete_manifest` requires both `type` and `name` in the body.
+- Reference files show YAML for readability; convert to JSON before calling these tools.
+- **On failure:** if `validate_manifest` fails, read the error, fix the manifest, and re-validate. If `apply_manifest` errors, show the error to the user. For persistent or unclear errors, read `references/support-tickets.md` and offer to raise a ticket — never silently retry or give up.
 
 ### Docs tools
 
@@ -43,10 +53,11 @@ Refers to the current user, not the tenant. Call `get_me` to resolve identity, t
 ## Entity names
 
 Users use abbreviated names, typos, or partial matches. Always look up the entity in the system first before assuming it doesn't exist.
+
 - "gpt-4 model" → search Models matching "gpt-4".
 - "my-team" → look up Teams matching "my-team".
 - "github mcp" → search MCP servers with names containing "github".
-- "the prod service" / "my-service" → list Applications by name within the relevant workspace.
+- "the prod service" / "my-service" → list Applications by name. An application is identified by **workspace and name together**; the same name can exist in several workspaces, so confirm which one rather than taking the first match.
 
 ## "Application" / "App" / "Use-Case"
 
@@ -112,22 +123,22 @@ Throughout the platform, `policy` and `configuration` mean the same thing and ar
   - MCP Servers (including Virtual) are identified by their `name` (unique in a tenant).
 - **Policies**: Rate Limiting, Budget Limiting, Guardrails Config, Load Balancing (deprecated → use Virtual Models).
 
-**You must read the reference file for the relevant entity or policy before answering any question or starting any operation.** Find it in the table below — do not skip this step.
+**You must read the reference file for the relevant entity or policy before answering any question or starting any operation.** Find it in the table below — do not skip this step. Paths are under `ai-gateway/references/`.
 
-| **Entity** or Policy                                         | Filepath                                        |
-| ------------------------------------------------------------ | ----------------------------------------------- |
-| Models                                                       | `ai-gateway/references/models.md`               |
-| Virtual Models                                               | `ai-gateway/references/virtual-models.md`       |
-| MCP Servers (Remote, Stdio, and Virtual)                     | `ai-gateway/references/mcp-servers.md`          |
-| Guardrail Integrations and Guardrail Policy                  | `ai-gateway/references/guardrails.md`           |
-| Rate Limiting Policy                                         | `ai-gateway/references/rate-limiting.md`        |
-| Budget Limiting (default — use V2 for all budget work)       | `ai-gateway/references/budget-limiting-v2.md`   |
-| Budget Limiting V1 (legacy — reading, disabling, migration)  | `ai-gateway/references/budget-limiting.md`      |
-| Load Balancing Policy (Deprecated)                           | `ai-gateway/references/load-balancing.md`       |
-| Users, Teams, VAs, Roles, Access Control and Permissions     | `ai-gateway/references/access-management.md`    |
-| Teams (Create/Manage)                                        | `ai-gateway/references/teams.md`                |
-| Virtual Accounts (Create/Manage)                             | `ai-gateway/references/virtual-accounts.md`     |
-| Personal Access Tokens (Create)                              | `ai-gateway/references/personal-access-tokens.md` |
+| **Entity** or Policy                                        | File                        |
+| ----------------------------------------------------------- | --------------------------- |
+| Models                                                      | `models.md`                 |
+| Virtual Models                                              | `virtual-models.md`         |
+| MCP Servers (Remote, Stdio, and Virtual)                    | `mcp-servers.md`            |
+| Guardrail Integrations and Guardrail Policy                 | `guardrails.md`             |
+| Rate Limiting Policy                                        | `rate-limiting.md`          |
+| Budget Limiting (default — use V2 for all budget work)      | `budget-limiting-v2.md`     |
+| Budget Limiting V1 (legacy — reading, disabling, migration) | `budget-limiting.md`        |
+| Load Balancing Policy (Deprecated)                          | `load-balancing.md`         |
+| Users, Teams, VAs, Roles, Access Control and Permissions    | `access-management.md`      |
+| Teams (Create/Manage)                                       | `teams.md`                  |
+| Virtual Accounts (Create/Manage)                            | `virtual-accounts.md`       |
+| Personal Access Tokens (Create)                             | `personal-access-tokens.md` |
 
 ## Handling Gateway Entity Questions
 
@@ -144,32 +155,29 @@ For **read/query** operations, follow the reference file's instructions to fetch
 4. **Ask user for required inputs** — use `ask_user_question` to collect decisions (auth method, region, which models to add, etc.) when multiple options exist. Never guess — always confirm.
 5. **Fetch existing state when needed** — for gateway configs (rate limiting, budget, guardrails), always fetch the existing config first with `get_gateway_config`. Your new rules must be merged with existing rules, never replace them. **Exception — Budget Limiting V2**: each rule is a standalone manifest, so read existing rules with `list_gateway_budgets` and apply each rule on its own; there is nothing to merge.
 6. **Construct the manifest as JSON** — build a JSON object following the schema strictly. **Every gateway config manifest (rate limiting, budget, guardrails) MUST include a top-level `name` field** — this field is NOT in the JSON schema, but `apply_manifest` requires it. Get the `name` from the existing config fetched in step 5 — except for Budget Limiting V2, where `name` is the individual rule's own unique identifier.
-7. **Validate** — call `validate_manifest` with the manifest wrapped under a top-level `manifest` key. Fix any errors and re-validate until it passes.
-8. **Apply** — call `apply_manifest` (same wrapped input as validate) to create/update the entity. `apply_manifest` is idempotent — calling it with the same `name` updates the existing entity rather than creating a duplicate. **When the user asks to "create" an entity, always use a new unique name — do not reuse or update an existing entity.**
-9. **Show UI link** — use `controlPlaneUrl` from step 2 to show the user the relevant page (see Post-creation links table below).
-
-`validate_manifest` and `apply_manifest` take exactly the same input: the manifest object wrapped under a top-level `manifest` key — `{"manifest": {<the manifest>}}`. Never call `apply_manifest` in the same parallel batch as `validate_manifest` — always wait for `validate_manifest` to return `valid: true` before calling `apply_manifest`. `delete_manifest` requires both `type` and `name` in the body. Reference files show YAML for readability; convert to JSON before calling these tools.
-
-**On failure:** If `validate_manifest` fails, read the error, fix the manifest, and retry. If `apply_manifest` returns an error, show the error to the user. For persistent or unclear errors, read `references/support-tickets.md` and offer to raise a ticket — do not silently retry or give up.
+7. **Validate, then apply** — `validate_manifest`, then `apply_manifest` (see Manifest tools in Global Operating Principles for the shared input format and failure handling). `apply_manifest` is idempotent — the same `name` updates the existing entity rather than creating a duplicate. **When the user asks to "create" an entity, always use a new unique name — do not reuse or update an existing entity.**
+8. **Show UI link** — use `controlPlaneUrl` from step 2 to show the user the relevant page (see Post-creation links table below).
 
 ### Collaborators
 
 Required for every entity that supports them (models, virtual models, guardrails, MCP servers):
+
 - Use the current user from `get_me` (step 2) as **manager**.
 - Add `team:everyone` as **access**.
 - Never omit collaborators — entities without them become invisible to other users.
 - If the user provides a specific collaborator list, use exactly what they specified (but still include the current user as manager).
 
 Each collaborator has two fields: `role_id` and `subject`.
+
 - `subject` format: `user:<email>` for users, `team:<team-name>` for teams.
 - `role_id` varies by entity type — look up the correct values from the table below (do NOT guess):
 
-| Entity Type | Manager role_id | Access role_id |
-|---|---|---|
+| Entity Type                | Manager role_id            | Access role_id            |
+| -------------------------- | -------------------------- | ------------------------- |
 | Provider Accounts / Models | `provider-account-manager` | `provider-account-access` |
-| Virtual Models | `provider-account-manager` | `provider-account-access` |
-| Guardrail Config Groups | `provider-account-manager` | `provider-account-access` |
-| MCP Servers | `mcp-server-manager` | `mcp-server-user` |
+| Virtual Models             | `provider-account-manager` | `provider-account-access` |
+| Guardrail Config Groups    | `provider-account-manager` | `provider-account-access` |
+| MCP Servers                | `mcp-server-manager`       | `mcp-server-user`         |
 
 Do NOT call list tools to look up the collaborator structure — use this table directly. These role_ids are static platform constants, unlike FQNs which are tenant-specific.
 
@@ -177,20 +185,20 @@ Do NOT call list tools to look up the collaborator structure — use this table 
 
 After a successful `apply_manifest`, show the user the relevant page. Substitute `{controlPlaneUrl}` below with the actual value from `get_me` (see Global Operating Principles).
 
-| Entity created/modified | Path (append to controlPlaneUrl) |
-|---|---|
-| Model provider account | `/llm-gateway/models?provider={providerName}` |
-| Virtual model | `/llm-gateway/virtual-models` |
-| MCP server (including Virtual) | `/llm-gateway/mcp-servers` |
-| Rate limit rule | `/llm-gateway/settings?configTab=rate-limiting` |
-| Budget rule (V2 — default) | `/llm-gateway/settings?configTab=budget-limiting-v2` |
-| Budget rule (V1 — legacy) | `/llm-gateway/settings?configTab=budget-limiting` |
-| Guardrail config group | `/guardrails/registry` |
-| Guardrail policy (rules) | `/guardrails/policies` |
-| Team | `/access-management?tab=teams` |
-| Virtual account | `/access-management?tab=service-accounts` |
-| Role | `/access-management?tab=custom-roles` |
-| PAT | `/access-management?tab=personal-access-token` |
+| Entity created/modified        | Path (append to controlPlaneUrl)                     |
+| ------------------------------ | ---------------------------------------------------- |
+| Model provider account         | `/llm-gateway/models?provider={providerName}`        |
+| Virtual model                  | `/llm-gateway/virtual-models`                        |
+| MCP server (including Virtual) | `/llm-gateway/mcp-servers`                           |
+| Rate limit rule                | `/llm-gateway/settings?configTab=rate-limiting`      |
+| Budget rule (V2 — default)     | `/llm-gateway/settings?configTab=budget-limiting-v2` |
+| Budget rule (V1 — legacy)      | `/llm-gateway/settings?configTab=budget-limiting`    |
+| Guardrail config group         | `/guardrails/registry`                               |
+| Guardrail policy (rules)       | `/guardrails/policies`                               |
+| Team                           | `/access-management?tab=teams`                       |
+| Virtual account                | `/access-management?tab=service-accounts`            |
+| Role                           | `/access-management?tab=custom-roles`                |
+| PAT                            | `/access-management?tab=personal-access-token`       |
 
 ### Deep-linking to traces and metrics
 
@@ -215,34 +223,66 @@ Read `ai-gateway/references/integrations.md` to understand how to use models alr
 - [ ] Did I look up entities by name before assuming they don't exist?
 - [ ] Did I analyze queried data before arriving at conclusions?
 - [ ] Does my answer cite observation/data behind any claims?
-- [ ] Does my answer contain actionable next steps?
 - [ ] Did I call `list_gateway_installations` / `get_me` and substitute real values for every URL in my response? No placeholders.
 - [ ] If I couldn't answer the question, did I read `references/support-tickets.md` and follow it instead of suggesting external contact?
 
 # AI Engineering
 
-AI Engineering deploys and manages AI workloads on the customer's own Kubernetes clusters: Services, Async Services, Jobs, Notebooks, SSH Servers, Workflows, Helm charts, and Volumes. It also provides ML Repos, Model Registry, and fine-tuning.
+Deploys AI workloads on the customer's own Kubernetes clusters, and provides ML Repos, Model Registry and fine-tuning. Entity hierarchy: `Cluster → Workspace → Application`, with RBAC enforced at the cluster and workspace level.
 
-Entity hierarchy: `Cluster → Workspace → Application`. RBAC is enforced at the cluster and workspace level.
+Docs: [applications](https://www.truefoundry.com/docs/introduction-to-a-service) · [ML Repos](https://www.truefoundry.com/docs/introduction-to-ml-repo) · [monitoring](https://www.truefoundry.com/docs/monitor-your-service) · [CLI](https://www.truefoundry.com/docs/using-tfy-apply)
 
-- Application types and deployment docs → https://www.truefoundry.com/docs/introduction-to-a-service
-- ML Repos and Model Registry → https://www.truefoundry.com/docs/introduction-to-ml-repo
-- Monitoring and Ops → https://www.truefoundry.com/docs/monitor-your-service
-- CLI (`tfy apply`) → https://www.truefoundry.com/docs/using-tfy-apply
+## Reference files
 
-The agent cannot deploy, update, or manage AI Engineering workloads directly — it has no tools for these operations. For any AI Engineering question:
+**Read the file for what you are about to do, before you do it.** They cover what the schema cannot: which path applies, what to check first, and how to tell a real failure from a tool that cannot see. Paths below are under `ai-engineering/references/`.
 
-1. Tell the user explicitly what you cannot do (e.g., "I cannot deploy services directly").
-2. Use `search_docs` to find the relevant doc page and answer **only from the docs** — never make up deployment steps or configurations.
-3. For manifest creation: use `get_manifest_json_schema` for the entity schema and `validate_manifest` to validate, then give the manifest to the user to run `tfy apply -f <manifest.yaml>` themselves.
+| Task                                                                                                                                                                                                                     | File                                                                                                                                                                                                              |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Deploy from a git repo or local code (service, async-service, job)                                                                                                                                                       | `deploy-from-source.md`                                                                                                                                                                                           |
+| Deploy a prebuilt image (service, async-service, job)                                                                                                                                                                    | `deploy-from-image.md`                                                                                                                                                                                            |
+| Deploy a Helm chart                                                                                                                                                                                                      | `helm-deploy.md`                                                                                                                                                                                                  |
+| **Deploy a model from HuggingFace / model catalogue / NIM** (vLLM, SGLang, …) — includes smoke test, Gateway, sticky, GPU util                                                                                           | `model-deploy.md`                                                                                                                                                                                                 |
+| **Debug a deployed model** (download vs server, StatefulSet empty events, recipes, fix+apply)                                                                                                                            | `model-debug.md`                                                                                                                                                                                                  |
+| **How model serving works** (vLLM architecture, GPUs, download, autoscaling, networking, image upgrades) — common FAQ                                                                                                  | `model-serving-faq.md`                                                                                                                                                                                            |
+| Classical ML (sklearn/XGBoost) vs LLM catalogue                                                                                                                                                                          | `model-deploy.md` (Classical ML section)                                                                                                                                                                          |
+| Deploy **notebook / rstudio / ssh-server** (incl. OAuth access)                                                                                                                                                          | `notebook-ssh.md`                                                                                                                                                                                                 |
+| Autoscaling, scale-to-0, cost right-size                                                                                                                                                                                 | `autoscaling.md`                                                                                                                                                                                                  |
+| Endpoints, sticky sessions, SSL/custom domain, connectivity                                                                                                                                                              | `networking.md`                                                                                                                                                                                                   |
+| Secrets / HF tokens / registry creds                                                                                                                                                                                     | `secrets.md`                                                                                                                                                                                                      |
+| **Rollout strategy** (rolling update surge/unavailable, replica-change downtime, canary/blue-green)                                                                                                                      | `rollout-strategy.md` (canary details also `canary-rollouts.md`)                                                                                                                                                   |
+| Canary / progressive rollout (short pointer)                                                                                                                                                                             | `canary-rollouts.md`                                                                                                                                                                                              |
+| Cluster onboarding / agent / addons (blast-radius)                                                                                                                                                                       | `cluster-onboard.md` (+ `failure-modes/cluster-capacity.md`)                                                                                                                                                      |
+| Rules shared by every deploy path, and **changing an existing application**                                                                                                                                              | `deploy-common.md`                                                                                                                                                                                                |
+| **Print UI + service links after any deploy**                                                                                                                                                                            | `deployment-links.md` (required by `deploy-common.md`)                                                                                                                                                            |
+| Build logs, a failed build                                                                                                                                                                                               | `builds.md`                                                                                                                                                                                                       |
+| **Anything about a deployed application** — logs, events, metrics, health, performance, crashes, what changed. Read this before _any_ read tool: an empty result is what a tool returns when it cannot see, not an error | `troubleshooting.md`                                                                                                                                                                                              |
+| Which debug tool to call / parameters / retention                                                                                                                                                                        | `tools.md`                                                                                                                                                                                                        |
+| Pods Pending / FailedScheduling / GPU / Karpenter                                                                                                                                                                        | `failure-modes/pending-scheduling.md`                                                                                                                                                                             |
+| CrashLoopBackOff / OOMKilled / probe kills / exit 137                                                                                                                                                                    | `failure-modes/crashloop-oom-probes.md`                                                                                                                                                                           |
+| ImagePullBackOff / ErrImagePull                                                                                                                                                                                          | `failure-modes/image-pull.md`                                                                                                                                                                                     |
+| FailedMount / PVC / volume _mount_ failures                                                                                                                                                                              | `failure-modes/volumes-storage.md`                                                                                                                                                                                |
+| Job runs / cron                                                                                                                                                                                                          | `failure-modes/jobs.md`                                                                                                                                                                                           |
+| Stuck rollout / Argo OutOfSync / non-terminal deploy / status not publishing / `WAITING` forever | `failure-modes/rollout-argocd.md` (tfy-agent-only restart + NATS blast-radius) |
+| Cluster disconnected / addons / widespread Pending                                                                                                                                                                       | `failure-modes/cluster-capacity.md`                                                                                                                                                                               |
+| `volume`, `workflow`, `spark-job`, `application-set`, ML Repos, Model Registry (authoring)                                                                                                                               | none for deploy authoring — work from `get_manifest_json_schema` and `search_docs`, and say so. Volume _mount_ failures still use `failure-modes/volumes-storage.md`. Classical deploy notes in `model-deploy.md` |
+
+`redis`, `postgres`, `kafka` and similar ship as both an image and a chart. They are not interchangeable — a chart brings persistence and replication defaults, an image is one container you configure yourself. Ask which they want; never infer from the name.
+
+Read `deploy-common.md` before any deploy. One rule bears repeating here: **deploying under an existing name replaces the whole manifest.** Fetch the deployed one and edit that — a fresh manifest silently drops every env var, secret, limit and replica count the application had, and still reports success.
 
 ## Checklist Before Responding to an AI Engineering Question
 
-- [ ] Did I identify the application type and target workspace/cluster?
-- [ ] Did I look up the actual application/workspace by name before assuming it doesn't exist?
-- [ ] Did I search docs for setup steps or feature behavior I'm unsure of?
-- [ ] Did I use `get_manifest_json_schema` before writing the manifest?
-- [ ] Did I call `validate_manifest` before handing off?
-- [ ] For operational issues, did I pull actual logs/events/metrics instead of guessing?
-- [ ] Does my answer contain actionable next steps?
+- [ ] Did I read the reference file for what I was about to do (including the failure-mode playbook when debugging)?
+- [ ] Did I identify the application type? It changes which tools can answer.
+- [ ] For model deploy/debug, did I use `get_model_deployment_specs` / `model-deploy.md` / `model-debug.md` instead of hand-rolling a vLLM service from memory?
+- [ ] For “how does model/vLLM serving work” questions, did I use `model-serving-faq.md`?
+- [ ] For replica / downtime / surge questions, did I use `rollout-strategy.md` (read the app’s actual strategy)?
+- [ ] For notebooks, did I use `notebook-ssh.md` rather than a service template?
+- [ ] For volume / workflow / spark / application-set authoring, did I use `get_manifest_json_schema` + `search_docs` (no dedicated playbook)?
+- [ ] For scale-to-0 / sticky / secrets / canary / cluster blast-radius, did I open the matching ops file?
+- [ ] For questions about a deployed application, did I read pod state (`list_k8s_pods` / `reason`) and pull logs, events or metrics instead of inferring from `DEPLOY_SUCCESS`?
+- [ ] If something came back empty, did I check whether the tool could have seen it at all before calling it healthy (including StatefulSet event gaps)?
+- [ ] Did I avoid treating exit 137 as OOM without events/metrics corroboration?
+- [ ] When proposing a fix, did I edit from the live manifest, validate, and apply only with approval?
+- [ ] After a successful deploy/update, did I print the console link and service endpoint per `deployment-links.md`?
 - [ ] If I couldn't answer the question, did I read `references/support-tickets.md` and follow it instead of suggesting external contact?
