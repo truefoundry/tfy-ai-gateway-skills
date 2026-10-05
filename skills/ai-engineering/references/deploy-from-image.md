@@ -48,7 +48,7 @@ Build the manifest as JSON → `validate_manifest` → fix and re-validate until
 
 Nothing is built here, so there is no local source and no reason to use the CLI — this always goes through `apply_manifest`.
 
-After applying, confirm the workload is running. A successful apply means the rollout was accepted, not that the image pulled or that the container stayed up.
+After applying, confirm the workload is running. A successful apply means the rollout was accepted, not that the image pulled or that the container stayed up. Then print links per `deployment-links.md` (console + `generate_deployment_endpoint` for services).
 
 ## Manifest structure
 
@@ -89,5 +89,6 @@ The ones specific to deploying an image: `ImagePullBackOff` means the registry r
 - [ ] Did I take `workspace_fqn` from `list_workspaces` instead of constructing it?
 - [ ] Are secrets referenced by FQN rather than pasted as values?
 - [ ] Did I confirm the pods are running, rather than reporting success when apply returned?
+- [ ] Did I print the console link and service endpoint per `deployment-links.md`?
 
 For more info: `search_docs` with "deploy a prebuilt image", "introduction to a service".

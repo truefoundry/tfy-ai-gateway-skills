@@ -109,5 +109,6 @@ For a Python repository with no Dockerfile, replace `build_spec`:
 - [ ] Did I call `get_manifest_json_schema` and take `workspace_fqn` from `list_workspaces`?
 - [ ] Did I ask the user for ports, resources and environment rather than choosing them?
 - [ ] Did I read the build logs instead of reporting success when the deploy call returned?
+- [ ] Did I print the console link (and service endpoint if applicable) per `deployment-links.md`?
 
 For more info: `search_docs` with "deploy from a git repository", "build configuration", "tfy deploy".

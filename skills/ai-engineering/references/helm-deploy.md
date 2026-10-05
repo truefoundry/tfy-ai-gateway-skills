@@ -62,7 +62,7 @@ Otherwise use `ask_user_question` for at least:
 
 There is no build, so Helm always goes through `apply_manifest`.
 
-After applying, confirm the release's pods actually came up. A Helm install being accepted says nothing about whether its workloads started.
+After applying, confirm the release's pods actually came up. A Helm install being accepted says nothing about whether its workloads started. Then print the console link per `deployment-links.md`.
 
 ## Manifest structure
 
@@ -116,5 +116,6 @@ Logs do not. There is no application-level log stream, so reading logs means `li
 - [ ] Did I call `get_manifest_json_schema` with type `helm`?
 - [ ] Did I take `workspace_fqn` from `list_workspaces`?
 - [ ] After applying, did I list the pods and confirm they are running?
+- [ ] Did I print the console link per `deployment-links.md`?
 
 For more info: `search_docs` with "deploy a helm chart", "helm values".
