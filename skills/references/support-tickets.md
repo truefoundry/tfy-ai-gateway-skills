@@ -15,7 +15,7 @@ Do not suggest other contact channels (website, Discord, email). The ticket is t
 
 ## Create flow
 
-1. Call `get_me` — get user email and name.
+1. Call `get_session_context` — get user email and name.
 2. Call `get_pylon_account_id` — get the tenant's Pylon account ID.
 3. Construct title and description from conversation context. Do not ask the user to re-explain.
 4. Select priority using the severity guide below. Confirm with user via `ask_user_question` (Yes / No). If rejected, let user pick from the options.
@@ -49,7 +49,7 @@ Do not suggest other contact channels (website, Discord, email). The ticket is t
 | Field | Required | Source |
 |---|---|---|
 | `account_id` | yes | `get_pylon_account_id` |
-| `requester_email` | yes | `get_me` |
+| `requester_email` | yes | `get_session_context` |
 | `title` | yes | conversation context |
 | `body_html` | yes | conversation context, HTML formatted |
 | `priority` | yes | `ask_user_question` confirmation |

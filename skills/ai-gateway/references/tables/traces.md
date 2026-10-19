@@ -5,6 +5,7 @@ description: Stores OTEL compliant spans with additional columns for gateway spe
 
 ## CRITICAL
 
+- The physical table name varies by tenant. Query `"{dataRoutingDestination}"."{tracesTable}"` with `tracesTable` from the session context (injected "Session context" block, or `get_session_context`). Never assume `traces`.
 - `TfyGatewayInput` and `TfyGatewayOutput` columns store the request and response payloads of the gateway. These are huge json serialized payloads that contain sensitive data. Only fetch these when necessary
 - When working with `SpanAttributes.*` columns, use `get_section_content` on https://www.truefoundry.com/docs/ai-gateway/fetch-request-logs-span-attributes to get the full list of attribute keys and their meanings.
 
