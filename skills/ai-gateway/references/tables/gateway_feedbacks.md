@@ -70,7 +70,7 @@ SELECT
     f."Comment",
     f."CreatedBySubjectSlug" AS "FeedbackBy",
     f."CreatedAt" AS "FeedbackCreatedAt"
-FROM "default"."traces" t
+FROM "default"."{tracesTable}" t
 LEFT JOIN "default"."gateway_feedbacks" f
     ON f."TargetTraceId" = t."TraceId"
     AND f."TargetSpanId" = t."SpanId"
@@ -85,4 +85,5 @@ LIMIT 10
 
 - [ ] Did I filter `"IsDeleted" = false` to exclude soft-deleted feedback?
 - [ ] When joining with traces, did I join on `"TargetTraceId"` and `"TargetSpanId"`?
+- [ ] Did I replace `{tracesTable}` with `tracesTable` from the session context?
 - [ ] When using LEFT JOIN, did I push `"IsDeleted"` into the JOIN condition (not WHERE)?

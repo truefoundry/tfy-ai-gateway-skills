@@ -21,7 +21,7 @@ Every application type has a page in the console:
 {controlPlaneUrl}/deployments/{applicationId}
 ```
 
-- `controlPlaneUrl` comes from `get_me`.
+- `controlPlaneUrl` comes from the session context.
 - `applicationId` is the application's `id` from the `apply_manifest` response or `get_application` — not the deployment id.
 
 ## Service and async-service endpoint
@@ -67,7 +67,7 @@ After the apply and a basic health check, end the reply with real values in this
 
 ## Checklist
 
-- [ ] Did I take `controlPlaneUrl` from `get_me` and the application `id` from a tool response?
+- [ ] Did I take `controlPlaneUrl` from the session context and the application `id` from a tool response?
 - [ ] For a service or model, did I read `ports[].host` / `path` from the deployed manifest — and say so when nothing is exposed?
 - [ ] For a notebook or RStudio, did I read `activeDeployment.metadata.endpoints` from `list_applications`?
 - [ ] Is every host in my reply from a tool response, none constructed?
