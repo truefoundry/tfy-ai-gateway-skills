@@ -31,7 +31,7 @@ When using the `gateway_execute_sql` tool, follow these guidelines:
 - Always quote the table names and column names. The column names are case sensitive
 - Never guess any column names. Read the table schema from the `ai-gateway/references/tables/<table-name>.md` file if you don't already know the column names.
 - The table has to be accessed as `"{dataRoutingDestination}"."{tableName}"`.
-- The traces table name varies by tenant. Always take it from `tracesTable` in the session context (the "Session context" block in your instructions, or call `get_session_context`). Never assume it is `traces`. In this skill, "the `traces` table" means that table. All other table names are fixed.
+- The traces table name varies by tenant. Always take it from `tracesTable` in the session context. Never assume it is `traces`. In this skill, "the `traces` table" means that table. All other table names are fixed.
 - `*_metrics` tables always exist in the `"default"` data routing destination — use `"default"` for these without needing to look anything up.
 - For `traces` and `gateway_feedbacks` tables, the destination may vary. Call `list_data_routing_destinations` to get the available destinations. If there's only one, use it. If there are multiple, ask the user which one they mean before proceeding.
 - Always add time range filters to the queries. Larger time ranges are okay for metrics aggregations. For any scan type queries, use small time ranges, especially for `traces` table. Default time range for metrics if no time is specified should be 7 days.

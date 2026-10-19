@@ -138,7 +138,7 @@ type: <provider-account/type>
 name: <unique-account-name>
 collaborators:
   - role_id: provider-account-manager
-    subject: user:<current-user-email>  # from get_session_context
+    subject: user:<current-user-email>  # from the session context
   - role_id: provider-account-access
     subject: team:everyone
 region: <region>                          # only if schema has region field

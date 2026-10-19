@@ -226,7 +226,7 @@ The agent can create MCP servers from an OpenAPI spec **URL** (Path D above), bu
 ```
 {controlPlaneUrl}/llm-gateway/mcp-servers
 ```
-Get `controlPlaneUrl` from `get_session_context`. The UI supports creating MCP servers of all types including pasting OpenAPI specs directly.
+Get `controlPlaneUrl` from the session context. The UI supports creating MCP servers of all types including pasting OpenAPI specs directly.
 
 ### MCP Server Endpoint URL
 

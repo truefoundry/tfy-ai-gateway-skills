@@ -212,7 +212,7 @@
         "Calls get_gateway_config and merges the new rule with the existing rules rather than replacing them",
         "Includes the existing config's top-level name in the manifest",
         "Calls validate_manifest and waits for valid: true before apply_manifest (not in the same parallel batch)",
-        "Shows {controlPlaneUrl}/llm-gateway/settings?configTab=rate-limiting with the real controlPlaneUrl from get_session_context"
+        "Shows {controlPlaneUrl}/llm-gateway/settings?configTab=rate-limiting with the real controlPlaneUrl from the session context"
       ]
     }
   ]

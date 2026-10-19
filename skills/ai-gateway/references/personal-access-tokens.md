@@ -13,7 +13,7 @@ description: Create and manage Personal Access Tokens (PATs) for user authentica
 
 1. Ask the user what the PAT is for (development, testing, CI, etc.).
 2. Ask the user which **team** to assign the PAT to. Explain that `everyone` is not allowed — they must specify or create a named team.
-3. Call `get_session_context` to get the current user's identity.
+3. Get the current user's identity from the session context.
 
 ### Phase 2: Create PAT
 
@@ -26,7 +26,7 @@ description: Create and manage Personal Access Tokens (PATs) for user authentica
 - [ ] Did I recommend Virtual Accounts (VATs) for production use cases?
 - [ ] Did I ask the user which team to assign the PAT to?
 - [ ] Did I confirm the team is NOT `everyone`?
-- [ ] Did I call `get_session_context` to resolve the current user?
+- [ ] Did I resolve the current user from the session context?
 - [ ] Did I call `create_personal_access_token` with the correct input format?
 
 For more info: `search_docs` with "personal access token", "PAT creation", "API authentication".
