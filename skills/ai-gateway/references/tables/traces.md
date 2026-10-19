@@ -5,6 +5,7 @@ description: Stores OTEL compliant spans with additional columns for gateway spe
 
 ## CRITICAL
 
+- The table name is `traces` or `traces_v2`. Call `get_traces_table` and use the name it returns. The columns below are the same on both. Querying `traces` when the rows are in `traces_v2` returns no rows.
 - `TfyGatewayInput` and `TfyGatewayOutput` columns store the request and response payloads of the gateway. These are huge json serialized payloads that contain sensitive data. Only fetch these when necessary
 - When working with `SpanAttributes.*` columns, use `get_section_content` on https://www.truefoundry.com/docs/ai-gateway/fetch-request-logs-span-attributes to get the full list of attribute keys and their meanings.
 
@@ -68,4 +69,5 @@ TfyCreatedBySubject: TEXT
 
 ## Checklist
 
+- [ ] Did I call `get_traces_table` and use the table name it returned?
 - [ ] Did I use `get_section_content` on the span attributes docs page to look up attribute keys?

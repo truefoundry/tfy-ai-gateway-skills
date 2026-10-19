@@ -70,7 +70,7 @@ SELECT
     f."Comment",
     f."CreatedBySubjectSlug" AS "FeedbackBy",
     f."CreatedAt" AS "FeedbackCreatedAt"
-FROM "default"."traces" t
+FROM "default"."<table from get_traces_table>" t
 LEFT JOIN "default"."gateway_feedbacks" f
     ON f."TargetTraceId" = t."TraceId"
     AND f."TargetSpanId" = t."SpanId"

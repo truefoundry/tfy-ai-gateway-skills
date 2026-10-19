@@ -33,6 +33,7 @@ When using the `gateway_execute_sql` tool, follow these guidelines:
 - The table has to be accessed as `"{dataRoutingDestination}"."{tableName}"`.
 - `*_metrics` tables always exist in the `"default"` data routing destination — use `"default"` for these without needing to look anything up.
 - For `traces` and `gateway_feedbacks` tables, the destination may vary. Call `list_data_routing_destinations` to get the available destinations. If there's only one, use it. If there are multiple, ask the user which one they mean before proceeding.
+- Before any query that reads traces, call `get_traces_table`. It returns `traces` or `traces_v2`. Use that name as the table. The columns are the same. Do not assume `traces`: on a tenant whose rows are in `traces_v2`, querying `traces` returns no rows.
 - Always add time range filters to the queries. Larger time ranges are okay for metrics aggregations. For any scan type queries, use small time ranges, especially for `traces` table. Default time range for metrics if no time is specified should be 7 days.
 
 #### Examples
@@ -40,7 +41,7 @@ When using the `gateway_execute_sql` tool, follow these guidelines:
 - Query to get all traces in a time range:
 
 ```sql
-SELECT * FROM "chosen-destination"."traces" WHERE "Timestamp" > '2026-03-13T10:00:00Z' AND "Timestamp" < '2026-03-13T11:00:00Z'
+SELECT * FROM "chosen-destination"."<table from get_traces_table>" WHERE "Timestamp" > '2026-03-13T10:00:00Z' AND "Timestamp" < '2026-03-13T11:00:00Z'
 ```
 
 - Querying map-type columns (e.g. `"Metadata"`):
@@ -101,6 +102,7 @@ To construct a trace link, you need the `TraceId` from the `traces` table — qu
 
 ### Checklist For SQL Queries
 
+- [ ] For a traces query, did I call `get_traces_table` and use the table name it returned?
 - [ ] Did I read the table schema and used the correct column names?
 - [ ] Did I quote the table name and column names?
 - [ ] Did I add time ranges and limits to the query?
