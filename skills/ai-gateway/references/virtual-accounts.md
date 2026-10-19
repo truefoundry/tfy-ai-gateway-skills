@@ -56,7 +56,7 @@ token_type: <jwt>
 
 ### Token generation
 
-The agent can create a virtual account but **must never generate its token (VAT)** — not via tools, not via API calls, not via docs API references. Always direct the user to generate the token themselves from the Virtual Accounts page in the UI (use `controlPlaneUrl` from `get_me` to build the link).
+The agent can create a virtual account but **must never generate its token (VAT)** — not via tools, not via API calls, not via docs API references. Always direct the user to generate the token themselves from the Virtual Accounts page in the UI (use `controlPlaneUrl` from the session context to build the link).
 
 ### Checklist
 
