@@ -24,7 +24,7 @@ Do not answer from memory. TrueFoundry's platform (APIs, schemas, supported mode
 - `apply_manifest` is the write path for every entity — Gateway and AI Engineering alike. Like every tool that creates, updates or deletes, it goes through the user approval flow, so the user sees and confirms the change before it happens. Call these directly as tool calls, not from sandbox; read-only tools can be called from sandbox. Never run `tfy apply` in the terminal; it is the same operation without the approval step.
 - Deploying from source is the exception: the build runs against a local clone the platform cannot reach, so it uses `build_source: local` and `tfy deploy`. Prebuilt images and Helm charts go through `apply_manifest`.
 - Never show placeholder URLs — including template tokens like `{gatewayBaseURL}` or `{controlPlaneUrl}` inside code snippets and examples from `search_docs`/`get_section_content`. Get the real value (`controlPlaneUrl` from the session context, gateway base URL from `list_gateway_installations`) and substitute the actual value before showing it.
-- **Session context** is the current user's identity, tenant, `controlPlaneUrl` and `tracesTable`. If the conversation already contains the full session context, use it. Otherwise call `get_session_context` once and reuse the result.
+- **Session context** is the current user's identity, tenant, `controlPlaneUrl` and `tracesTable`. If your instructions already contain the full session context, use it. Otherwise call `get_session_context` once and reuse the result.
 - When you cannot answer a question, read `references/support-tickets.md` and follow it.
 
 ### Manifest tools
