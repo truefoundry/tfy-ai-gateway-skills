@@ -1,0 +1,923 @@
+[
+ {
+  "id": "R01",
+  "verdict": "how",
+  "must_include": [
+   {
+    "fact": "Granting a model of a virtual-model account to another subject needs the provider-account-manager role on that parent account (or tenant admin); with it the same grant returns 201",
+    "match": [
+     "provider-account-manager",
+     "(model )?account manager",
+     "manager (role )?(on|of) (the |that )?(parent|virtual[- ]model|provider)"
+    ]
+   },
+   {
+    "fact": "Use access alone is not enough: provider-integration-access on the model, or provider-account-access (User) on the parent account, still returns 403 naming the parent account id",
+    "match": [
+     "(use|user|access)[^.]{0,50}(is not|isn'?t|not|alone)[^.]{0,30}(enough|sufficient)",
+     "still (denied|fails?|rejected|forbidden|403)",
+     "only (lets|allows|grants|gives)[^.]{0,30}(use|call)"
+    ]
+   }
+  ],
+  "must_not": [
+   {
+    "fact": "Says the user needs to be made tenant admin as the only fix",
+    "match": [
+     "(only|must be|has to be) (a )?tenant[- ]admin(?! or)"
+    ]
+   },
+   {
+    "fact": "Says use access (provider-account-access / User role on the parent) is enough",
+    "match": [
+     "(provider-account-access|user role)[^.]{0,60}(is enough|suffices|will fix|fixes (it|this))"
+    ]
+   },
+   {
+    "fact": "Calls it a bug or tells the user to file a ticket",
+    "match": [
+     "(this is|it'?s) (a|an) (gateway |platform |console |known )?bug"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "R02",
+  "verdict": "how",
+  "must_include": [
+   {
+    "fact": "An account-level grant (provider-account-access on the parent account) makes /models list every model of that account regardless of the narrower per-model grant",
+    "match": [
+     "provider-account-access",
+     "account[- ]level (grant|permission|access|role)",
+     "(every|all) (the )?models? (of|in|under) (that|the|its) (provider |parent )?account"
+    ]
+   },
+   {
+    "fact": "Revoking only the account-level grant (DELETE /api/svc/v2/authorization with the same grant body) returns the list to just the per-model grants",
+    "match": [
+     "(remove|delete|drop)[^.]{0,40}(account[- ]level|provider-account-access|provider account)",
+     "revok(e|ing|ed)?[^.]{0,40}(grant|account|provider)",
+     "DELETE[^.]{0,40}authorization"
+    ]
+   },
+   {
+    "fact": "The extra models are only that provider account's models, not the whole tenant; the list can also hold models the account sees through other grants",
+    "match": [
+     "not (the )?(whole|entire) tenant",
+     "only (the )?models? (of|under|in) (that|the) (provider |parent )?account"
+    ]
+   }
+  ],
+  "must_not": [
+   {
+    "fact": "Says it is an authorization leak or security bug",
+    "match": [
+     "(this is|it'?s) (a|an) (security )?(authori[sz]ation |authz )?(leak|bug|vulnerability)"
+    ]
+   },
+   {
+    "fact": "Says the list contains every model in the tenant",
+    "match": [
+     "(?<!not )(?<!n't )(lists?|returns?|includes?|shows?) (every|all) (the )?models? in the tenant"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "R03",
+  "verdict": "how",
+  "must_include": [
+   {
+    "fact": "The manifest permissions still reference a provider-integration FQN of a model that has since been removed from its provider account; the same manifest returned 200 before the removal",
+    "match": [
+     "(deleted|removed)[^.]{0,40}(model|integration)",
+     "(model|integration)[^.]{0,40}(deleted|removed)[^.]{0,60}(provider[- ]account|account)",
+     "stale (permission|entry|reference)",
+     "dangling",
+     "no longer (exists?|part of)[^.]{0,40}(account|provider)"
+    ]
+   },
+   {
+    "fact": "Fix: remove the stale permission entry for the deleted model and re-apply, which returns 200",
+    "match": [
+     "(remove|drop|delete|take out)[^.]{0,50}(stale|deleted)[^.]{0,30}(permission|entry|model)",
+     "(remove|drop|delete)[^.]{0,40}(permission|entry)[^.]{0,40}(deleted|removed|old|stale|that) model"
+    ]
+   },
+   {
+    "fact": "Validation runs over every permission FQN in the full submitted manifest, so an unchanged re-apply or a tag-only update of the stored manifest fails the same way",
+    "match": [
+     "(whole|full|entire) manifest",
+     "every (permission|entry|fqn)",
+     "unchanged[^.]{0,40}(fail|reject|422)",
+     "re-?validat(es|ed|ion)[^.]{0,40}(every|all|whole|entire)"
+    ]
+   }
+  ],
+  "must_not": [
+   {
+    "fact": "Says the error is transient or tells the user to retry",
+    "match": [
+     "(is|looks|seems|probably|likely|just) (a )?(transient|temporary|intermittent)",
+     "retry (later|again)(?! won)"
+    ]
+   },
+   {
+    "fact": "Calls it a platform bug",
+    "match": [
+     "(this is|it'?s) a (platform |server |gateway )?bug"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "R04",
+  "verdict": "cannot",
+  "must_include": [
+   {
+    "fact": "In the tested shapes (virtual-account and agent bearers, the agent not set up as a delegating collaborator), only the Authorization bearer is authorised on the LLM gateway; x-tfy-agent-authorization changed no outcome",
+    "match": [
+     "only (the )?authori[sz]ation (header|bearer|token)",
+     "(header|x-tfy-agent-authorization)[^.]{0,60}(ignored|not (used|enforced|evaluated|checked)|no (effect|impact))",
+     "(ignored|no effect)[^.]{0,40}x-tfy-agent-authorization"
+    ]
+   },
+   {
+    "fact": "To be allowed, the bearer itself must be the identity holding the grant: an agent token sent as Authorization returns 200, an ungranted agent token returns 403 even with a granted agent's token in the header",
+    "match": [
+     "(agent('s)? (own )?(identity )?token|agent identity) (as|in) (the )?(authorization|bearer)",
+     "(send|use|authenticate with)[^.]{0,50}agent[^.]{0,40}(token|identity)[^.]{0,40}(as|in) (the )?(bearer|authorization)"
+    ]
+   }
+  ],
+  "must_not": [
+   {
+    "fact": "Says x-tfy-agent-authorization is enforced or restricts the call on the LLM gateway",
+    "match": [
+     "header[^.]{0,40}(?<!not )(?<!n't )(is (evaluated|enforced)|enforces|restricts)",
+     "(both|two) tokens are (checked|evaluated|enforced)"
+    ]
+   },
+   {
+    "fact": "Calls it a bug or tells the user to file a ticket",
+    "match": [
+     "(this is|it'?s) (a|an) (gateway |platform |console |known )?bug"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "R05",
+  "verdict": "how",
+  "must_include": [
+   {
+    "fact": "A virtual account with ownedBy.team does not receive the team's grants; with a team-only role-binding its token lists no servers",
+    "match": [
+     "(does not|doesn'?t|do not|don'?t|not) (automatically )?(inherit|receive|pick up)",
+     "ownership (does not|doesn'?t) grant",
+     "owner(ship)?[^.]{0,40}(not|no) (access|grant|permission)"
+    ]
+   },
+   {
+    "fact": "Fix: add the virtual account as a second subject of the same role-binding (subjects team + virtualaccount), then the account's token lists the server",
+    "match": [
+     "subjects?[^.]{0,60}(team|virtual[- ]?account)[^.]{0,30}(and|,|plus)",
+     "(add|include|list)[^.]{0,40}virtual[- ]?account[^.]{0,40}(subject|binding)",
+     "(both|team and)[^.]{0,40}virtual[- ]?account[^.]{0,40}subjects?"
+    ]
+   },
+   {
+    "fact": "The role is mcp-server-user on the mcp-server resource, declared once in that binding for both subjects",
+    "match": [
+     "mcp-server-user",
+     "MCP Server User"
+    ]
+   }
+  ],
+  "must_not": [
+   {
+    "fact": "Says the team ownership should have granted access and it is a bug",
+    "match": [
+     "(this is|it'?s) (a|an) (gateway |platform |console |known )?bug"
+    ]
+   },
+   {
+    "fact": "Says the virtual account must be made a member of the team",
+    "match": [
+     "(add|make)[^.]{0,30}(virtual account|it) (to )?(the )?team",
+     "must be (made )?a member of (the )?team"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "R06",
+  "verdict": "cannot",
+  "must_include": [
+   {
+    "fact": "Figma has no entry in the tenant's official remote MCP catalogue: the catalogue-proxy mcp-integrations index (225 entries) contains no Figma at all",
+    "match": [
+     "figma[^.]{0,60}(isn'?t|is not|not (in|listed|part|included|found|present)|missing|absent|no entry|not been added)",
+     "(catalog(ue)?|index|list)[^.]{0,40}(does not|doesn'?t) (include|contain|list|have)[^.]{0,20}figma",
+     "no figma"
+    ]
+   }
+  ],
+  "must_not": [
+   {
+    "fact": "Tells the user to try other spellings or clear caches/filters to make Figma appear",
+    "match": [
+     "(^|[.!]\\s+|you can |should |please |just )(try|search)\\b[^.]{0,30}(different|another|alternative) (spelling|name|term)",
+     "clear (the )?(cache|filters?)(?! won)"
+    ]
+   },
+   {
+    "fact": "States that Figma is in the official catalogue and should be found",
+    "match": [
+     "figma (is|should be) (available|listed|present) in the (official )?catalog(ue)?(?![^.]{0,60}(isn'?t|is not|but|however|although|yet))"
+    ]
+   },
+   {
+    "fact": "Tells the user to upgrade their plan to get Figma",
+    "match": [
+     "(^|[.!]\\s+)upgrade (your )?(plan|tier|license)",
+     "(you (need|have) to|please|should|must) upgrade (your )?(plan|tier|license)"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "R07",
+  "verdict": "how",
+  "must_include": [
+   {
+    "fact": "The 500 is raised by the gateway itself (error_origin_level gateway) because it could not get a token from the configured token endpoint; the call is not sent upstream",
+    "match": [
+     "(token endpoint|token_url)[^.]{0,60}(fail|400|404|reject|error)",
+     "token[_ ]url[^.]{0,60}(fail|reject|unreachable|wrong)",
+     "(gateway|it) (could not|couldn'?t|cannot|can'?t|failed to|is unable to) (get|obtain|acquire|fetch|request|mint)[^.]{0,20}token"
+    ]
+   },
+   {
+    "fact": "The auth/status reason field carries the token endpoint's HTTP status (e.g. 'Token endpoint request failed with status 400'); authentication_not_required there does not mean no auth is needed",
+    "match": [
+     "\\breason\\b[^.]{0,60}(token endpoint|status \\d{3})",
+     "failed with status \\d{3}"
+    ]
+   },
+   {
+    "fact": "The caller receives the gateway's own HTTP 500 (error_origin_level gateway), not an upstream 401 or a forwarded result",
+    "match": [
+     "error_origin_level",
+     "gateway('s)? own (500|error)",
+     "(raised|returned|generated) by the gateway",
+     "not (an? )?(bare )?upstream 401"
+    ]
+   }
+  ],
+  "must_not": [
+   {
+    "fact": "Says the gateway forwards the call without a bearer and the upstream's own 401 reaches the caller",
+    "match": [
+     "(?<!not )(?<!n't )forwards? (the |your )?(request|call|tool call)s? (upstream )?(without|with no)",
+     "(upstream|MCP server)( server)? (returns?|responds? with|sends?) (a )?(bare )?401"
+    ]
+   },
+   {
+    "fact": "Says authentication_not_required means the server needs no auth",
+    "match": [
+     "(?<!not )(?<!n't )means? (the )?(server|upstream) (needs|requires) no auth"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "R08",
+  "verdict": "how",
+  "must_include": [
+   {
+    "fact": "The list endpoints return only the MCP servers the caller holds a role on; admin sees all, a virtual account sees just the servers it was granted",
+    "match": [
+     "only (the )?(mcp )?servers? (the|that|it) (caller|account|identity|key|it)? ?(has|holds|was|can)",
+     "(filter|scop)ed? (by|to) (the )?(caller|permission|grant|role)",
+     "(role|grant|permission)s? (on|for) (the|each) (mcp )?server",
+     "per[- ]caller"
+    ]
+   },
+   {
+    "fact": "Fix: a role-binding with subject virtualaccount, role mcp-server-user, resourceType mcp-server and resourceFqn truefoundry:mcp-server:<name>",
+    "match": [
+     "mcp-server-user",
+     "role[- ]binding"
+    ]
+   },
+   {
+    "fact": "Listing does not change the auth record: the OAuth server's auth/status stays authentication_required ('No OAuth2 auth record found') before and after",
+    "match": [
+     "(does not|doesn'?t|no|not) (create|creates|write|change)[^.]{0,30}(auth|record)",
+     "(unchanged|stays|remains)[^.]{0,40}authentication_required",
+     "read[- ]only"
+    ]
+   }
+  ],
+  "must_not": [
+   {
+    "fact": "Says listing creates an auth record for the user",
+    "match": [
+     "(yes|it does),? (listing|it) (creates|writes)"
+    ]
+   },
+   {
+    "fact": "Calls it a bug or tells the user to file a ticket",
+    "match": [
+     "(this is|it'?s) (a|an) (gateway |platform |console |known )?bug"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "R09",
+  "verdict": "how",
+  "must_include": [
+   {
+    "fact": "Re-applying the MCP server manifest with collaborators: [] returns 200 and clears the collaborator grants (e.g. agent:<name>); the agent then gets 403",
+    "match": [
+     "collaborators?[^.]{0,40}(empty|\\[\\s*\\]|wipe|clear|remov|reset|overwrit)",
+     "(empty|\\[\\s*\\])[^.]{0,30}collaborators?",
+     "wipes?"
+    ]
+   },
+   {
+    "fact": "Grants made as a role-binding (e.g. a virtual account with mcp-server-user) survive collaborators: [], so role-binding is the durable way to grant",
+    "match": [
+     "role[- ]binding[^.]{0,60}(surviv|unaffected|not (removed|wiped|affected)|persist)",
+     "survive"
+    ]
+   }
+  ],
+  "must_not": [
+   {
+    "fact": "Says the agent token expired and must be regenerated",
+    "match": [
+     "token (has )?expired(?! )",
+     "(?<!no )(need to|must|should|have to) regenerate (the )?token"
+    ]
+   },
+   {
+    "fact": "Calls it a bug or tells the user to file a ticket",
+    "match": [
+     "(this is|it'?s) (a|an) (gateway |platform |console |known )?bug"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "R10",
+  "verdict": "how",
+  "must_include": [
+   {
+    "fact": "A per-virtual-account budget rule cannot have users or teams in when.subjects (in or not_in); the 400 ends 'includes users' or 'includes teams'",
+    "match": [
+     "(users?|teams?) (or|and|,) (users?|teams?)[^.]{0,80}(when\\.subjects|per-virtual-account|not allowed|subjects)",
+     "includes (users|teams)",
+     "when\\.subjects[^.]{0,60}(users?|teams?)"
+    ]
+   },
+   {
+    "fact": "Fix: remove users/teams from when.subjects and keep only virtual_accounts; adding another virtual account then saves with 200",
+    "match": [
+     "remove[^.]{0,40}(users|teams)",
+     "only[^.]{0,20}virtual_accounts",
+     "(drop|delete)[^.]{0,30}(users|teams)"
+    ]
+   },
+   {
+    "fact": "applies_to cannot be changed after the budget is created (403), so a different applies_to type needs a new rule",
+    "match": [
+     "(cannot|can'?t|not) be (changed|modified|edited)[^.]{0,30}(after|once)",
+     "immutable",
+     "(create|add) a new (rule|budget)[^.]{0,40}(disable|delete|old)"
+    ]
+   }
+  ],
+  "must_not": [
+   {
+    "fact": "Tells the user to change applies_to of the existing rule to per-user",
+    "match": [
+     "(?<!not )(?<!n't )(?<!never )(change|switch|set) (the )?applies_to[^.]{0,30}to per-user"
+    ]
+   },
+   {
+    "fact": "Calls it a bug or tells the user to file a ticket",
+    "match": [
+     "(this is|it'?s) (a|an) (gateway |platform |console |known )?bug"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "R11",
+  "verdict": "how",
+  "must_include": [
+   {
+    "fact": "The budget-exceeded response carries the header x-should-retry: false, on both /chat/completions and the Anthropic-shaped /v1/messages",
+    "match": [
+     "x-should-retry:?\\s*[\"']?false"
+    ]
+   },
+   {
+    "fact": "No Retry-After header is sent on that response",
+    "match": [
+     "no `?retry-after`?",
+     "(without|doesn'?t (send|include|set)|does not (send|include|set))[^.]{0,20}retry-after",
+     "retry-after[^.]{0,20}(absent|missing|not (sent|set|present|included))"
+    ]
+   },
+   {
+    "fact": "The response is HTTP 429 and names the rule: x-tfy-applied-rules shows budget_limiting with violated true",
+    "match": [
+     "\\b429\\b"
+    ]
+   }
+  ],
+  "must_not": [
+   {
+    "fact": "Says the gateway gives the client no signal to stop retrying",
+    "match": [
+     "no retry hint",
+     "(gateway|response) (gives|sends|provides) no (signal|hint)",
+     "(does not|doesn'?t) (signal|tell)[^.]{0,30}(client|caller)[^.]{0,20}(to stop|stop retrying)(?![^.]{0,60}(but|however|though|x-should-retry))"
+    ]
+   },
+   {
+    "fact": "Calls it a gateway bug",
+    "match": [
+     "(this is|it'?s) a (gateway )?bug"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "R12",
+  "verdict": "how",
+  "must_include": [
+   {
+    "fact": "A per-user rule does not match requests authenticated with a virtual account token; x-tfy-applied-rules never names it for those calls (it blocks user identities, e.g. a PAT, with 429)",
+    "match": [
+     "(does not|doesn'?t|do not|never) (match|apply|count|evaluate|cover)[^.]{0,40}(virtual|service|\\bVAs?\\b)",
+     "per-user[^.]{0,60}(only|just)[^.]{0,30}(users?|human|personal)"
+    ]
+   },
+   {
+    "fact": "Fix: use a per-virtual-account rule with the same filters; then the VA's calls get 429 naming that rule",
+    "match": [
+     "per-virtual-account",
+     "per virtual account"
+    ]
+   }
+  ],
+  "must_not": [
+   {
+    "fact": "Says a per-user rule applies to virtual account traffic and the budget just needs time or a lower limit",
+    "match": [
+     "(per-user|user) (budget|rule)[^.]{0,40}(applies|counts) (to|for) (the )?(virtual|\\bVAs?\\b)",
+     "(?<!no need to )(?<!not )(?<!n't )wait for the (rule|budget)"
+    ]
+   },
+   {
+    "fact": "Calls it a bug or tells the user to file a ticket",
+    "match": [
+     "(this is|it'?s) (a|an) (gateway |platform |console |known )?bug"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "R13",
+  "verdict": "how",
+  "must_include": [
+   {
+    "fact": "PUT /api/svc/v1/llm-gateway/installations rejects a manifest without isDefault with 422, on create and on an update that only sets enabled false",
+    "match": [
+     "isDefault[^.]{0,30}(mandatory|required|must be (sent|included|present|set))",
+     "(must|need to|has to|have to) (include|send|set|contain|pass)[^.]{0,30}isDefault",
+     "every (update|put)[^.]{0,40}isDefault",
+     "without isDefault"
+    ]
+   },
+   {
+    "fact": "Workaround: PUT the full manifest with enabled: false and isDefault set (false for a non-default installation, otherwise keep the current value); it returns 200 and the installation shows enabled false",
+    "match": [
+     "(include|send|set|pass|add)[^.]{0,30}isDefault",
+     "isDefault[\"']?\\s*[:=]\\s*(true|false)"
+    ]
+   }
+  ],
+  "must_not": [
+   {
+    "fact": "Says the failure is transient or an outage",
+    "match": [
+     "(is|was|it'?s|looks like|probably) (a |an )?(transient|temporary|intermittent|outage)"
+    ]
+   },
+   {
+    "fact": "Tells the user to delete and recreate the installation",
+    "match": [
+     "(?<!no need to )(?<!not )(?<!n't )delete (and|then) re-?create"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "R15",
+  "verdict": "how",
+  "must_include": [
+   {
+    "fact": "By default a provider 400 is returned to the caller; adding \"400\" to the target's fallback_status_codes makes it fail over and the second target serves it (200)",
+    "match": [
+     "fallback_status_codes[^.]{0,60}\\b400\\b",
+     "\\b400\\b[^.]{0,60}fallback_status_codes"
+    ]
+   },
+   {
+    "fact": "fallback_status_codes replaces the default list rather than extending it: with [\"400\"] a 401 on target 1 is returned, so keep the other codes you still want to fail over on",
+    "match": [
+     "(?<!n't )(?<!not )replaces? the (default|existing)",
+     "overrid(e|es|den) the default",
+     "instead of (adding|extending)",
+     "not (merged|additive)",
+     "(include|keep|add) (the )?(other|default|existing) (codes|statuses)"
+    ]
+   },
+   {
+    "fact": "400s that failed over did not demote target 1: later normal requests were still served by it",
+    "match": [
+     "(does not|doesn'?t|did not|didn'?t) (mark|demote|trip|put)",
+     "still (served|handled|routed) by",
+     "(first|primary|target 1)[^.]{0,40}still (served|handled|routed)",
+     "not marked unhealthy",
+     "no cooldown"
+    ]
+   }
+  ],
+  "must_not": [
+   {
+    "fact": "Says 400 already fails over by default",
+    "match": [
+     "\\b400s?\\b(?![^.]{0,20}\\b(not|n't|never)\\b)[^.]{0,20}(fail(s)?|failed|fall(s)?) (over|back)[^.]{0,20}by default"
+    ]
+   },
+   {
+    "fact": "Says an empty list makes everything fail over",
+    "match": [
+     "empty (list|array)[^.]{0,30}(makes?|means?|causes?) (all|every)"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "R16",
+  "verdict": "how",
+  "must_include": [
+   {
+    "fact": "Either the request header x-tfy-openai-use-responses-api: true or output_config {effort: low} in the /v1/messages body makes the tool call return 200 with a tool_use block",
+    "match": [
+     "x-tfy-openai-use-responses-api",
+     "output[_-]config[^.]{0,40}effort"
+    ]
+   },
+   {
+    "fact": "The 400 is the provider's own validation passed through (api_error), not a gateway rule",
+    "match": [
+     "(openai|provider|upstream)('s)? (own )?(validation|check)",
+     "pass(ed|es)? through",
+     "api_error"
+    ]
+   }
+  ],
+  "must_not": [
+   {
+    "fact": "Says reasoning_effort none or enabling thinking in the /v1/messages body fixes it",
+    "match": [
+     "reasoning_effort[^.]{0,20}none[^.]{0,20}(fixes|resolves|will work|works)\\b",
+     "enabl(e|ing) thinking[^.]{0,30}(fixes|will work|works)\\b"
+    ]
+   },
+   {
+    "fact": "Calls it a gateway bug",
+    "match": [
+     "(this is|it'?s) a (gateway )?bug"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "R17",
+  "verdict": "how",
+  "must_include": [
+   {
+    "fact": "Those 400s are Anthropic's own validation passed through: the Haiku target rejects adaptive thinking and effort while the same fields to a Sonnet target return 200",
+    "match": [
+     "(anthropic|provider)('s)? (own )?validation",
+     "pass(ed|es)? through",
+     "api_error"
+    ]
+   },
+   {
+    "fact": "Setting override_params {thinking: null, output_config: null} on the Haiku target strips the fields and both requests return 200 (the docs' alternative, naming or splitting the virtual model so Claude Code sends Haiku-compatible requests, also counts)",
+    "match": [
+     "override_params[^.]{0,80}null",
+     "(thinking|output_config)[^.]{0,30}null",
+     "(rename|renaming|separate|dedicated)[^.]{0,80}(virtual model|haiku)"
+    ]
+   },
+   {
+    "fact": "A temperature-only override still returns 400 (now a temperature error); only the explicit null removes thinking/output_config",
+    "match": [
+     "temperature[^.]{0,60}(still|400|not (remove|strip))",
+     "only (the )?(explicit )?null"
+    ]
+   }
+  ],
+  "must_not": [
+   {
+    "fact": "Says override_params cannot remove client-chosen fields",
+    "match": [
+     "override_params[^.]{0,60}(cannot|can'?t|can not|unable to|won'?t) (remove|strip|delete|unset)(?![^.]{0,60}(but|unless|except|null))"
+    ]
+   },
+   {
+    "fact": "Calls it a gateway bug",
+    "match": [
+     "(this is|it'?s) a (gateway )?bug"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "R18",
+  "verdict": "how",
+  "must_include": [
+   {
+    "fact": "The skip is how dry-run treats a virtual account whose permissions depend on a manifest in the same directory (tested: provider-account-access on a provider account whose manifest is in the dir); an integration-only virtual account in the same run is validated",
+    "match": [
+     "by design",
+     "not a bug",
+     "(?<!un)expected (behaviou?r|for)",
+     "provider[- ]account[^.]{0,60}(same|in the) (dir|directory|batch|folder)",
+     "depend(s|ency|encies)[^.]{0,50}(same|in the) (dir|directory|batch|folder)"
+    ]
+   },
+   {
+    "fact": "When the provider account is already live and its manifest is not in the directory, the same virtual account is validated in dry-run",
+    "match": [
+     "(already|is) (live|deployed|applied|exist)[^.]{0,60}(not|without|exclude|omit|outside)[^.]{0,30}(dir|directory|batch)",
+     "(exclude|remove|omit|leave out)[^.]{0,40}(provider[- ]account|account manifest)",
+     "split"
+    ]
+   },
+   {
+    "fact": "tfy apply --help (CLI 0.17.4) has no flag to force validation of skipped manifests",
+    "match": [
+     "no (flag|option)[^.]{0,40}(validate|force|skip)",
+     "(doesn'?t|does not) (have|offer|provide)[^.]{0,20}(flag|option)"
+    ]
+   }
+  ],
+  "must_not": [
+   {
+    "fact": "Suggests a --force or --validate flag",
+    "match": [
+     "(?<!no )(?<!not )(?<!n't )(use|add|pass|try|run with) (the )?(--force|--validate|--no-skip)"
+    ]
+   },
+   {
+    "fact": "Says skipped manifests were validated",
+    "match": [
+     "skipped (manifests )?(are|were) (validated|checked)"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "R19",
+  "verdict": "how",
+  "must_include": [
+   {
+    "fact": "Those UI headers and the body user field are not used for metrics grouping: requests carrying them left no per-person row (the email appears nowhere in grouped metrics)",
+    "match": [
+     "(not|aren'?t|isn'?t) (used|recorded|captured|picked up|read|indexed)",
+     "(doesn'?t|does not|don'?t|do not) (pick|read|use|map)[^.]{0,30}(up|those|them|these|header|user)",
+     "(ignored|no effect)",
+     "not (stored|promoted)"
+    ]
+   },
+   {
+    "fact": "Fix: send the person in an X-TFY-METADATA header (JSON such as {\"owui_user\": \"bob\"}); it appears in metrics/query grouped by metadata.owui_user with count and cost per value",
+    "match": [
+     "x-tfy-metadata",
+     "metadata\\.\\w+"
+    ]
+   },
+   {
+    "fact": "An enforce-mode budget keyed on that metadata key (applies_to type metadata) returns 429 to that person while another person on the same virtual account still gets 200",
+    "match": [
+     "applies_to[^.]{0,40}metadata",
+     "metadata[- ](keyed|based|scoped)[^.]{0,20}(budget|rule)",
+     "per[- ]metadata",
+     "per-user[^.]{0,40}metadata"
+    ]
+   }
+  ],
+  "must_not": [
+   {
+    "fact": "Says the X-OpenWebUI-User headers or the user field are picked up automatically for attribution",
+    "match": [
+     "(?<!n't )(?<!not )(?<!never )(automatically|natively) (picks?|maps?|reads?|uses?)"
+    ]
+   },
+   {
+    "fact": "Calls it a bug or tells the user to file a ticket",
+    "match": [
+     "(this is|it'?s) (a|an) (gateway |platform |console |known )?bug"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "R20",
+  "verdict": "how",
+  "must_include": [
+   {
+    "fact": "A virtual account token with no tenant role gets 200 with zero dataPoints rather than a 403",
+    "match": [
+     "(filter|scop)ed? (by|to) (the )?(caller|access|permission|data access)",
+     "data access rule",
+     "(empty|zero rows)[^.]{0,40}(rather than|instead of|not) (a )?403",
+     "(scopes?|limits?|restricts?)[^.]{0,40}(rows|results|metrics)[^.]{0,40}(caller|may see|allowed)"
+    ]
+   },
+   {
+    "fact": "The query is valid (the admin key returns rows); the caller only sees rows it is allowed to see, so use an admin key or grant the account access to the data",
+    "match": [
+     "query (is|looks) (fine|correct|valid)",
+     "(use|call with)[^.]{0,30}(admin|tenant[- ]admin)[^.]{0,20}(key|token|PAT)",
+     "data access rule",
+     "createdBySubjectSlug"
+    ]
+   }
+  ],
+  "must_not": [
+   {
+    "fact": "Says the query, groupBy or body is wrong, or that the account has no traffic",
+    "match": [
+     "(?<!no )(?<!not )(?<!n't )(wrong|invalid|malformed) (query|groupBy|body)",
+     "(groupBy|query|body) (is|was) (wrong|invalid|malformed)",
+     "has no traffic"
+    ]
+   },
+   {
+    "fact": "Calls it a bug or tells the user to file a ticket",
+    "match": [
+     "(this is|it'?s) (a|an) (gateway |platform |console |known )?bug"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "R21",
+  "verdict": "how",
+  "must_include": [
+   {
+    "fact": "The model reasons by default; the gateway keeps a plain Chat Completions request on /chat/completions unless it asks for reasoning (effort other than none, or a thinking field) or carries the opt-in header, and the provider's validation 400 is passed through",
+    "match": [
+     "reasons? by default",
+     "(openai|provider)('s)? (own )?validation",
+     "pass(ed|es)? through",
+     "stays? on (plain )?chat completions"
+    ]
+   },
+   {
+    "fact": "Fix: send the header x-tfy-openai-use-responses-api: true; the request is then served via the Responses API and returns 200 with a resp_ id",
+    "match": [
+     "x-tfy-openai-use-responses-api"
+    ]
+   },
+   {
+    "fact": "Alternatively set reasoning_effort to low/medium/high (or a thinking field), served via Responses (200); reasoning_effort none also returns 200 but stays on plain Chat Completions",
+    "match": [
+     "reasoning_effort[^.]{0,20}(none|low|medium|high)",
+     "effort[\\\"']?\\s*[:=]?\\s*[\\\"']?(none|low|medium|high)",
+     "thinking (field|parameter|object)"
+    ]
+   }
+  ],
+  "must_not": [
+   {
+    "fact": "Says the gateway adds reasoning_effort itself or that it is a gateway bug",
+    "match": [
+     "gateway (is )?(adds?|inject)s?[^.]{0,20}reasoning",
+     "(this is|it'?s) a (gateway )?bug"
+    ]
+   },
+   {
+    "fact": "Tells the user to drop the function tools",
+    "match": [
+     "you (should|need to|must) (remove|drop) (the )?(function )?tools?",
+     "(^|[.!]\\s+)(remove|drop) (the )?(function )?tools?",
+     "stop using (function )?tools"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "R22",
+  "verdict": "how",
+  "must_include": [
+   {
+    "fact": "The 400 is Anthropic's own validation passed through (api_error), not a gateway rule; the display value needs a beta",
+    "match": [
+     "pass(ed|es)? through",
+     "(anthropic|provider)('s)? (own )?validation",
+     "(needs?|requires?) (a )?beta"
+    ]
+   },
+   {
+    "fact": "Fix: send the beta token thinking-display-updates-2026-08-18 in the anthropic-beta or x-tfy-anthropic-beta header, which returns 200",
+    "match": [
+     "thinking-display-updates-2026-08-18"
+    ]
+   },
+   {
+    "fact": "x-tfy-anthropic-beta replaces anthropic-beta instead of merging, so it must contain every beta needed (a comma-separated list works); display summarized or omitted works without a beta",
+    "match": [
+     "x-tfy-anthropic-beta[^.]{0,60}(?<!n't )(?<!not )(replaces?|overrides?)",
+     "not merged",
+     "comma[- ]separated"
+    ]
+   }
+  ],
+  "must_not": [
+   {
+    "fact": "Says the gateway does not support this display value at all",
+    "match": [
+     "(?<!not that )the gateway (does not|doesn'?t) support",
+     "not supported by the gateway"
+    ]
+   },
+   {
+    "fact": "Calls it a gateway bug",
+    "match": [
+     "(this is|it'?s) a (gateway )?bug"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "R23",
+  "verdict": "how",
+  "must_include": [
+   {
+    "fact": "The custom guardrail limit is about 5 s and not configurable: 1/3/4 s webhooks pass (200), 6 and 8 s fail with the 400 at ~5.05 s, and timeout/timeout_ms keys are stored but ignored",
+    "match": [
+     "(fixed|hard[- ]?(coded )?limit|not (configurable|adjustable))[^.]{0,60}(5|five)",
+     "\\b5 ?(s|sec|seconds)\\b[^.]{0,40}(fixed|limit|not (configurable|adjustable)|cannot|can'?t)",
+     "(cannot|can'?t) be (raised|increased|changed)"
+    ]
+   },
+   {
+    "fact": "Fail-open option: enforcing_strategy enforce_but_ignore_on_error lets the request through (200) after ~5 s instead of failing",
+    "match": [
+     "enforce_but_ignore_on_error",
+     "fail[- ]open",
+     "ignore[sd]? (on )?errors?"
+    ]
+   },
+   {
+    "fact": "Or make the webhook respond in under ~5 s (4 s passes, 6 s fails)",
+    "match": [
+     "under (about |roughly )?[45] ?s(econds)?",
+     "faster",
+     "(respond|reply|answer|return)[^.]{0,30}(within|under|before)[^.]{0,10}5",
+     "speed up"
+    ]
+   }
+  ],
+  "must_not": [
+   {
+    "fact": "Says the guardrail timeout is configurable per guardrail",
+    "match": [
+     "(?<!n't )(?<!not )timeout (is|can be) (configurable|set|raised|increased)",
+     "(?<!n't )(?<!not )increase the (guardrail )?timeout (in|via|using)"
+    ]
+   },
+   {
+    "fact": "Calls it a bug or tells the user to file a ticket",
+    "match": [
+     "(this is|it'?s) (a|an) (gateway |platform |console |known )?bug"
+    ]
+   }
+  ]
+ }
+]
