@@ -3,21 +3,21 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "My service `checkout-api` in workspace `payments-prod` just went CrashLoopBackOff. Tell me what's wrong and how to fix it.",
-      "expected_output": "Reads troubleshooting.md, reads get_application_state, pulls the previous attempt's logs + events, classifies OOM vs probe vs app error, proposes a concrete manifest edit and asks approval before apply_manifest.",
+      "prompt": "My service `harness-trueforge-testing` in workspace `a2a` is failing. Tell me what's wrong and how to fix it.",
+      "expected_output": "Reads troubleshooting.md, reads get_application_state, then follows what it shows (build failure → build logs; crashing container → the previous attempt's logs + events, classifying OOM vs probe vs app error), proposes a concrete fix and asks approval before any apply_manifest.",
       "files": [],
       "expectations": [
-        "Does not conclude health from DEPLOY_SUCCESS or get_application alone",
-        "Calls get_application_state and inspects container reason / lastState before proposing a fix",
-        "On CrashLoopBackOff, calls get_logs with applicationId, podName and a window ending after lastState.finishedAt",
+        "Does not conclude health or cause from the deployment status or get_application alone",
+        "Calls get_application_state and inspects pod/container reason and lastState (or the failed build) before proposing a fix",
+        "If a container is crash-looping, calls get_logs with applicationId, podName and a window ending after lastState.finishedAt",
         "Corroborates exit 137 with events/metrics before calling it OOM",
-        "Edits from the live activeDeployment.manifest (full replace) and validates before apply",
+        "Any proposed manifest change edits the live activeDeployment.manifest (full replace) and is validated before apply",
         "Asks for approval before apply_manifest"
       ]
     },
     {
       "id": 2,
-      "prompt": "Deploy this HuggingFace model for me: https://huggingface.co/meta-llama/Meta-Llama-3.1-8B-Instruct in workspace llm-dev. Use whatever GPU we have.",
+      "prompt": "Deploy this HuggingFace model for me: https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct in workspace archit-ws. Use whatever GPU we have.",
       "expected_output": "Resolves workspaceId, calls get_model_deployment_specs, handles gated HF token via secret FQN, prefers isAvailableInWorkspace, validates and applies a service manifest, then verifies pods and offers Gateway + smoke-test next steps.",
       "files": [],
       "expectations": [
@@ -70,7 +70,7 @@
     },
     {
       "id": 6,
-      "prompt": "Scale my model service to zero when idle for 15 minutes, and pin chat sessions to the same replica for prefix cache.",
+      "prompt": "Scale my model service `meta-llama-3-1-8b-instruct` in workspace `a2a` to zero when idle for 15 minutes, and pin chat sessions to the same replica for prefix cache.",
       "expected_output": "Edits the live service manifest for auto-shutdown / Elasti scale-to-0 and sticky session label; explains cold-start and best-effort stickiness; validate + apply with approval.",
       "files": [],
       "expectations": [
@@ -82,7 +82,7 @@
     },
     {
       "id": 7,
-      "prompt": "Create a notebook in workspace ml-sandbox so I can explore this dataset, and give me the URL.",
+      "prompt": "Create a notebook in workspace onboarding-ws so I can explore this dataset, and give me the URL.",
       "expected_output": "Authors a notebook application from schema, applies with approval, returns the console link and the notebook URL from list_applications; covers OAuth/login expectations from notebook-ssh playbook.",
       "files": [],
       "expectations": [
@@ -105,10 +105,11 @@
     },
     {
       "id": 9,
-      "prompt": "My vLLM pod has been Pending for 10 minutes with FailedScheduling insufficient nvidia.com/gpu. What's wrong?",
+      "prompt": "My vLLM service `mistral-7b-instruct` in workspace `seldon-tf` has a pod Pending for 10 minutes with FailedScheduling insufficient nvidia.com/gpu. What's wrong?",
       "expected_output": "Follows pending-scheduling: reads the Unschedulable condition / FailedScheduling events and the applied manifest, then follows the cluster_type branch (get_cluster_autoscaler_logs on Azure/GCP; Karpenter events and kubectl NodeClaim output from the user on AWS) instead of stopping at the pod event or looking for app logs.",
       "files": [],
       "expectations": [
+        "Calls get_application_state first and, if no pod is Pending now, says so instead of diagnosing a state it cannot see",
         "Does not call application container logs as the primary signal for a Pending pod",
         "Reads the Unschedulable condition / FailedScheduling events and the applied manifest (get_applied_k8s_manifest) for GPU requests/tolerations",
         "Calls get_cluster_autoscaler_logs on Azure/GCP, or reads Karpenter events and asks the user for kubectl NodeClaim/NodePool output on AWS",
@@ -155,11 +156,11 @@
     },
     {
       "id": 13,
-      "prompt": "My vLLM service shows reason OOMKilled and restarts every few hours. Fix it.",
+      "prompt": "My vLLM service `qwen3-0-6b` in workspace `archit-ws` shows reason OOMKilled and restarts every few hours. Fix it.",
       "expected_output": "Treats OOMKilled as the container hitting its memory limit: pulls memory metrics and the applied memory limit, distinguishes limit-too-low from a leak, and proposes raising memory resources from the live manifest — not lowering --gpu-memory-utilization.",
       "files": [],
       "expectations": [
-        "Confirms OOMKilled from get_application_state (reason or lastState.reason) rather than inferring from exit code 137",
+        "Checks get_application_state (reason or lastState.reason) rather than inferring OOM from exit code 137, and says so if no OOMKilled is recorded",
         "Pulls memory usage via list_app_metric_charts → get_application_chart_data and compares it with the applied memory limit",
         "Proposes raising memory_limit / memory_request (or flags a leak if usage climbs steadily) rather than changing --gpu-memory-utilization",
         "Edits from activeDeployment.manifest, validates, and asks approval before apply_manifest"
@@ -178,11 +179,11 @@
     },
     {
       "id": 15,
-      "prompt": "Bump the replicas of checkout-api in workspace payments-prod to 3.",
+      "prompt": "Bump the replicas of intel-hub-web in workspace intel-hub to 3.",
       "expected_output": "Treats this as an update: fetches the deployed manifest, changes only replicas, keeps every env var, secret, resource and probe, validates, and applies with approval — without rebuilding.",
       "files": [],
       "expectations": [
-        "Finds checkout-api in payments-prod and calls get_application for activeDeployment.manifest",
+        "Finds intel-hub-web in intel-hub and calls get_application for activeDeployment.manifest",
         "Changes only the replica count and carries every other field over — does not build a fresh manifest from the schema",
         "Uses apply_manifest of the edited manifest (no rebuild, no tfy deploy) even if the app was originally built from source",
         "validate_manifest, then apply_manifest with approval, then confirms pods are running"
@@ -190,16 +191,16 @@
     },
     {
       "id": 16,
-      "prompt": "Deploy the FastAPI app in this repo as a service in workspace dev-ws and expose it on port 8000.",
-      "expected_output": "Checks whether the name is taken in dev-ws, asks for inputs it would otherwise guess, sets a host on the exposed port from generate_deployment_endpoint, builds with build_source local via tfy deploy, reads the build logs, and prints the console link and the endpoint from the deployed manifest.",
+      "prompt": "Deploy the FastAPI app in https://github.com/truefoundry/getting-started-examples (folder deploy-model-with-fastapi) as a service in workspace onboarding-ws and expose it on port 8000. Show me the manifest and the exact deploy command first; don't deploy yet.",
+      "expected_output": "Checks whether the name is taken in onboarding-ws, clones the repo, sets a host on the exposed port from generate_deployment_endpoint, builds a tfy-python-buildpack manifest from requirements.txt, validates it, and shows the manifest plus the tfy deploy command (build_source local, local_build from docker info) or the git build_source alternative — without deploying.",
       "files": [],
       "expectations": [
-        "Checks list_applications for the name in dev-ws before asking questions",
+        "Checks list_applications for the name in onboarding-ws",
         "Takes workspace_fqn from list_workspaces",
         "Sets ports[].host from generate_deployment_endpoint for the exposed port instead of inventing one",
-        "Uses build_source: local with local_build decided by `docker info`, and tfy deploy rather than apply_manifest or tfy apply",
-        "Reads the build logs (builds.md) instead of reporting success when the deploy call returns",
-        "Prints the console link and the endpoint from the deployed manifest"
+        "Uses tfy-python-buildpack with the folder as build_context_path and requirements.txt, and a uvicorn/gunicorn command on port 8000",
+        "Proposes tfy deploy -f truefoundry.yaml --no-wait with build_source local and local_build decided by `docker info` (or build_source git with a commit SHA via apply_manifest); never tfy apply",
+        "Calls validate_manifest and does not deploy"
       ]
     },
     {
@@ -304,8 +305,8 @@
     },
     {
       "id": 25,
-      "prompt": "How much of the team-research monthly budget has been spent so far?",
-      "expected_output": "Reads budget-limiting-v2.md, finds the budget with list_gateway_budgets (team_name: research), reports its limits, explains V2 spend isn't readable with tools, and links {controlPlaneUrl}/llm-gateway/policies/budget-limiting-v2.",
+      "prompt": "How much of the caio-emu-starwood-developers team's monthly budget has been spent so far?",
+      "expected_output": "Reads budget-limiting-v2.md, finds the budget with list_gateway_budgets (team_name: caio-emu-starwood-developers), reports its limits, explains V2 spend isn't readable with tools, and links {controlPlaneUrl}/llm-gateway/policies/budget-limiting-v2.",
       "files": [],
       "expectations": [
         "Calls list_gateway_budgets, optionally filtered by team_name",
@@ -328,24 +329,24 @@
     },
     {
       "id": 27,
-      "prompt": "Add priya@acme.com to the ml-platform team.",
-      "expected_output": "Reads teams.md and write-rules.md, finds the team id with list_teams_for_user, calls add_team_members with that id and {\"emails\": [\"priya@acme.com\"]}, and does not apply a team manifest.",
+      "prompt": "Add sayan@truefoundry.com to the caio-emu-cnt-engineering team.",
+      "expected_output": "Reads teams.md and write-rules.md, finds the team id with list_teams_for_user, calls add_team_members with that id and {\"emails\": [\"sayan@truefoundry.com\"]}, and does not apply a team manifest.",
       "files": [],
       "expectations": [
         "Gets the team id from list_teams_for_user (does not pass the name to get_team or add_team_members)",
-        "Calls add_team_members with body {\"emails\": [\"priya@acme.com\"]}",
+        "Calls add_team_members with body {\"emails\": [\"sayan@truefoundry.com\"]}",
         "Does not call apply_manifest with a members or managers list"
       ]
     },
     {
       "id": 28,
-      "prompt": "Give the virtual account checkout-bot access to the anthropic-main provider account too.",
-      "expected_output": "Gets the VA id with list_virtual_accounts nameSearchQuery and the account fqn with list_provider_accounts, then calls create_grants with subjectType virtualaccount, the VA id and roleId provider-account-access on anthropic-main. Does not apply a VA manifest with permissions.",
+      "prompt": "Give the virtual account ask-ai-test-va access to the hello-anthropic provider account too.",
+      "expected_output": "Gets the VA id with list_virtual_accounts nameSearchQuery and the account fqn with list_provider_accounts, then calls create_grants with subjectType virtualaccount, the VA id and roleId provider-account-access on hello-anthropic. Does not apply a VA manifest with permissions.",
       "files": [],
       "expectations": [
         "Calls create_grants with subjectType virtualaccount and the VA id",
         "Does not call apply_manifest on the virtual account with permissions",
-        "Uses provider-account-access on anthropic-main"
+        "Uses provider-account-access on hello-anthropic"
       ]
     },
     {
@@ -409,8 +410,8 @@
     },
     {
       "id": 34,
-      "prompt": "Deploy the bitnami redis chart from oci://registry-1.docker.io/bitnamicharts/redis version 20.1.0 into workspace dev with password from my secret group redis-creds key password.",
-      "expected_output": "Calls validate_oci_chart with chartUrl; builds a helm manifest with source.type oci-repo and oci_chart_url; references the password as tfy-secret://<tenant>:redis-creds:password; validates then apply_manifest; confirms pods via get_application_state and prints the console link using data.applicationId.",
+      "prompt": "Deploy the bitnami redis chart from oci://registry-1.docker.io/bitnamicharts/redis version 20.1.0 into workspace onboarding-ws with password from my secret group hf-proxy key password.",
+      "expected_output": "Calls validate_oci_chart with chartUrl; builds a helm manifest with source.type oci-repo and oci_chart_url; references the password as tfy-secret://<tenant>:hf-proxy:password; validates then apply_manifest; confirms pods via get_application_state and prints the console link using data.applicationId.",
       "files": [],
       "expectations": [
         "Uses oci_chart_url, not chart_url",
@@ -421,19 +422,19 @@
     },
     {
       "id": 35,
-      "prompt": "Deploy this repo https://github.com/acme/fastapi-uv-app as a service on port 8000 in workspace dev. It has pyproject.toml and uv.lock, no Dockerfile.",
-      "expected_output": "Clones, picks tfy-python-buildpack with python_dependencies {type: uv} and a command; checks docker info for local_build; includes replicas, explicit expose, host from generate_deployment_endpoint, and ephemeral storage in resources; validate_manifest, then writes truefoundry.yaml and runs tfy deploy -f truefoundry.yaml --no-wait; reads get_build_logs.",
+      "prompt": "Deploy the app in https://github.com/truefoundry/getting-started-examples (folder plot_agent/crewai_plot_agent) as a service on port 8000 in workspace onboarding-ws. Use its pyproject.toml and uv.lock; there is no Dockerfile. Show me the manifest and the exact deploy command first; don't deploy yet.",
+      "expected_output": "Clones, picks tfy-python-buildpack with python_dependencies {type: uv} and a command; checks docker info for local_build; includes replicas, explicit expose, host from generate_deployment_endpoint, and ephemeral storage in resources; calls validate_manifest and shows truefoundry.yaml plus the tfy deploy -f truefoundry.yaml --no-wait command without deploying.",
       "files": [],
       "expectations": [
         "Uses python_dependencies type uv, not requirements_path",
         "Manifest includes replicas and resources.ephemeral_storage_request/limit",
-        "Runs tfy deploy -f truefoundry.yaml --no-wait (never tfy apply)",
-        "Reads build logs before reporting success"
+        "Proposes tfy deploy -f truefoundry.yaml --no-wait (never tfy apply)",
+        "Calls validate_manifest and does not deploy"
       ]
     },
     {
       "id": 36,
-      "prompt": "Deploy https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct to my dev workspace. My HF token is in the secret group hf-tokens under key HF_TOKEN.",
+      "prompt": "Deploy https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct to workspace archit-ws. My HF token is in the secret group automation-secrets-msyxnmvs-5e2f under key HUGGINGFACE_TOKEN.",
       "expected_output": "Resolves the workspace and checks for an existing app, calls list_secrets for the fqn, then calls get_model_deployment_specs with huggingfaceHubTokenSecretFqn=tfy-secret://<fqn>, picks an isAvailableInWorkspace option, validates and applies.",
       "files": [],
       "expectations": [
@@ -458,12 +459,12 @@
     },
     {
       "id": 38,
-      "prompt": "I deployed Qwen2.5-72B 40 minutes ago and there are still no new pods. Is it stuck?",
+      "prompt": "I redeployed qwen3-8b in workspace tfy-auto-deploy 40 minutes ago and there are still no new pods. Is it stuck?",
       "expected_output": "Checks artifacts_download.cache_volume. If it is set, explains that the PreSync downloader workflow runs before service pods exist and reads its logs with get_logs podNamesRegex=downloader-<deploymentId>.* containerName=main. Does not read empty list_application_events as healthy.",
       "files": [],
       "expectations": [
         "Checks for cache_volume in the manifest",
-        "Explains that no new pods during the download is expected",
+        "If a download is in progress, explains that no new pods during it is expected; otherwise reports the actual state",
         "Uses get_logs with applicationId and a downloader-<deploymentId> pod regex",
         "Does not call any *_k8s_* tool",
         "Does not read empty events as healthy"
@@ -471,14 +472,14 @@
     },
     {
       "id": 39,
-      "prompt": "My service `orders-api` is in CrashLoopBackOff. The cluster has no Loki or VictoriaLogs. What's crashing it?",
+      "prompt": "My service `emotion-class-svc-1` in workspace `akash-test-2` keeps crashing. The cluster has no Loki or VictoriaLogs. What's crashing it?",
       "expected_output": "Reads get_application_state, notes the previous attempt's logs are unreachable without a log backend (get_logs reads only the live container's current attempt), and gives kubectl logs --previous instead of calling the app silent.",
       "files": [],
       "expectations": [
         "Calls get_application_state before get_logs",
         "Passes podName and containerName to get_logs",
-        "States the crashed attempt's logs cannot be read without VictoriaLogs/Loki",
-        "Gives `kubectl logs <pod> -c <container> --previous -n <namespace>`"
+        "If a container restarted, states the crashed attempt's logs cannot be read without VictoriaLogs/Loki",
+        "If a container restarted, gives `kubectl logs <pod> -c <container> --previous -n <namespace>`"
       ]
     },
     {
@@ -494,8 +495,8 @@
     },
     {
       "id": 41,
-      "prompt": "Show me the logs of the redis master in my Helm release `my-cache`.",
-      "expected_output": "Takes the real pod name (my-cache-master-0) from get_application_state, calls get_logs with applicationId and podName or podNamesRegex, direction desc; does not construct my-cache-0 or call get_logs without a pod filter.",
+      "prompt": "Show me the logs of the redis master in my Helm release `nikp-redis` in workspace `agent-ws`.",
+      "expected_output": "Takes the real pod name from get_application_state, calls get_logs with applicationId and podName or podNamesRegex, direction desc; does not construct a pod name or call get_logs without a pod filter.",
       "files": [],
       "expectations": [
         "Calls get_application_state for pod names",
@@ -531,7 +532,7 @@
     },
     {
       "id": 44,
-      "prompt": "Add claude-sonnet-4-5 to my existing Anthropic account `anthropic-main`.",
+      "prompt": "Add claude-sonnet-4-5 to my existing Anthropic account `archit-random-testing`.",
       "expected_output": "Fetches the account with list_provider_accounts, deletes collaborators and every integration's authorized_subjects from the fetched manifest, keeps every existing integration, appends the new model, validates and applies once; does not re-send the stored collaborators list.",
       "files": [],
       "expectations": [
@@ -543,7 +544,7 @@
     },
     {
       "id": 45,
-      "prompt": "Give team:data-science access to the openai-main provider account.",
+      "prompt": "Give team:caio-emu-cnt-platform access to the openai-main provider account.",
       "expected_output": "Finds the account's id/fqn with list_provider_accounts and the team's id with list_teams_for_user, then calls create_grants with resourceType provider-account, the account fqn, subjectType team, the team id and roleId provider-account-access. Does not apply the provider account manifest with collaborators.",
       "files": [],
       "expectations": [
@@ -554,8 +555,8 @@
     },
     {
       "id": 46,
-      "prompt": "Who has access to the openai-main provider account? Remove bob@acme.com from it.",
-      "expected_output": "Calls list_grants with resourceType provider-account and the account id, lists subjects and roles, then revokes bob's grant with revoke_grant using the values from his list_grants row; if his row has source ROLE_BINDING, explains it comes from role binding <roleBindingName> and must be changed there.",
+      "prompt": "Who has access to the openai-main provider account? Remove gowtham.v@truefoundry.com from it.",
+      "expected_output": "Calls list_grants with resourceType provider-account and the account id, lists subjects and roles, then revokes gowtham's grant with revoke_grant using the values from his list_grants row; if his row has source ROLE_BINDING, explains it comes from role binding <roleBindingName> and must be changed there.",
       "files": [],
       "expectations": [
         "Uses list_grants to show current access",
@@ -589,11 +590,11 @@
     },
     {
       "id": 49,
-      "prompt": "Raise the ml-team-rpm rate limit to 200 requests per minute.",
-      "expected_output": "Reads rate-limiting-v2.md, finds ml-team-rpm with list_gateway_config_instances (tenant-rate-limit-config/model), starts from its listed manifest and changes only limits.requests_per_minute to 200, validates, then applies once.",
+      "prompt": "Raise the test-ss-rule rate limit to 200 requests per minute.",
+      "expected_output": "Reads rate-limiting-v2.md, finds test-ss-rule with list_gateway_config_instances (model rate limit), starts from its listed manifest and changes only limits.requests_per_minute to 200, validates, then applies once.",
       "files": [],
       "expectations": [
-        "Calls list_gateway_config_instances to find ml-team-rpm",
+        "Calls list_gateway_config_instances to find test-ss-rule",
         "Keeps every other field of the listed manifest, including applies_to",
         "Calls validate_manifest until valid: true, then apply_manifest once in a separate batch",
         "Does not ask the user to paste the YAML"
