@@ -50,4 +50,18 @@ ProviderAccountId: TEXT, nullable
     External guardrail provider account when checks delegate to a vendor.
 ProviderIntegrationType: TEXT, nullable
     Integration type for the guardrail provider connection.
+ConversationId: TEXT, nullable
+    Conversation the request belongs to.
+RecordType: TEXT, nullable
+    'guardrail' or 'policy'. NULL on rows written before policy rows existed.
+PolicyId: TEXT, nullable
+    Set on policy rows.
+PolicyName: TEXT, nullable
+    Set on policy rows.
+NominatedPolicyNames: Array(Text), nullable
+    Set on guardrail rows: policies that nominated this guardrail.
 ```
+
+## CRITICAL
+
+- Each guardrail evaluation writes one row with `RecordType = 'guardrail'` plus one copy with `RecordType = 'policy'` for every guardrail policy that nominated it. Always filter `("RecordType" = 'guardrail' OR "RecordType" IS NULL)` for counts, rates and latency — otherwise numbers are inflated with no error. Use `"RecordType" = 'policy'` only when grouping by `PolicyName`.

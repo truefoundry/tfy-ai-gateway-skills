@@ -14,44 +14,9 @@ A tenant can have multiple guardrail groups (provider accounts). Each guardrail 
 
 ## Fetching existing guardrails configurations
 
-Use the `get_gateway_config` tool with `type: gateway-guardrails-config` to get the guardrail config manifest. The response is shaped like:
+Each guardrails policy (type `gateway-guardrails-config`) is its own named manifest. The available tools cannot list existing policies: `get_gateway_config` returns nothing for `gateway-guardrails-config`, so never use it to decide which policies exist. To see or change an existing policy, ask the user for its exact `name` and current YAML (UI: `{controlPlaneUrl}/llm-gateway/policies/guardrails` → Edit as YAML).
 
-```yaml
-id: ...
-tenantName: ...
-type: gateway-guardrails-config
-manifest:
-  name: guardrails-control
-  type: gateway-guardrails-config
-  rules:
-    - id: pii-guardrail-rule
-      when:
-        target:
-          operator: or
-          conditions:
-            model:
-              values:
-                - openai-main/o3
-              condition: in
-        subjects:
-          operator: and
-          conditions:
-            in:
-              - user:alice@example.com
-            not_in:
-              - user:bob@example.com
-      llm_input_guardrails:
-        - pii-guardrail-group/pii-redaction
-      llm_output_guardrails: []
-      mcp_tool_pre_invoke_guardrails: []
-      mcp_tool_post_invoke_guardrails: []
-    - # more rules
-createdBySubject: { ... }
-createdAt: ...
-updatedAt: ...
-```
-
-The `pii-guardrail-group/pii-redaction` refers to `pii-redaction` guardrail integration under `pii-guardrail-group` guardrail config group.
+A policy references guardrail integrations as `{groupName}/{integrationName}`: `pii-guardrail-group/pii-redaction` is the `pii-redaction` integration in the `pii-guardrail-group` guardrail config group.
 
 Use the `list_provider_accounts` tool with `includeGuardrailConfigs: true` (and other `include*` flags set to `false` to filter out other account types) to list guardrail config groups along with their integrations. The response shape is:
 
@@ -100,9 +65,12 @@ To inspect a single guardrail config group by id, use `get_provider_account`.
 
 A guardrail config group is a provider account that holds one or more guardrail integrations.
 
-### Phase 1: Get Schema
+### Phase 1: Get Schema and Existing Groups
 
 1. Call `get_manifest_json_schema` with type `provider-account/guardrail-config-group`.
+2. Call `list_provider_accounts` with `includeGuardrailConfigs: true` (other `include*` flags `false`). If the group name already exists, start from that group's current `manifest` and append the new integration.
+
+> **CRITICAL**: Applying a group replaces its whole `integrations` list. Any integration you leave out is permanently deleted, including its stored credentials, and policies that reference it silently lose it.
 
 ### Phase 2: Determine Guardrail Type and Auth
 
@@ -144,67 +112,66 @@ integrations:                             # NOT guardrail_configs
 ### Checklist
 
 - [ ] Did I call `get_manifest_json_schema` with type `provider-account/guardrail-config-group`?
+- [ ] If the group already exists, did I keep every existing integration in `integrations`?
 - [ ] Did I ask the user which guardrail type and auth method to use?
 
 ## Creating/Updating Guardrails Config (Write Flow)
 
-The guardrails config (type `gateway-guardrails-config`) defines **when** guardrail integrations are applied.
+A guardrails policy (type `gateway-guardrails-config`) defines **when** guardrail integrations are applied. Each policy is one manifest with a required top-level `name`.
 
-> **CRITICAL**: The manifest **MUST** have a top-level `name` field. This field is NOT in the JSON schema, but `apply_manifest` requires it. Without it you will get: `"Manifest does not have a name field"`. Get the `name` from the existing config.
+> **CRITICAL**: NEVER put a `rules:` array in a `gateway-guardrails-config` manifest. The platform treats it as the legacy combined format and does a full replace: every guardrails policy whose name is not in the array is deleted.
 
-### Phase 1: Get Schema and Existing Config
+### Phase 1: Get Schema and Decide Create or Update
 
 1. Call `get_manifest_json_schema` with type `gateway-guardrails-config`.
-2. Call `get_gateway_config` with `type: gateway-guardrails-config` to fetch the existing config. New rules must be merged with existing ones — never replace. Note the `name` field from the existing config — you will need it.
+2. **Create:** pick a new unique `name`. Applying it adds one policy and leaves every other policy untouched, so there is nothing to merge.
+3. **Update:** ask the user for the policy's exact `name` and its current YAML (see "Fetching existing guardrails configurations"). Applying under an existing `name` replaces that whole policy, so start from its current YAML and change only what was asked.
 
 ### Phase 2: Build and Apply
 
-Build the manifest as JSON (include `name` from existing config) → pass to `validate_manifest` → fix if needed → pass to `apply_manifest`.
+Build the manifest as JSON → pass to `validate_manifest` → fix if needed → pass to `apply_manifest`.
 
 ### Manifest Structure
 
-> **CRITICAL**: Every rule MUST have a `when.target` — without it the rule has no effect. Use `model` with `values: ["*"]` to apply to all models. Subject types are: `user:<email>`, `team:<name>`, `virtualaccount:<name>`.
+> **CRITICAL**: Every policy needs `when.target` — the platform rejects a policy without one. Use `model` with `values: ["*"]` to apply to all models. All four hook arrays are required; use `[]` for hooks you don't use. Subject types are: `user:<email>`, `team:<name>`, `virtualaccount:<name>`.
 
 ```yaml
-name: <config-name>
 type: gateway-guardrails-config
-rules:
-  - id: <unique-rule-id>
-    when:
-      target:                              # REQUIRED — rule does nothing without a target
-        operator: or
-        conditions:
-          model:
-            values:
-              - "*"                        # all models, or specific: account-name/model-name
-            condition: in
-          mcpServers:                      # optional — omit if not targeting MCP
-            values:
-              - <mcp-server-name or serverName:toolName>
-            condition: in
-      subjects:
-        operator: and
-        conditions:
-          in:
-            - <user:email or team:name or virtualaccount:name>
-          not_in:
-            - <user:email or team:name>
-    llm_input_guardrails:
-      - <groupName/integrationName>
-    llm_output_guardrails:
-      - <groupName/integrationName>
-    mcp_tool_pre_invoke_guardrails:
-      - <groupName/integrationName>
-    mcp_tool_post_invoke_guardrails:
-      - <groupName/integrationName>
+name: <policy-name>
+when:
+  target:                                  # REQUIRED
+    operator: or
+    conditions:
+      model:
+        values:
+          - "*"                            # all models, or specific: account-name/model-name
+        condition: in
+      mcpServers:                          # optional — omit if not targeting MCP
+        values:
+          - <mcp-server-name or serverName:toolName>
+        condition: in
+  subjects:
+    operator: and
+    conditions:
+      in:
+        - <user:email or team:name or virtualaccount:name>
+      not_in:
+        - <user:email or team:name>
+llm_input_guardrails:
+  - <groupName/integrationName>
+llm_output_guardrails: []
+mcp_tool_pre_invoke_guardrails: []
+mcp_tool_post_invoke_guardrails: []
+custom_error_message: <optional>
 ```
 
 ### Checklist
 
 - [ ] Did I call `get_manifest_json_schema` with type `gateway-guardrails-config`?
-- [ ] Did I fetch the existing guardrails config and merge rules (not replace)?
-- [ ] Did I include the `name` field in the manifest?
-- [ ] Does every rule have a `when.target` with at least one condition (`model` or `mcpServers`)?
+- [ ] Is the manifest one policy with a top-level `name`, and no `rules:` or `id:` fields?
+- [ ] For an update, did I start from the policy's current YAML from the user?
+- [ ] Does the policy have a `when.target` with at least one condition (`model` or `mcpServers`)?
+- [ ] Are all four hook arrays present (`[]` when unused)?
 - [ ] Are guardrail integrations referenced correctly in `groupName/integrationName` format?
 - [ ] Did I use `virtualaccount` (no hyphen) for VA subjects?
 - [ ] Did I call `validate_manifest` before applying?

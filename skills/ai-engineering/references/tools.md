@@ -65,7 +65,7 @@ Use these instead of hand-writing vLLM/SGLang services. Full workflow: `model-de
 
 | Tool | Layer | Retention | Use for |
 |---|---|---|---|
-| `get_logs` | Native app logs | Persisted | Historical stdout/stderr for service/async/job/notebook. Needs `applicationId` or `applicationFqn`. Optional `podName`/`deploymentId`/`jobRunName`/`searchString`. Default limit is large — pass a smaller `limit` and a tight `startTs`/`endTs` |
+| `get_logs` | Native app logs | Persisted | Historical stdout/stderr for service/async/job/notebook. Pass `applicationId` (from `list_applications` / `get_application`); never pass only `applicationFqn` — the query is then not filtered by application and returns logs from every app in the workspace. Optional `podName`/`deploymentId`/`jobRunName`/`searchString`. Default limit is large — pass a smaller `limit` and a tight `startTs`/`endTs` |
 | `get_build_logs` | Build pipeline | Persisted | Build failures. Path param = build `name` (`pipelineRunName`). **Always pass build `logsStartTs` as `startTs`** |
 | `get_k8s_pod_logs` | Live container | Pod lifetime | Crashloops: set `previous: true`. Needs `clusterId` + one of `podName` / `deploymentName` / `jobName` / `labelSelector` |
 | `list_application_events` | Native events | Persisted | Pull/schedule/mount failures over days. `applicationId` or `applicationFqn`; optional `podNames`, `jobRunName`, time range (default last 24h). **Only registered when autopilot is enabled** — if it is not in your tools, use `list_k8s_events` and say that only the last ~1h is visible |

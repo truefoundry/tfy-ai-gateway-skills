@@ -30,6 +30,14 @@ Note: `list_teams_for_user` only returns teams the current user belongs to. A te
 
 Collect team name and member emails → build the manifest as JSON → pass to `validate_manifest` → fix if needed → pass to `apply_manifest`.
 
+### Updating an Existing Team
+
+> **CRITICAL**: Never change an existing team's members or managers with `apply_manifest`: a `members` or `managers` list replaces the whole current list, so everyone you leave out is removed.
+
+- **Add or remove people:** use `add_team_members` / `remove_team_members` / `add_team_managers` / `remove_team_managers` with the team `id` and body `{"emails": ["a@example.com"]}`. Everyone else stays.
+- **Other field changes:** start from `generate_team_manifest` (team `id`) and either keep its `members` and `managers` exactly as returned or delete both fields so membership stays unchanged.
+- SCIM-managed teams reject any `members` change.
+
 ### Manifest Structure
 
 ```yaml
@@ -43,5 +51,6 @@ members:
 ### Checklist
 
 - [ ] Did I call `get_manifest_json_schema` with type `team`?
+- [ ] For an existing team, did I use the add/remove member and manager tools instead of sending a `members` or `managers` list?
 
 For more info: `search_docs` with "team management", "create team", "team access control".

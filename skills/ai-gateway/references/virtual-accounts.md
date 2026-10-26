@@ -27,6 +27,14 @@ Call `list_virtual_accounts` and check if a virtual account matching what the us
 1. A virtual account MUST have at least one permission — it cannot exist with zero permissions. Use `ask_user_question` to ask the user what permissions this VA should have (role, resource, resource type).
 2. **When updating/revoking permissions**: if removing a permission would leave the VA with zero permissions, do NOT proceed. Inform the user that a VA cannot have empty permissions — they must either keep at least one permission or delete the VA entirely.
 
+### Updating a Virtual Account
+
+> **CRITICAL**: A `permissions` list replaces all of the VA's existing permissions. Listing only the new permission revokes every other one.
+
+- To change other fields, omit `permissions` entirely.
+- To add or remove one permission, call `get_virtual_account` (by `id`) and send its full current `manifest.permissions` with only that change, after confirming the final list with the user.
+- Keep `ownedBy` and `expiration_date` exactly as returned.
+
 ### Phase 4: Validate and Apply
 
 Build the manifest as JSON → pass to `validate_manifest` → fix if needed → pass to `apply_manifest`.

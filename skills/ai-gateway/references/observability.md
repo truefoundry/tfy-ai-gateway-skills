@@ -92,7 +92,7 @@ ORDER BY "P99LatencyMs" DESC
 
 - **Provider Cache Token Usage**: Provider cache tokens are available in `SpanAttributesNumber` on `Model` spans (`TfyGatewaySpanType = 'Model'`) in the `traces` table via `tfy.model.metric.cache_read_input_tokens` and `tfy.model.metric.cache_creation_input_tokens`.
 - **Gateway Cache Hit Rates**: Use the `CacheHit`, `CacheType`, and `CacheLookupStatus` columns in `gateway_model_metrics`. These reflect gateway-level semantic/exact-match caching, not provider-side prompt caching.
-- **Feedback on Traces**: Feedback is stored in `gateway_feedbacks`, linked via `TargetTraceId` and `TargetSpanId`. Use a LEFT JOIN with `traces` to enrich traces with feedback. Always filter `"IsDeleted" = false`. See `ai-gateway/references/tables/gateway_feedbacks.md` for schema and sample join query.
+- **Feedback on Traces**: Feedback is stored in `gateway_feedbacks`, linked via `TargetTraceId` and `TargetSpanId`. Use a LEFT JOIN with `traces` to enrich traces with feedback. Feedback rows are versioned: deduplicate by `FeedbackId` (latest `CreatedAt`) first, then filter `"IsDeleted" = false`. See `ai-gateway/references/tables/gateway_feedbacks.md` for schema and sample join query.
 
 ### Getting a Trace Link
 

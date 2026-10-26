@@ -94,7 +94,7 @@ No auth config needed — TrueFoundry manages everything.
 Use the `url` from the catalogue. Check the `auth_data` field to determine the auth type:
 
 - **No `auth_data`** → no auth needed. Build a simple remote manifest.
-- **`auth_data.type: "oauth2"`** → Call `get_mcp_server_oauth_config` with the MCP server's URL to get OAuth metadata (authorization_url, token_url, scopes, etc.). Check if the metadata includes `registration_endpoint` — if yes, Dynamic Client Registration (DCR) is supported and `client_id`/`client_secret` are not needed. If no `registration_endpoint`, ask the user for their `client_id` and `client_secret` (they'll need to register an OAuth app with the provider first).
+- **`auth_data.type: "oauth2"`** → Call `get_mcp_server_oauth_config` with the MCP server's URL to get OAuth metadata (authorization_url, token_url, scopes, etc.). Copy its `formContent` fields (`authorization_url`, `token_url`, `scopes`, `jwt_source`, plus `registration_url` and `code_challenge_methods_supported` when present) into `auth_data`. Dynamic Client Registration (DCR) is supported only if `formContent.registration_url` is present: then keep `registration_url` in `auth_data` and omit `client_id`/`client_secret`. Otherwise ask the user for their `client_id` and `client_secret` (they'll need to register an OAuth app with the provider first). The manifest field is `registration_url`; never write `registration_endpoint` — it is ignored and users cannot authenticate.
 - **`auth_data.type: "header"`** → The catalogue shows the header keys with placeholder values (e.g. `"Authorization": "Bearer YOUR_API_KEY"`). Ask the user for the actual secret values.
 
 Use exactly ONE `auth_data` block — pick the one that matches the auth type.
@@ -135,7 +135,7 @@ auth_data:
   grant_type: authorization_code
   authorization_url: <from-oauth-metadata>
   token_url: <from-oauth-metadata>
-  registration_endpoint: <from-oauth-metadata>
+  registration_url: <formContent.registration_url>
   jwt_source: access_token
   scopes: [<from-oauth-metadata>]
 ```
@@ -156,7 +156,7 @@ auth_data:
 
 **If remote:**
 - Ask the user which auth type they want (no auth, OAuth 2.0, API Key/Header).
-- If OAuth 2.0: call `get_mcp_server_oauth_config` with the server URL to get metadata. If no `registration_endpoint` in the response, ask the user for `client_id` and `client_secret`.
+- If OAuth 2.0: call `get_mcp_server_oauth_config` with the server URL to get metadata. If `formContent.registration_url` is absent, ask the user for `client_id` and `client_secret`.
 - If header-based: ask user for header key/value.
 - Build the manifest same as Path B.
 
@@ -232,15 +232,17 @@ Get `controlPlaneUrl` from the session context. The UI supports creating MCP ser
 
 After creating an MCP server, users need its endpoint URL for integration. Construct it by:
 
-1. Call `list_gateway_installations` to get the actual gateway base URL.
-2. Append `/mcp/v1/` + the server's `name` + `/mcp` to that URL.
+1. Call `get_mcp_server` and take `proxyUrl` (`{{mcpProxyBaseURL}}/<tenant>/mcp/<server-name>/server`).
+2. Replace `{{mcpProxyBaseURL}}` with `manifest.url` of the `list_gateway_installations` entry where `isDefault: true` (else the first entry).
 3. Show the fully constructed URL to the user. Never show templates or placeholders.
 
-Example: if gateway base URL is `https://llm-gateway.example.com` and server name is `github-mcp`, the endpoint is `https://llm-gateway.example.com/mcp/v1/github-mcp/mcp`.
+Example: gateway URL `https://gateway.example.com`, tenant `acme`, server `github-mcp` → `https://gateway.example.com/acme/mcp/github-mcp/server`.
 
 ### Step 4: Validate and Apply
 
 Build the manifest as JSON → pass to `validate_manifest` → fix if needed → pass to `apply_manifest`.
+
+**Updating an existing server:** call `apply_manifest` with `force: false`. If it fails with "Following auth records … will be deleted", tell the user the change disconnects every user who has connected to this server (their tokens and personal keys are deleted). Retry with `force: true` only after they confirm.
 
 ### Checklist
 
@@ -248,7 +250,8 @@ Build the manifest as JSON → pass to `validate_manifest` → fix if needed →
 - [ ] Did I call `list_mcp_catalogue` to check if the server is TFY-managed or a known integration?
 - [ ] Did I call `get_manifest_json_schema` with the correct type?
 - [ ] Did I use the TFY-managed path if the server was in `tfyManaged`?
-- [ ] For OAuth2, did I call `get_mcp_server_oauth_config` and check if DCR is supported? If not, did I ask for `client_id`/`client_secret`?
+- [ ] For OAuth2, did I copy `formContent` from `get_mcp_server_oauth_config`, using `registration_url` (never `registration_endpoint`)? If there is no `registration_url`, did I ask for `client_id`/`client_secret`?
+- [ ] For an update, did I pass `force: false` and ask the user before retrying with `force: true`?
 - [ ] For header auth, did I ask the user for the actual secret values?
 - [ ] Did I add collaborators (current user as manager, team:everyone as access)?
 - [ ] Did I call `validate_manifest` before `apply_manifest`?

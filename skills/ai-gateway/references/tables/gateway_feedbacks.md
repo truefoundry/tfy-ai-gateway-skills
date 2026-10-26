@@ -7,22 +7,22 @@ description: Stores user feedback (ratings, comments) linked to trace spans.
 
 - Feedback is linked to traces via `TargetTraceId` and optionally to a specific span via `TargetSpanId`.
 - Always include time-range filters on `"TargetCreatedAt"` to avoid full table scans.
-- A feedback record can be soft-deleted — always filter with `"IsDeleted" = false` unless specifically querying deleted feedback.
+- Feedback rows are versioned: an update or delete writes a new row with the same `FeedbackId`. Always keep only the latest row per `FeedbackId` (`ROW_NUMBER() OVER (PARTITION BY "FeedbackId" ORDER BY "CreatedAt" DESC) = 1`), then filter `"IsDeleted" = false`. Never filter `IsDeleted` before deduplicating — counts and averages are otherwise wrong with no error.
 - Multiple feedbacks can exist for the same trace/span (e.g. different metrics like `rating`, `accuracy`, etc.).
 
 ## Schema
 
 ```
 FeedbackId: TEXT
-    Unique identifier for this feedback record.
+    Identifier of the feedback. Shared by all versions of the same feedback.
 TenantName: TEXT
     Tenant that owns this feedback record.
 TracingProjectId: TEXT
     Tracing project this feedback belongs to.
 CreatedAt: TIMESTAMPTZ
-    When the feedback was created (UTC).
+    When this version of the feedback was written (UTC).
 IsDeleted: BOOLEAN
-    Whether this feedback has been soft-deleted. Always filter with false unless querying deletions.
+    Whether this version marks the feedback as deleted. Only meaningful on the latest version per FeedbackId.
 TargetTraceId: TEXT
     TraceId of the trace this feedback is about. Join key to the traces table.
 TargetSpanId: TEXT
@@ -58,6 +58,14 @@ TargetCreatedBySubjectTeams: Array(Text), nullable
 ### Join traces with feedback (LEFT JOIN to include traces without feedback)
 
 ```sql
+WITH f AS (
+    SELECT * FROM (
+        SELECT *, ROW_NUMBER() OVER (PARTITION BY "FeedbackId" ORDER BY "CreatedAt" DESC) AS rn
+        FROM "default"."gateway_feedbacks"
+        WHERE "TargetCreatedAt" > now() - INTERVAL '7 days'
+    ) AS v
+    WHERE rn = 1 AND "IsDeleted" = false
+)
 SELECT
     t."TraceId",
     t."SpanId",
@@ -69,12 +77,11 @@ SELECT
     f."MetricValue",
     f."Comment",
     f."CreatedBySubjectSlug" AS "FeedbackBy",
-    f."CreatedAt" AS "FeedbackCreatedAt"
+    f."CreatedAt" AS "FeedbackUpdatedAt"
 FROM "default"."{tracesTable}" t
-LEFT JOIN "default"."gateway_feedbacks" f
+LEFT JOIN f
     ON f."TargetTraceId" = t."TraceId"
     AND f."TargetSpanId" = t."SpanId"
-    AND f."IsDeleted" = false
 WHERE t."Timestamp" > now() - INTERVAL '7 days'
 AND t."TfyCreatedBySubjectSlug" = '<subject-slug>'
 ORDER BY t."Timestamp" DESC
@@ -83,7 +90,6 @@ LIMIT 10
 
 ### Checklist
 
-- [ ] Did I filter `"IsDeleted" = false` to exclude soft-deleted feedback?
+- [ ] Did I deduplicate by `FeedbackId` (latest `CreatedAt`) before filtering `"IsDeleted" = false`?
 - [ ] When joining with traces, did I join on `"TargetTraceId"` and `"TargetSpanId"`?
 - [ ] Did I replace `{tracesTable}` with `tracesTable` from the session context?
-- [ ] When using LEFT JOIN, did I push `"IsDeleted"` into the JOIN condition (not WHERE)?

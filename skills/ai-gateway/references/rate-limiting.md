@@ -72,7 +72,7 @@ Rules are evaluated top to bottom. **Only the first matching rule is applied** â
 
 ## Creating/Updating Rate Limiting Rules (Write Flow)
 
-> **CRITICAL**: The manifest **MUST** have a top-level `name` field. This field is NOT in the JSON schema, but `apply_manifest` requires it. Without it you will get: `"Manifest does not have a name field"`. Get the `name` from the existing config.
+> Keep the top-level `name` from the existing config. This legacy config is a single document looked up by `type`, so `name` is not required, but keeping it is harmless.
 
 ### Phase 1: Get Schema and Existing Config
 

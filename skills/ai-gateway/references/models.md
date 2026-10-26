@@ -126,6 +126,7 @@ Call `list_provider_accounts` with `includeModelProviders: true` and check if a 
 5. Do NOT dump the full model list to the user — it can be very large. Ask the user which models they want to add (by name or type) and look them up in the `list_providers` response.
 6. **Naming rule**: For `realtime`, `audio_transcription`, `audio_translation`, `text_to_speech` modes, integration `name` MUST equal `model_id`. For all other modes, any descriptive name works.
 7. **Pricing rule:** Add `cost: metric: public_cost` to a model **only if** its `costs` entry for the target region has `input_cost_per_token`. Otherwise omit `cost` entirely. Never manually copy cost values — only add custom cost if the user provides their own pricing.
+8. **Model types rule:** set each integration's `model_types` from the model's `mode` in `list_providers`, plus any values in its `supportedModes`. Never default to `[chat]`: the gateway rejects calls whose type is not in `model_types` (for example, `/embeddings` on a `[chat]` model), so the model looks configured but fails every real call. Skip models whose `mode` is `unknown` or `unsupported`.
 
 ### Phase 4: Validate and Apply
 
@@ -147,14 +148,14 @@ integrations:
   - name: <integration-name>
     type: <integration/model/provider>
     model_id: <provider-model-id>
-    model_types: [chat]
+    model_types: [<mode from list_providers>]
     cost:
       metric: public_cost
   # Model without public pricing (costs entry has only region) — omit cost
   - name: <integration-name>
     type: <integration/model/provider>
     model_id: <provider-model-id>
-    model_types: [chat]
+    model_types: [<mode from list_providers>]
 ```
 
 ### Checklist
@@ -168,5 +169,6 @@ integrations:
 - [ ] For `realtime`/`audio_transcription`/`audio_translation`/`text_to_speech` modes, is the integration `name` set to exactly the `model_id`?
 - [ ] Did I check each model's `costs` entry for `input_cost_per_token` before adding `cost: metric: public_cost`? Omitted `cost` when absent?
 - [ ] Did every model I added come from the `list_providers` response (not from my own knowledge)?
+- [ ] Is each model's `model_types` taken from its `mode` (and `supportedModes`), not defaulted to `[chat]`?
 
 For more info: `search_docs` with "supported model providers", "model integrations".

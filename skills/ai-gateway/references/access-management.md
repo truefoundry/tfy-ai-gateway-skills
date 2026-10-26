@@ -45,7 +45,7 @@ Access to models users/teams is managed at the **provider account** level. You c
 - **Provider Account Manager**: Can modify settings, add/remove models, manage permissions for others.
 - **Provider Account User**: Can use all models in the account. Cannot change settings or permissions.
 
-Permissions can be granted to users, teams from collaborator section in the provider account manifest.
+Permissions can be granted to users, teams from collaborator section in the provider account manifest. The `collaborators` list replaces all current grants on apply: start from the account's current manifest and keep every existing entry.
 
 Tenant admins automatically have access to all models without needing explicit collaborator assignment.
 
@@ -72,7 +72,7 @@ Roles are assigned per user.
 There are two ways to grant access in TrueFoundry:
 
 1. **Custom role granted to the user** — for granting broad permissions across the entire tenant (e.g., "this user can create provider accounts and MCP servers"). Create a custom role with the permissions needed, then grant it to the user (see Giving Access to a User below).
-2. **Collaborators on the entity** — for granting access to a *specific* resource (e.g., "this user can manage this particular provider account"). Add the user or team as a collaborator in the entity's manifest, or add them to a team that already has access.
+2. **Collaborators on the entity** — for granting access to a *specific* resource (e.g., "this user can manage this particular provider account"). Prefer the resource's **Access Control** page in the UI, or add them to a team that already has access. If you edit `collaborators` in a manifest, start from the resource's current manifest and keep every existing entry: the list replaces all current collaborators, so anyone you leave out loses access. Subjects are `user:<email>` or `team:<name>`.
 
 When to use which:
 - Need to grant someone broad platform-level capabilities? → Custom role granted to the user
@@ -90,9 +90,10 @@ When creating custom roles, use the `{resource-type}:{ActionInCamelCase}` format
 
 ### Creating Custom Roles (Write Flow)
 
-#### Phase 1: Get Schema
+#### Phase 1: Get Schema and Check the Name
 
 1. Call `get_manifest_json_schema` with type `role`.
+2. Call `list_roles` with `roleName=<name>`. If a role with that name exists, show it and ask whether to update it or pick another name — applying a role under an existing name overwrites it for everyone who holds it. Never apply a role named `member`, `team-member` or `team-manager` unless the user explicitly wants to change that default for everyone.
 
 #### Phase 2: Determine Permissions
 

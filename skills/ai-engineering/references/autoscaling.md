@@ -24,7 +24,7 @@ Pause/resume is a **manual** third path — do not substitute it when the user a
 | User wants | Configure |
 |---|---|
 | More replicas under load | `autoscaling` min/max + metrics (CPU%, memory%, RPS, …) |
-| Idle → zero, wake on traffic | Auto-shutdown / scale-to-0 idle timeout (minutes) |
+| Idle → zero, wake on traffic | `auto_shutdown.wait_time` idle timeout, in **seconds** |
 | Stop billing until I come back | Pause application (manual) — only if they want manual control |
 | Async workers on queue depth | Async-service autoscaling metrics (NATS/queue — per schema) |
 
@@ -48,7 +48,7 @@ Rules:
 
 Docs: scale service to 0 / Elasti.
 
-- Configure **idle timeout** (e.g. 10–15 minutes with no requests).
+- Scale-to-0 is `auto_shutdown: {wait_time: <seconds>}`. The unit is **seconds**, not minutes (900 = 15 min, the default; max 604800). The docs and UI say minutes, so convert before writing — `wait_time: 15` scales to zero after 15 seconds.
 - Elasti handles **0 ↔ 1**; HPA handles **1 → N**. Both can coexist.
 - **Cold start**: next request waits for schedule + image pull + (for models) weight load. Say this explicitly for LLM services — cold start can be minutes.
 - Best suited for **dev / low-traffic** workloads. Prefer minReplicas=1 for latency-critical prod.
