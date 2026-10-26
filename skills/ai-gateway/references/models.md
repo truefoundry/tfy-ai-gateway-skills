@@ -81,7 +81,7 @@ Write one program that reads the saved `list_providers` file and writes the comp
 9. **Write** the manifest (template below) to a file. Print only a summary: count by model type, how many have `cost`, and each skipped model with why.
 ### Step 5 — validate in the sandbox, apply once
 
-Call `validate_manifest` from the sandbox with the file's JSON as `{"manifest": …}`; on errors, fix the program's rule, rebuild the file and validate again. Once it returns `valid: true`, call `apply_manifest` once, directly (it needs approval), with the same JSON. Print the minified file in parts of at most 20,000 characters (one `exec` each, one batch) and pass the joined parts unchanged. Never apply a partial list: `integrations` is the whole account. If the result is saved to a file, check it for errors with one `jq`. `validate_manifest` checks only the schema; pricing, naming and credential checks run at apply, so program steps 5 and 6 must be right first. If apply fails, fix the program's rule (not single entries) and rebuild.
+Call `validate_manifest` from the sandbox with the file's JSON as `{"manifest": …}`; on errors, fix the program's rule, rebuild the file and validate again. Once it returns `valid: true`, print the minified file in parts of at most 20,000 characters (one `exec` each, one batch), then call `apply_manifest` once, directly (never from the sandbox), with the joined parts unchanged. One call holds the whole manifest, even all of a provider's models: never split it across applies or apply a partial list, since `integrations` replaces the account's list. If the result is saved to a file, check it for errors with one `jq`. `validate_manifest` checks only the schema; pricing, naming and credential checks run at apply, so program steps 5 and 6 must be right first. If apply fails, fix the program's rule (not entries) and rebuild.
 
 Then show the UI link from `write-rules.md`.
 
@@ -119,5 +119,3 @@ integrations:
 - [ ] Are credentials in the schema's `auth_data` shape?
 - [ ] When updating, did I keep every integration and omit `collaborators`?
 - [ ] Was the manifest built by one program into a file, validated once and applied once?
-
-For more info: `search_docs` with "supported model providers", "model integrations".
