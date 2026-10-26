@@ -34,7 +34,7 @@ Policies come in two kinds, and they are written differently:
 | Legacy singleton | `gateway-rate-limiting-config`, `gateway-budget-config` | One document per tenant, identified by `type`. Call `get_gateway_config` right before building, add your rule to its `rules`, and send the whole list back. Never rebuild the list from memory or a summary — a missing rule is deleted. `name` is optional and ignored. |
 | Named policy | `gateway-guardrails-config`, `tenant-rate-limit-config/model`, `tenant-rate-limit-config/mcp`, `tenant-budget-config`, `team-budget-config` | One manifest per policy, identified by its required `name`. Applying a new name adds a policy and touches nothing else. Applying an existing name replaces that policy. |
 
-- Existing named policies: budgets `list_gateway_budgets`; V2 rate limits `list_rate_limit_configs`; guardrail policies `list_gateway_config_instances` with `type: gateway-guardrails-config`. `get_gateway_config` returns nothing for these types.
+- Existing named policies: budgets `list_gateway_budgets`; guardrail policies and V2 rate limits `list_gateway_config_instances` with the policy `type` (one call per type). `get_gateway_config` returns nothing for these types.
 - **Never send a `rules` array in a `gateway-guardrails-config` manifest.** The platform treats it as the legacy combined format and deletes every guardrails policy not in the array.
 
 ## Lists that replace everything

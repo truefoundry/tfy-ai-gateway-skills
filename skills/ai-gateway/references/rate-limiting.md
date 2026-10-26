@@ -30,7 +30,7 @@ createdBySubject: { ... }
 updatedAt: ...
 ```
 
-A null or empty result means there are no V1 rules, not that there are no rate limits: V2 limits come from `list_rate_limit_configs` (see `rate-limiting-v2.md`). Report both.
+A null or empty result means there are no V1 rules, not that there are no rate limits: V2 limits come from `list_gateway_config_instances` (see `rate-limiting-v2.md`). Report both.
 
 ## Rule semantics
 

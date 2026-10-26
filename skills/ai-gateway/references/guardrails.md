@@ -39,7 +39,7 @@ data:
         manifest: { ... }
 ```
 
-**Policies:** each policy is its own named manifest. List them with `list_gateway_config_instances` and `type: gateway-guardrails-config`; each row's `manifest` is the full policy. `get_gateway_config` returns nothing for this type, so never use it to decide which policies exist. If `list_gateway_config_instances` is not in your tool list, ask the user for the policy's exact `name` and current YAML (UI: `{controlPlaneUrl}/llm-gateway/policies/guardrails` → Edit as YAML).
+**Policies:** each policy is its own named manifest. List them with `list_gateway_config_instances` and `type: gateway-guardrails-config`; each `data[]` row's `manifest` is the full policy. `get_gateway_config` returns nothing for this type, so never use it to decide which policies exist. If `list_gateway_config_instances` is not in your tool list, ask the user for the policy's exact `name` and current YAML (UI: `{controlPlaneUrl}/llm-gateway/policies/guardrails` → Edit as YAML).
 
 ## Create or update a guardrail group
 

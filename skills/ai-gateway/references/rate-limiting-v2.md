@@ -7,7 +7,7 @@ description: Rate Limiting V2 — named, independent rate limits on LLM requests
 
 V2 is the default for every new rate limit. V1 (`gateway-rate-limiting-config`) is deprecated; read `rate-limiting.md` only to read, disable or migrate existing V1 rules.
 
-List V2 limits with `list_rate_limit_configs` (both families). Write them with the steps in `write-rules.md`; read it in the same batch. `get_gateway_config` returns nothing for V2 types.
+List V2 limits with `list_gateway_config_instances`, once per family (`type: tenant-rate-limit-config/model`, `type: tenant-rate-limit-config/mcp`) in one batch. Write them with the steps in `write-rules.md`; read it in the same batch. `get_gateway_config` returns nothing for V2 types.
 
 ## How V2 behaves
 
@@ -64,13 +64,13 @@ There is no per-agent partition. These combinations are rejected with 400 at app
 ## Steps
 
 1. **Session context** — `controlPlaneUrl` is in your instructions; call `get_session_context` only if it is missing.
-2. **One batch:** `list_rate_limit_configs`; `get_gateway_config` with `type: gateway-rate-limiting-config` (V1); `get_manifest_json_schema` for the family when writing; any metadata-key discovery query. Each `list_rate_limit_configs` row has `type` and the full `manifest` (with `name`). For "what rate limits exist", report V1 rules and V2 limits together.
+2. **One batch:** `list_gateway_config_instances` for both families; `get_gateway_config` with `type: gateway-rate-limiting-config` (V1); `get_manifest_json_schema` for the family when writing; any metadata-key discovery query. Each `data[]` row has `type` and the full `manifest` (with `name`). For "what rate limits exist", report V1 rules and V2 limits together.
 3. **Create:** pick a `name` not already used in that family. **Update:** start from that limit's `manifest` in the list and change only what was asked; applying an existing `name` replaces the whole limit. Build from the template below; `mode` and `log_request_body_on_block` have defaults (`enforce`, `false`) but writing them out makes the intent clear.
 4. **Validate, then apply** (`write-rules.md` → Steps). Writes need tenant admin.
 5. **Delete:** after the user confirms, `delete_manifest` with `{"manifest": {"type": <family>, "name": <name>}}`.
 6. **Afterwards:** a blocked request carries `x-tfy-applied-rules` naming the limit; an `audit` limit shows `"audit_mode":true` there.
 
-If `list_rate_limit_configs` is not in your tool list, or apply returns `Invalid type tenant-rate-limit-config` / `Unknown manifest type`, this platform predates V2 support in the tools. Then show the YAML and tell the user: `{controlPlaneUrl}/llm-gateway/policies/rate-limiting-v2` → **+ Add Rule** → **Model** or **MCP** → **Configure** → **Apply as YAML**; to change one, open its row on that page. Ask them to paste a limit's current YAML before you edit it, and don't claim it was applied.
+If `list_gateway_config_instances` is not in your tool list, or apply returns `Invalid type tenant-rate-limit-config` / `Unknown manifest type`, this platform predates V2 support in the tools. Then show the YAML and tell the user: `{controlPlaneUrl}/llm-gateway/policies/rate-limiting-v2` → **+ Add Rule** → **Model** or **MCP** → **Configure** → **Apply as YAML**; to change one, open its row on that page. Ask them to paste a limit's current YAML before you edit it, and don't claim it was applied.
 
 Rules that hold on edit:
 - `applies_to.type` (and the `metadata` key) can't change after creation (403). To re-partition, create a new limit with a new name and delete the old one.
@@ -124,7 +124,7 @@ log_request_body_on_block: false
 ## Checklist
 
 - [ ] Right family (`/model` for LLM traffic, `/mcp` for tool calls) and limit keys from that family?
-- [ ] Create: new `name` (not in `list_rate_limit_configs`) matching the pattern? Update: started from the listed `manifest`?
+- [ ] Create: new `name` (not already listed for that family) matching the pattern? Update: started from the listed `manifest`?
 - [ ] `when` uses the nested `in`/`not_in` form with bare values?
 - [ ] `applies_to.type` compatible with the subject filters, and overrides only reuse base periods?
 - [ ] Validated until `valid: true`, then applied once?
