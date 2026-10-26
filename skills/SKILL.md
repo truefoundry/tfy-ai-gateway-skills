@@ -32,11 +32,11 @@ Read an entity's file before any write or data query for it — the files hold t
 Every create, update and delete goes through a manifest tool, which asks the user for approval before it runs.
 
 - `validate_manifest`, `apply_manifest` and `delete_manifest` take `{"manifest": {...}}`. Reference files show YAML for readability; send JSON.
-- Validate, wait for `valid: true`, then apply — never in the same batch, because a parallel apply runs before validation can stop it.
+- Build the manifest as JSON in a file in the sandbox (with a program for anything large), call `validate_manifest` from the sandbox on that file, and fix and re-validate until `valid: true`. Then call `apply_manifest` once, directly, with the validated JSON — never from the sandbox and never in the same batch as validation.
 - `delete_manifest` needs `type` and `name`, plus `workspace_fqn` for applications and `cluster_fqn` for workspaces. Legacy singletons need only `type`.
 - Applying an existing identity **replaces the whole entity**, and several list fields replace everything on update (collaborators, permissions, team members, integrations, rules). Change a live entity by fetching its current manifest and editing it, never by rebuilding it.
 - If validation fails, fix and re-validate. If apply fails, show the error; if it persists or is unclear, offer a ticket. Don't silently retry or give up.
-- Call write tools directly, not from the sandbox. Never run `tfy apply` — it is the same write without the approval step. Deploying from local source is the one exception: `tfy deploy` with `build_source: local`.
+- Call `apply_manifest`, `delete_manifest` and every other write tool directly, not from the sandbox, so they go through approval. Never run `tfy apply` — it is the same write without the approval step. Deploying from local source is the one exception: `tfy deploy` with `build_source: local`.
 
 ## Ambiguous references
 

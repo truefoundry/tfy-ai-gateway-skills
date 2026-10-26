@@ -71,9 +71,9 @@ Write one program that reads the saved `list_providers` file and writes the comp
 
 Show the user the summary, not the full list.
 
-### Step 4 — validate once, apply once
+### Step 4 — validate in the sandbox, apply once
 
-Pass the JSON from the file as `{"manifest": …}` to `validate_manifest`. Once it returns `valid: true`, pass the same JSON to `apply_manifest` in a separate call. `validate_manifest` checks only the schema; the pricing, naming and credential checks run at apply, which is why steps 5 and 6 must be right before you apply. If apply fails, fix the program's rule (not individual entries), rebuild the file and validate again.
+Call `validate_manifest` from the sandbox with the file's JSON as `{"manifest": …}`; on errors, fix the program's rule, rebuild the file and validate again. Once it returns `valid: true`, call `apply_manifest` once, directly (not from the sandbox — it needs user approval), with the same JSON. `validate_manifest` checks only the schema; the pricing, naming and credential checks run at apply, which is why steps 5 and 6 must be right before you apply. If apply fails, fix the program's rule (not individual entries), rebuild the file and validate again.
 
 Then show the UI link from `write-rules.md`.
 
