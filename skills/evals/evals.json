@@ -338,13 +338,12 @@
     {
       "id": 28,
       "prompt": "Give the virtual account checkout-bot access to the anthropic-main provider account too.",
-      "expected_output": "Finds the VA with list_virtual_accounts nameSearchQuery, fetches it with get_virtual_account by id, confirms the final full permissions list (existing grants plus provider-account-access on anthropic-main) with the user, and applies with ownedBy and expiration_date unchanged.",
+      "expected_output": "Finds the VA with list_virtual_accounts nameSearchQuery; does not apply a VA manifest with a permissions list (the stored list can be stale and would revoke grants added in the UI). Sends the user to the VA's Access Control page, or for a tenant admin applies a role-binding granting provider-account-access on anthropic-main to the VA.",
       "files": [],
       "expectations": [
-        "Calls get_virtual_account with the VA id, not its name",
-        "Sends every existing permission plus the new one; never a list with only the new grant",
-        "Keeps ownedBy and expiration_date exactly as returned and does not set token_type",
-        "Shows the final permissions list to the user before apply_manifest"
+        "Does not call apply_manifest on the virtual account with permissions",
+        "Routes to Access Control or a role-binding",
+        "Uses provider-account-access on anthropic-main"
       ]
     },
     {

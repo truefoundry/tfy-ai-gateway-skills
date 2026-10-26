@@ -45,7 +45,7 @@ On an update, these fields replace the entity's entire current value. Anything y
 | Field | Entity | Safer path |
 | --- | --- | --- |
 | `collaborators` | Provider accounts, virtual models, MCP servers, guardrail groups | On updates, remove it from the fetched manifest (see Collaborators) |
-| `permissions` | Virtual account | Omit it unless changing permissions; else send `get_virtual_account`'s full list with one change |
+| `permissions` | Virtual account | Omit it on updates; change access on the VA's Access Control page |
 | `members`, `managers` | Team | `add_team_members` / `remove_team_members` / `add_team_managers` / `remove_team_managers` |
 | `integrations` | Guardrail group, provider account | Start from `list_provider_accounts`' current manifest; a dropped integration is deleted with its credentials |
 | `rules` | Legacy singleton configs | `get_gateway_config` immediately before writing |

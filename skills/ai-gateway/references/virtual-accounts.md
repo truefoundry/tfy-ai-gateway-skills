@@ -29,10 +29,9 @@ Ask in one question, because the first two cannot be changed after creation:
 
 ## Updating a virtual account
 
-**A `permissions` list replaces all of the VA's existing permissions.** Listing only the new permission revokes every other one.
+**Omit `permissions` on every update**; current access stays. A `permissions` list replaces all of the VA's grants, including those added on its Access Control page, and `get_virtual_account` returns the list last applied, not current access, so re-sending it can revoke grants.
 
-- To change other fields, omit `permissions` entirely; current access stays.
-- To add or remove one permission, call `get_virtual_account` (by `id`) right before editing and send its full current `manifest.permissions` with only that change, after confirming the final list with the user.
+- To add or remove a permission, send the user to the VA's **Access Control** in `{controlPlaneUrl}/access-management?tab=service-accounts`; tenant admins can also add one with a `role-binding` (`access-management.md`).
 - Keep `ownedBy` and `expiration_date` exactly as returned.
 - If the user wants to remove the VA's last permission, suggest deleting the VA instead (`delete_virtual_account`), because an empty list is rejected.
 
@@ -93,7 +92,7 @@ Do not set `token_type`. It overrides the tenant default and cannot be changed a
 
 - [ ] Do I have the `virtual-account` schema from `get_manifest_json_schema` in the conversation? If not, call it again.
 - [ ] Did I ask for the owner team and expiration date before creating?
-- [ ] Did I avoid sending an empty `permissions` list, and on an update either omit `permissions` or send the full current list with one change?
+- [ ] Did I avoid sending an empty `permissions` list, and omit `permissions` on every update?
 - [ ] Did I leave out `token_type`?
 - [ ] After creation, did I send the user to the UI to get the token?
 
