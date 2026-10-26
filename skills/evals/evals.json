@@ -218,9 +218,12 @@
     {
       "id": 18,
       "prompt": "Create an OpenAI provider account called openai-all with all models. My API key is in tfy-secret://acme:llm-keys:openai.",
-      "expected_output": "The agent reads models.md and write-rules.md, calls list_provider_accounts, get_manifest_json_schema and list_providers in one batch, and builds the manifest with one sandbox program into a file. It validates once and applies once without a 400. Models without a price field have no cost, and audio or realtime models are named after model_id.",
+      "expected_output": "The agent reads models.md and write-rules.md, calls list_provider_accounts, get_manifest_json_schema and list_providers (providerType provider-account/openai) in one batch, and builds the manifest with one sandbox program into a file. It validates from the sandbox on that file once and applies once without a 400. Models without a price field have no cost, and audio or realtime models are named after model_id.",
       "files": [],
       "expectations": [
+        "Reads ai-gateway/references/models.md first, not using-models-from-code.md",
+        "Calls list_providers with providerType provider-account/openai",
+        "validate_manifest is called from the sandbox on the generated file, not with the manifest inline",
         "No apply_manifest 400 for public cost",
         "Exactly one validate_manifest and one apply_manifest call",
         "model_types come from mode/supportedModes and are never defaulted to [chat]; no unknown/unsupported",
