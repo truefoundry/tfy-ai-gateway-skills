@@ -32,7 +32,7 @@ If many apps fail the same way at once, jump to `failure-modes/cluster-capacity.
 
 ## Phase 2: Read the application state and route
 
-Issue in one message: `get_application_state` (application `id`), `list_application_events` (with a `startTs` covering the problem) and `list_alerts`. Both exist only when Autopilot is enabled; if they are not listed, skip them and, when events matter, give the user `kubectl get events -n <namespace> --sort-by=.lastTimestamp`. `get_application_state` is the entry point: do not start from logs, because whether logs exist, and which container holds them, is what it establishes. It also returns `clusterId` and `namespace` (the workspace name); call `list_workspaces` only if it is `null`.
+Issue in one message: `get_application_state` (application `id`), `list_application_events` (with a `startTs` covering the problem) and `list_alerts`. Both are Autopilot-only; if not listed, skip them and give the user `kubectl get events -n <namespace>` when events matter. `get_application_state` is the entry point: do not start from logs, because whether logs exist, and which container holds them, is what it establishes. It also returns `clusterId` and `namespace` (the workspace name); call `list_workspaces` only if it is `null`.
 
 Per pod read `status`, `node`, `restarts`, `version` and the `conditions` (`type`, `status`, `reason`, `message`); per container `state`, `reason`, `exitCode` and **`lastState`** — the attempt before the last restart, where `OOMKilled` and exit 137 show while the current attempt looks fine. Trap: pod `status` is `Running` only when Ready, so a crashlooping pod also shows `Pending`.
 
