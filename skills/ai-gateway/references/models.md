@@ -51,29 +51,40 @@ From the schema, extract with one `jq`:
 
 **Region.** If the schema has `region`, collect the distinct `costs[].region` values of this provider's models, keep only values that are also in the schema's `region` enum, and ask the user to choose. `*` means "default price for any region"; never offer it as a region. Skip this if the schema has no `region`.
 
-### Step 3 — build the manifest in the sandbox with one program
+### Step 3 — resolve the model selection
 
-Write one program that reads the saved `list_providers` file and writes the complete manifest as JSON to a file. Do not build the integration list by hand or inline; for a large provider it is over a hundred objects.
+Before writing the program, turn the user's answer into an exact selection, with one `jq` over the saved `list_providers` file:
 
-**Inputs:** the provider `type`; the integration `type` from Step 2; the account `name`; the chosen region or `deployment_type`; the model selection; `auth_data`; collaborators (from `write-rules.md`); and, when updating, the account's current manifest from `list_provider_accounts`.
+- **"All"** or **modes** ("all chat and embedding models"): nothing to resolve; the program selects them.
+- **Named models:** match each name to a catalogue key (`model_id`): an exact key first, else keys containing the name, ignoring case. One match: use it. Several: ask the user to pick (show at most 10). None: the model is not in the catalogue. Ask for its exact `model_id` and model types, and add it without `cost` (public cost exists only for catalogue models; any other gets a 400).
 
-**Program:**
+### Step 4 — build the manifest in the sandbox with one program
 
-1. Select the provider: `data[]` where `type` equals the provider type. Models are `integrations[0].metadata`, keyed by `model_id`.
-2. For each model, compute `model_types`: `mode` plus every value in `supportedModes`, de-duplicated, keeping only `chat`, `completion`, `embedding`, `realtime`, `rerank`, `audio_transcription`, `audio_translation`, `text_to_speech`, `moderation`, `image`, `responses`, `ocr`, `video`, `decision`. Drop `unknown` and `unsupported`. If nothing is left, skip the model. Never default to `[chat]`: the gateway rejects calls whose type is not in `model_types` (for example `/embeddings` on a `[chat]` model), so the model looks configured but fails every real call.
-3. Skip models whose `status` is `retired`, and models outside the user's selection (by name or by `model_types`).
-4. Region filter (accounts with `region`): keep only models with a `costs` entry whose `region` is the chosen region or `*`.
-5. Name: `model_id` with every `/` and `:` replaced by `-` (for example `openai/tts-1:v2` → `openai-tts-1-v2`). For `realtime`, `text_to_speech`, `audio_transcription` and `audio_translation` models this exact name is required, and `apply_manifest` rejects any other (the audio check is skipped on `aws-bedrock` and `aws-bedrock-mantle` accounts; the realtime check applies everywhere). The name must match `^[a-zA-Z](?:[a-zA-Z0-9\-._]{0,62}[a-zA-Z0-9])$`; for other models you may replace remaining invalid characters with `-`. Skip names that still fail, and duplicates (integration names must be unique in the account).
-6. **Pricing rule** — decides `cost`, and is what returns a 400 for every model it gets wrong. Pick the model's cost entry: the one whose `region` equals the target (Bedrock, Bedrock Mantle and Vertex: the chosen `region`; Azure OpenAI and Microsoft Foundry: the `deployment_type` value `global`, `datazone_us` or `datazone_eu`, with `standard` meaning `*`); if there is none, the `region: "*"` entry; for providers without a region, the `*` entry or else any entry. Add `cost: {metric: public_cost}` only if that entry exists and has at least one key besides `region` (for example `input_cost_per_token`, `input_cost_per_character`, `input_cost_per_second`, `input_cost_per_image`, `tiered_pricing`). Otherwise omit `cost`. Never copy price values; add a custom cost only if the user gives their own pricing.
-7. Each integration is `{name, type, model_id, model_types}` plus `cost` when step 6 allows it, plus any field the schema requires on the integration (Azure OpenAI: `api_version`). For Azure OpenAI and Microsoft Foundry, `model_id` is the user's deployment name, so ask for the deployments rather than taking "all"; set `deployment_type`, and `foundation_model` to the catalogue key (pricing is looked up by `foundation_model`, else `model_id`).
-8. When updating, start from the current manifest's `integrations` and append only models whose name is not already there. **`integrations` replaces the whole list: a dropped integration is deleted.**
-9. Write the manifest (template below) to a file. Print only a summary: number of integrations by model type, how many have `cost`, and each skipped model with its reason.
+Write one program that reads the saved `list_providers` file and writes the complete manifest as JSON to a file. Never build the integration list by hand or inline.
+
+**Inputs:** the provider `type`; the integration `type` from Step 2; the account `name`; the region or `deployment_type`; the selection from Step 3; `auth_data`; collaborators (from `write-rules.md`); when updating, the current manifest from `list_provider_accounts`.
+
+**Program**, in this order:
+
+1. **Catalogue:** the `data[]` entry whose `type` is the provider type; models are `integrations[0].metadata`, keyed by `model_id`.
+2. **Select:** for "all", every model whose `status` is not `retired`; for modes, the same, kept only if `model_types` (next step) include a chosen mode; for names, the keys from Step 3, plus any non-catalogue model with the user's `model_id` and types.
+3. **`model_types`:** `mode` plus every value in `supportedModes`, de-duplicated, keeping only `chat`, `completion`, `embedding`, `realtime`, `rerank`, `audio_transcription`, `audio_translation`, `text_to_speech`, `moderation`, `image`, `responses`, `ocr`, `video`, `decision`. Drop `unknown` and `unsupported`; if nothing is left, skip the model. Never default to `[chat]`: the gateway rejects calls whose type is not in `model_types` (for example `/embeddings` on a `[chat]` model).
+4. **Region filter** (accounts with `region`): for "all" and modes, keep only models with a `costs` entry whose `region` is the chosen region or `*`. A named model without one is not priced there: tell the user, and add it without `cost` only if they confirm.
+5. **Name:** `model_id` with every `/` and `:` replaced by `-` (`openai/tts-1:v2` → `openai-tts-1-v2`). For `realtime`, `text_to_speech`, `audio_transcription` and `audio_translation` models this exact name is required and `apply_manifest` rejects any other (the audio check is skipped on `aws-bedrock` and `aws-bedrock-mantle`; the realtime check applies everywhere). The name must match `^[a-zA-Z](?:[a-zA-Z0-9\-._]{0,62}[a-zA-Z0-9])$`; for other models you may replace remaining invalid characters with `-`. Skip names that still fail, and duplicates.
+6. **Cost** — decide for each integration. A wrong `public_cost` makes `apply_manifest` return a 400 listing every bad model.
+   - No `cost` if the integration type is `custom-endpoint` or `virtual` (no `cost` field), or the model is not in the catalogue.
+   - Otherwise pick the cost entry: the one whose `region` is the target (Bedrock, Bedrock Mantle, Vertex: the chosen `region`; Azure OpenAI and Microsoft Foundry: `deployment_type` `global`, `datazone_us` or `datazone_eu`, with `standard` meaning `*`), else the `region: "*"` entry. Providers without a region: the `*` entry.
+   - Add `cost: {metric: public_cost}` only if that entry exists and has a key besides `region` (`input_cost_per_token`, `input_cost_per_character`, `input_cost_per_second`, `tiered_pricing`, …). Otherwise omit `cost`.
+   - Never copy price values. If the user gives their own pricing, use the matching private metric from the schema instead of `public_cost`.
+7. **Integration:** `{name, type, model_id, model_types}`, plus `cost` from step 6, plus any field the schema requires (Azure OpenAI: `api_version`). For Azure OpenAI and Microsoft Foundry, `model_id` is the user's deployment name, so ask for the deployments rather than taking "all"; set `deployment_type`, and `foundation_model` to the catalogue key (pricing is looked up by `foundation_model`, else `model_id`).
+8. **Update:** start from the current `integrations` and append only names not already there. **`integrations` replaces the whole list: a dropped integration is deleted.**
+9. **Write** the manifest (template below) to a file. Print only a summary: integrations by model type, how many have `cost`, and each skipped model with its reason.
 
 Show the user the summary, not the full list.
 
-### Step 4 — validate in the sandbox, apply once
+### Step 5 — validate in the sandbox, apply once
 
-Call `validate_manifest` from the sandbox with the file's JSON as `{"manifest": …}`; on errors, fix the program's rule, rebuild the file and validate again. Once it returns `valid: true`, call `apply_manifest` once, directly (not from the sandbox — it needs user approval), with the same JSON. `validate_manifest` checks only the schema; the pricing, naming and credential checks run at apply, which is why steps 5 and 6 must be right before you apply. If apply fails, fix the program's rule (not individual entries), rebuild the file and validate again.
+Call `validate_manifest` from the sandbox with the file's JSON as `{"manifest": …}`; on errors, fix the program's rule, rebuild the file and validate again. Once it returns `valid: true`, call `apply_manifest` once, directly (it needs approval), with the same JSON. `validate_manifest` checks only the schema; the pricing, naming and credential checks run at apply, which is why program steps 5 and 6 must be right before you apply. If apply fails, fix the program's rule (not single entries) and rebuild.
 
 Then show the UI link from `write-rules.md`.
 

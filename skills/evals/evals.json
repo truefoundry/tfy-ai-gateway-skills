@@ -501,6 +501,32 @@
         "Passes a pod filter to get_logs",
         "Does not invent a pod name"
       ]
+    },
+    {
+      "id": 42,
+      "prompt": "Add gpt-4o, text-embedding-3-small and my fine-tune ft:gpt-4o-mini:acme::abc123 to my OpenAI account `openai-main`.",
+      "expected_output": "Fetches the account, schema and catalogue in one batch; resolves the two catalogue models by exact key; finds no catalogue entry for the fine-tune and asks for its model types; builds the manifest with a sandbox program that keeps every existing integration, adds public_cost only to the catalogue models with a price entry, and omits cost on the fine-tune; validates, then applies once.",
+      "files": [],
+      "expectations": [
+        "Resolves named models against the list_providers catalogue",
+        "Asks for model types of the non-catalogue model instead of defaulting to chat",
+        "Omits cost on the non-catalogue model",
+        "Keeps existing integrations",
+        "Applies once, directly"
+      ]
+    },
+    {
+      "id": 43,
+      "prompt": "Create an AWS Bedrock account `bedrock-eu` in eu-west-1 with all models.",
+      "expected_output": "Asks for auth method and secret; offers regions from costs[].region that are in the schema enum (never *); a sandbox program keeps only non-retired models with a cost entry for eu-west-1 or *, sets public_cost only when that entry has a price key, uses the schema integration type integration/model/bedrock; validates from the sandbox and applies once directly.",
+      "files": [],
+      "expectations": [
+        "Integration type is integration/model/bedrock",
+        "Filters models by the chosen region",
+        "public_cost only where a price entry exists for the region or *",
+        "Builds the manifest with a program, not inline",
+        "Validates from the sandbox, applies once directly"
+      ]
     }
   ]
 }
