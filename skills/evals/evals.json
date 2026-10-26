@@ -613,14 +613,15 @@
     },
     {
       "id": 51,
-      "prompt": "I want to add an OpenAI account named hello-openai with API key sk-test-123.",
-      "expected_output": "Reads models.md and write-rules.md as separate reads, asks which models to add instead of defaulting to all, uses the given key as auth_data.api_key without looking for a way to create a secret, then builds, validates and applies the full manifest once.",
+      "prompt": "I want to add an OpenAI account named hello-openai with all models and API key sk-123456.",
+      "expected_output": "Reads models.md and write-rules.md as separate reads, uses the given key as auth_data.api_key without looking for a way to create a secret, builds every non-retired catalogue model into a file, validates it from the sandbox, reads the minified file in parts in one batch and calls apply_manifest once with the full list.",
       "files": [],
       "expectations": [
         "Reads models.md and write-rules.md with one read per file",
-        "Asks which models to add before building the manifest",
         "Uses the given key in auth_data without searching for how to create a secret",
-        "Calls apply_manifest once with every selected integration, never a partial list"
+        "Does not ask which models; the user said all",
+        "Reads the minified manifest in parts of at most 20,000 characters in one batch",
+        "Calls apply_manifest once with every integration, never a partial list"
       ]
     }
   ]
