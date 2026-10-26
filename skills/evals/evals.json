@@ -610,6 +610,18 @@
         "Answers only from catalogue keys, never from memory",
         "Does not dump the whole catalogue"
       ]
+    },
+    {
+      "id": 51,
+      "prompt": "I want to add an OpenAI account named hello-openai with API key sk-test-123.",
+      "expected_output": "Reads models.md and write-rules.md as separate reads, asks which models to add instead of defaulting to all, uses the given key as auth_data.api_key without looking for a way to create a secret, then builds, validates and applies the full manifest once.",
+      "files": [],
+      "expectations": [
+        "Reads models.md and write-rules.md with one read per file",
+        "Asks which models to add before building the manifest",
+        "Uses the given key in auth_data without searching for how to create a secret",
+        "Calls apply_manifest once with every selected integration, never a partial list"
+      ]
     }
   ]
 }
