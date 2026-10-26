@@ -36,7 +36,7 @@ Reuse the Step 1 `list_provider_accounts` response if it is still in the convers
 
 ### Step 3 — build, validate, apply
 
-Build the manifest from the template. Validate with `validate_manifest`; once it returns `valid: true`, apply with `apply_manifest` in a separate call. Updating a group sends its whole `integrations` list: keep every existing virtual model and collaborator.
+Build the manifest from the template. Validate with `validate_manifest`; once it returns `valid: true`, apply with `apply_manifest` in a separate call. Updating a group sends its whole `integrations` list: keep every existing virtual model, and delete `collaborators` from the fetched manifest (`write-rules.md` → Collaborators).
 
 ### Field rules
 
@@ -114,6 +114,6 @@ Optional fields: on the virtual model, `slug` and `alias[]`. On `routing_config`
 - [ ] Does every target support every `model_type` set on the virtual model?
 - [ ] For audio `model_types`, are all targets from the same provider?
 - [ ] Complexity-based: does every tier have a target, with no model in two tiers?
-- [ ] When updating, did I keep every existing virtual model and collaborator?
+- [ ] When updating, did I keep every existing virtual model and omit `collaborators`?
 
 For more info: `search_docs` with "virtual models", "weight based routing", "latency based routing", "model fallback".

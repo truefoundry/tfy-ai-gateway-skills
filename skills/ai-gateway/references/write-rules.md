@@ -44,7 +44,7 @@ On an update, these fields replace the entity's entire current value. Anything y
 
 | Field | Entity | Safer path |
 | --- | --- | --- |
-| `collaborators` | Provider accounts, virtual models, MCP servers, guardrail groups | Keep every existing entry |
+| `collaborators` | Provider accounts, virtual models, MCP servers, guardrail groups | On updates, remove it from the fetched manifest (see Collaborators) |
 | `permissions` | Virtual account | Omit it unless changing permissions; else send `get_virtual_account`'s full list with one change |
 | `members`, `managers` | Team | `add_team_members` / `remove_team_members` / `add_team_managers` / `remove_team_managers` |
 | `integrations` | Guardrail group, provider account | Start from `list_provider_accounts`' current manifest; a dropped integration is deleted with its credentials |
@@ -55,7 +55,13 @@ Updating an MCP server whose auth changed deletes every user's stored tokens. Pa
 
 ## Collaborators
 
-Every provider account, virtual model, guardrail group and MCP server needs collaborators, or other users cannot see it:
+Access is stored as grants, separately from the manifest; `collaborators` is only one way to write them.
+
+- **Omitted:** existing grants are left untouched. **`[]`** removes them all.
+- **Present:** replaces every grant on the resource made by a manifest or on its **Access Control** page. Role-binding grants are kept.
+- A fetched manifest's `collaborators` is the list last applied, not current access: grants changed later on the Access Control page are not written back, so re-sending it revokes them. No tool lists a resource's current grants.
+
+**On create**, include collaborators, or other users cannot see the resource (the creator becomes manager automatically):
 
 - The current user as **manager**: `user:<email>` from the session context (if the session has no `email`, use `virtualaccount:<subjectSlug>`).
 - `team:everyone` as **access**, unless the user gives their own list (still include the current user as manager).
@@ -67,6 +73,8 @@ Every provider account, virtual model, guardrail group and MCP server needs coll
 | MCP server | `mcp-server-manager` | `mcp-server-user` |
 
 These role IDs are platform constants — use the table instead of looking them up. MCP servers also have `mcp-server-approver`. MCP server group provider accounts accept only `provider-account-manager`; do not add `team:everyone` there.
+
+**On update**, delete `collaborators` from the fetched manifest before applying, and on provider accounts also each integration's `authorized_subjects` (per-model access, same rules). **To change access** on an existing resource, send the user to its Access Control page (tenant admins can also use a `role-binding`, see `access-management.md`); do not write `collaborators`.
 
 ## After applying: UI links
 

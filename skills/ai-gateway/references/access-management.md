@@ -52,7 +52,7 @@ Default path: send the user to the resource's three-dot menu → **Access Contro
 - **Manager** (`provider-account-manager`) — can change settings, add or remove models, and manage access.
 - **User** (`provider-account-access`) — can use every model in the account; cannot change settings or access.
 
-**Editing `collaborators` in a manifest replaces all current grants** — anyone left out loses access. If you do edit it, start from the resource's current manifest and keep every existing entry; see `write-rules.md` ("Lists that replace everything", "Collaborators"). Subjects are `user:<email>` or `team:<name>`.
+Do not change access by editing `collaborators` in a manifest: it replaces every grant made by a manifest or on the Access Control page, and the fetched manifest's copy can be stale, so access granted since is silently revoked. No tool lists current grants. See `write-rules.md` → Collaborators.
 
 ### Role bindings (tenant admins)
 

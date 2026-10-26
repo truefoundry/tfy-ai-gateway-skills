@@ -196,7 +196,7 @@ Users need the endpoint to connect clients. Build it like this:
 - [ ] For OpenAPI, did I use `openapi_spec_source` and `enable_all_tools` or `tool_settings`?
 - [ ] For virtual, did I use `servers[].name` (not `id`)?
 - [ ] For an update, did I pass `force: false` and ask before retrying with `force: true`?
-- [ ] Did I add collaborators per `write-rules.md`?
+- [ ] Collaborators on create per `write-rules.md`, and omitted on updates?
 - [ ] Did I show the endpoint URL with the real gateway URL?
 
 For more info: `search_docs` with "mcp gateway", "mcp server registry", "virtual mcp server".

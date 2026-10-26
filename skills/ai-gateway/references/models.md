@@ -44,7 +44,7 @@ If matching accounts exist, ask whether to update one or create a new one with a
 
 From the schema, extract with one `jq`:
 
-- The integration `type` constant under `integrations` items. Take it from the schema, not from `list_providers` (which says `integration/model/aws-sagemaker` instead of `integration/model/sagemaker`, and `integration/model/virtual-model` instead of `integration/model/virtual`). It differs from the account suffix for `aws-bedrock` → `integration/model/bedrock`, `aws-bedrock-mantle` → `integration/model/bedrock-mantle`, `google-vertex` → `integration/model/vertex`, `google-gemini` → `integration/model/gemini`, `aws-sagemaker` → `integration/model/sagemaker`.
+- The integration `type` constant under `integrations` items. Take it from the schema, not from `list_providers` (it reports some wrongly, e.g. `aws-sagemaker` for `sagemaker`). It differs from the account suffix for `aws-bedrock` → `integration/model/bedrock`, `aws-bedrock-mantle` → `integration/model/bedrock-mantle`, `google-vertex` → `integration/model/vertex`, `google-gemini` → `integration/model/gemini`, `aws-sagemaker` → `integration/model/sagemaker`.
 - The account `name` pattern (it varies by provider; OpenAI allows 3–32 lowercase letters, digits and `-`).
 - The `auth_data` variants. Some providers require `auth_data` (for example `azure-openai`, `google-gemini`); some offer several shapes (Bedrock has three). If there is more than one, ask which.
 - The `region` enum, if the account has `region`.
@@ -60,7 +60,7 @@ Before writing the program, turn the user's answer into an exact selection, with
 
 ### Step 4 — build the manifest in the sandbox with one program
 
-Write one program that reads the saved `list_providers` file and writes the complete manifest as JSON to a file. Never build the integration list by hand or inline.
+Write one program that reads the saved `list_providers` file and writes the complete manifest as JSON to a file.
 
 **Inputs:** the provider `type`; the integration `type` from Step 2; the account `name`; the region or `deployment_type`; the selection from Step 3; `auth_data`; collaborators (from `write-rules.md`); when updating, the current manifest from `list_provider_accounts`.
 
@@ -77,8 +77,8 @@ Write one program that reads the saved `list_providers` file and writes the comp
    - Add `cost: {metric: public_cost}` only if that entry exists and has a key besides `region` (`input_cost_per_token`, `input_cost_per_character`, `input_cost_per_second`, `tiered_pricing`, …). Otherwise omit `cost`.
    - Never copy price values. If the user gives their own pricing, use the matching private metric from the schema instead of `public_cost`.
 7. **Integration:** `{name, type, model_id, model_types}`, plus `cost` from step 6, plus any field the schema requires (Azure OpenAI: `api_version`). For Azure OpenAI and Microsoft Foundry, `model_id` is the user's deployment name, so ask for the deployments rather than taking "all"; set `deployment_type`, and `foundation_model` to the catalogue key (pricing is looked up by `foundation_model`, else `model_id`).
-8. **Update:** start from the current `integrations` and append only names not already there. **`integrations` replaces the whole list: a dropped integration is deleted.**
-9. **Write** the manifest (template below) to a file. Print only a summary: integrations by model type, how many have `cost`, and each skipped model with its reason.
+8. **Update:** start from the current manifest; delete `collaborators` and each integration's `authorized_subjects` (`write-rules.md` → Collaborators); append only names not already there. **`integrations` replaces the whole list: a dropped integration is deleted.**
+9. **Write** the manifest (template below) to a file. Print only a summary: count by model type, how many have `cost`, and each skipped model with why.
 
 Show the user the summary, not the full list.
 
@@ -97,7 +97,7 @@ auth_data:                               # shape from the schema, e.g.
   type: api-key
   api_key: tfy-secret://<owner>:<secret-group>:<secret-key>
 region: <region>                         # only if the schema has region
-collaborators:
+collaborators:                           # create only; omit on update
   - role_id: provider-account-manager
     subject: user:<current-user-email>   # from the session context; call get_session_context only if it is missing
   - role_id: provider-account-access
@@ -120,7 +120,7 @@ integrations:
 - [ ] Is `cost: {metric: public_cost}` only on models whose picked cost entry has a price field?
 - [ ] If the schema has `region`, did the user choose one from the schema enum (never `*`), and are the models filtered by it?
 - [ ] Are credentials `tfy-secret://` references in the schema's `auth_data` shape?
-- [ ] When updating, did I keep every existing integration and collaborator?
+- [ ] When updating, did I keep every integration and omit `collaborators`?
 - [ ] Was the manifest built by one program into a file, validated once and applied once?
 
 For more info: `search_docs` with "supported model providers", "model integrations".

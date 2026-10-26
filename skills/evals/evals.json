@@ -527,6 +527,29 @@
         "Builds the manifest with a program, not inline",
         "Validates from the sandbox, applies once directly"
       ]
+    },
+    {
+      "id": 44,
+      "prompt": "Add claude-sonnet-4-5 to my existing Anthropic account `anthropic-main`.",
+      "expected_output": "Fetches the account with list_provider_accounts, deletes collaborators and every integration's authorized_subjects from the fetched manifest, keeps every existing integration, appends the new model, validates and applies once; does not re-send the stored collaborators list.",
+      "files": [],
+      "expectations": [
+        "The applied manifest has no collaborators field",
+        "No integration carries authorized_subjects",
+        "Every existing integration is still present",
+        "Does not write collaborators to change access"
+      ]
+    },
+    {
+      "id": 45,
+      "prompt": "Give team:data-science access to the openai-main provider account.",
+      "expected_output": "Sends the user to the account's Access Control page (or offers a role-binding if they are a tenant admin); does not apply the provider account manifest with an edited collaborators list, and explains no tool can list current grants.",
+      "files": [],
+      "expectations": [
+        "Points to Access Control → Grant Access or a role-binding",
+        "Does not call apply_manifest on the provider account with collaborators",
+        "Uses provider-account-access as the role"
+      ]
     }
   ]
 }
