@@ -1,6 +1,6 @@
 ---
-name: integrations
-description: Integrate AI Gateway models with any OpenAI-compatible tool, native provider SDK, or third-party framework.
+name: using-models-from-code
+description: Call AI Gateway models from code or a third-party tool — OpenAI-compatible base URL, API key and model ID, native provider SDKs, code snippets. Not for creating provider accounts (that is models.md).
 ---
 
 The AI Gateway exposes an **OpenAI-compatible endpoint** for all configured models. In addition, it can **proxy requests for native provider SDKs** (Google Gen AI, Anthropic, boto3/Bedrock etc). In addition, all anthropic model (on anthropic/vertex/bedrock/azure-foundry) are available with Anthropic /messages compatible endpoint.

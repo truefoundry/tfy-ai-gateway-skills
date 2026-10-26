@@ -3,270 +3,101 @@ name: truefoundry-platform
 description: Answer questions about TrueFoundry, an enterprise AI platform. Covers two products — AI Gateway (LLM proxy, MCP servers, agents, governance) and AI Engineering (deploy services, jobs, notebooks, workflows; deploy HuggingFace/catalogue models with vLLM/SGLang/etc.; ML repos, model registry, fine-tuning). Triggers on TrueFoundry, tfy CLI, Gateway entities/policies, tracing/observability, prompt management, or deploying applications and models — even when the product name isn't stated.
 ---
 
-# Introduction
+# TrueFoundry
 
-TrueFoundry is a cloud-agnostic, Kubernetes-native enterprise AI platform with two **independent** products that share some entities and conventions:
+TrueFoundry has two independent products; a customer may use either alone.
 
-- **AI Engineering** (also called "TrueFoundry Deployment"): deploy Services, Async Services, Jobs, Notebooks, SSH Servers, Workflows, Helm charts and Volumes on the customer's own Kubernetes clusters; manage ML Repos, Model Registry, artifacts, training, and fine-tuning.
-- **AI Gateway**: proxy layer in front of LLM providers, MCP servers, and agents — adds governance, access control, rate/budget limits, guardrails, observability, caching, prompt management, and virtual models.
+- **AI Gateway** — a proxy in front of LLM providers, MCP servers and agents: access control, rate and budget limits, guardrails, observability, virtual models.
+- **AI Engineering** — deploy services, jobs, notebooks, models, Helm charts and more on the customer's own Kubernetes clusters (`Cluster → Workspace → Application`).
 
-A customer can adopt either product alone. Always **identify which product the user is asking about first**, then route to the relevant section below.
+## How to use this skill
 
-Top-level docs: https://www.truefoundry.com/docs · Platform overview: https://www.truefoundry.com/docs/platform/overview
+1. Decide which product the question is about.
+2. Find the user's intent in that product's table below and read the file it names. Read every file you need in **one batch**, together with your first other calls, and keep a batch of file reads under ~35,000 characters.
+3. Follow that file. It says what to fetch, what to ask, and what to build.
 
-# Global Operating Principles
+Read an entity's file before any write or data query for it — the files hold the rules that tool errors never explain. A conceptual or "where is the doc" question needs only `search_docs`.
 
-Do not answer from memory. TrueFoundry's platform (APIs, schemas, supported models) changes faster than your training data, and the customer's tenant state (which models exist, what configs are active, who has access) is unique and live. Fetch current state via tools before responding. If the docs don't confirm it, say so.
+## Ground rules
 
-- Always call `search_docs` before concluding a topic is not covered. If docs return relevant information, answer from it.
-- Don't explain features in detail — link to the canonical doc page instead. Use `search_docs` to find the right page, link it, and summarize only what's needed for the user's question.
-- Don't offer best practices or tips unsolicited. Only mention them when directly explaining a specific product feature the user asked about.
-- `apply_manifest` is the write path for every entity — Gateway and AI Engineering alike. Like every tool that creates, updates or deletes, it goes through the user approval flow, so the user sees and confirms the change before it happens. Call these directly as tool calls, not from sandbox; read-only tools can be called from sandbox. Never run `tfy apply` in the terminal; it is the same operation without the approval step.
-- Deploying from source is the exception: the build runs against a local clone the platform cannot reach, so it uses `build_source: local` and `tfy deploy`. Prebuilt images and Helm charts go through `apply_manifest`.
-- Never show placeholder URLs — including template tokens like `{gatewayBaseURL}` or `{controlPlaneUrl}` inside code snippets and examples from `search_docs`/`get_section_content`. Get the real value (`controlPlaneUrl` from the session context, gateway base URL from `list_gateway_installations`) and substitute the actual value before showing it.
-- **Session context** is the current user's identity, tenant, `controlPlaneUrl` and `tracesTable`. If your instructions already contain the full session context, use it. Otherwise call `get_session_context` once and reuse the result.
-- When you cannot answer a question, read `references/support-tickets.md` and follow it.
+- **Live state over memory.** The platform changes faster than your training data, and every tenant is different. Fetch state with tools before answering; if the docs don't confirm something, say so.
+- **Docs.** `search_docs` finds pages; `get_page_layout` shows a page's headings; `get_section_content` returns a page or one `#section` (if a page is too long it returns the outline — then fetch a section). Search before saying a topic is not covered. Link the doc page and summarize only what the question needs; don't volunteer best practices.
+- **Session context** (identity, tenant, `controlPlaneUrl`, `tracesTable`) is in your instructions under "Session context". Only if it is missing, call `get_session_context`; reuse its result if it is still in the conversation, otherwise call it again.
+- **Real URLs only.** Never show a placeholder such as `{controlPlaneUrl}` or `{gatewayBaseURL}`, even inside snippets copied from docs. `controlPlaneUrl` builds UI links. The gateway base URL (API calls, SDK `baseURL`, MCP endpoints) is `manifest.url` of the `isDefault: true` installation from `list_gateway_installations`, unless the user names another.
+- **FQNs.** Never construct one. The tenant FQN is `tenantName`; for anything else, list the entity and use its `fqn`.
+- **Can't answer** → read `references/support-tickets.md` and follow it, instead of suggesting the user contact someone.
 
-### Manifest tools
+## Writes
 
-These create and update every entity — Gateway and AI Engineering alike.
+Every create, update and delete goes through a manifest tool, which asks the user for approval before it runs.
 
-- `validate_manifest` and `apply_manifest` take **exactly the same input**: the manifest wrapped under a top-level `manifest` key — `{"manifest": {<the manifest>}}`.
-- Always validate before applying. Never call `apply_manifest` in the same parallel batch as `validate_manifest` — wait for `valid: true` first.
-- `delete_manifest` requires both `type` and `name` in the body.
-- Reference files show YAML for readability; convert to JSON before calling these tools.
-- **On failure:** if `validate_manifest` fails, read the error, fix the manifest, and re-validate. If `apply_manifest` errors, show the error to the user. For persistent or unclear errors, read `references/support-tickets.md` and offer to raise a ticket — never silently retry or give up.
+- `validate_manifest`, `apply_manifest` and `delete_manifest` take `{"manifest": {...}}`. Reference files show YAML for readability; send JSON.
+- Validate, wait for `valid: true`, then apply — never in the same batch, because a parallel apply runs before validation can stop it.
+- `delete_manifest` needs `type` and `name`, plus `workspace_fqn` for applications and `cluster_fqn` for workspaces. Legacy singletons need only `type`.
+- Applying an existing identity **replaces the whole entity**, and several list fields replace everything on update (collaborators, permissions, team members, integrations, rules). Change a live entity by fetching its current manifest and editing it, never by rebuilding it.
+- If validation fails, fix and re-validate. If apply fails, show the error; if it persists or is unclear, offer a ticket. Don't silently retry or give up.
+- Call write tools directly, not from the sandbox. Never run `tfy apply` — it is the same write without the approval step. Deploying from local source is the one exception: `tfy deploy` with `build_source: local`.
 
-### Docs tools
+## Ambiguous references
 
-- `search_docs` — find relevant doc pages.
-- `get_section_content` — pull specific info out of a known docs URL.
+- **"My", "I", "mine"** mean the current user, not the tenant. Filter by their subject slug: `CreatedBySubjectSlug` on gateway metrics tables, `TfyCreatedBySubjectSlug` on traces, owner filters for deployments.
+- **Entity names** are often partial or misspelt. Look the entity up before saying it doesn't exist ("github mcp" → MCP servers containing "github"). An application is identified by workspace and name together; if several match, ask which.
+- **"Application", "app", "use case"** in a Gateway context means a virtual account (occasionally an `x-tfy-metadata` key).
+- **"API key", "token"**: present both — a personal access token (tied to a user, breaks when they leave) and a virtual account token (recommended for production). Details in `ai-gateway/references/access-management.md`.
+- **"Caching"**: ask whether they mean Gateway caching (a Gateway policy) or provider prompt caching (shows in token usage).
 
-# Resolving Ambiguous References
+## AI Gateway
 
-User queries are natural language and often ambiguous. Resolve before answering — either via tool calls or by confirming with the user.
+Models, virtual models and guardrails are addressed by the gateway model ID `{providerAccountName}/{integrationName}` (e.g. `openai-main/gpt-4o`) — not the integration's `model_id` field, which is the provider's own name (`gpt-4o`). MCP servers are addressed by `name`. "Policy" and "config" mean the same thing.
 
-## "My" / "I" / "Mine"
+Files are under `ai-gateway/references/`. **For any create, update or delete, also read `write-rules.md` in the same batch.**
 
-Refers to the current user, not the tenant. Take the identity from the session context, then filter queries by the user's subject slug (e.g. `CreatedBySubjectSlug` for gateway tables, owner/created-by filters for deployments).
-
-## Entity names
-
-Users use abbreviated names, typos, or partial matches. Always look up the entity in the system first before assuming it doesn't exist.
-
-- "gpt-4 model" → search Models matching "gpt-4".
-- "my-team" → look up Teams matching "my-team".
-- "github mcp" → search MCP servers with names containing "github".
-- "the prod service" / "my-service" → list Applications by name. An application is identified by **workspace and name together**; the same name can exist in several workspaces, so confirm which one rather than taking the first match.
-
-## "Application" / "App" / "Use-Case"
-
-In Gateway context, this almost always means a **Virtual Account** (or, less commonly, an `x-tfy-metadata` key — surfaced as a column in metrics/traces). Assume Virtual Account by default unless the user explicitly mentions otherwise.
-
-## "API Key" / "API Token" / "Token"
-
-Always present both token types and recommend VAT:
-
-- **Personal Access Token (PAT)** — tied to a user, for development/testing
-- **Virtual Account Token (VAT)** — tied to a non-human identity, for production/CI/CD **(recommended)**
-
-PATs break when the user leaves the org. Read `ai-gateway/references/access-management.md` for full details on both.
-
-## "Caching"
-
-Gateway Caching and Provider Caching are different features — clarify with the user which one they mean.
-
-- **Gateway Caching** — a Gateway-level policy (semantic + exact match). Metrics in `gateway_model_metrics`.
-- **Provider Caching** — provider-side prompt caching reflected in token usage. Metrics in `traces` table.
-
-For column names and query patterns → read `ai-gateway/references/observability.md`.
-
-# Common Concepts
-
-## Integrations
-
-Integrations connect TrueFoundry to external services (AWS, GCP, Azure, GitHub, etc.) via Provider Accounts. For setup and supported providers → https://www.truefoundry.com/docs/integrations-overview.
-
-## Resource FQNs
-
-When a field requires an FQN (Fully Qualified Name), do NOT guess or construct it manually.
-
-- **Tenant**: FQN = tenant name (`tenantName` from the session context)
-- **Everything else**: list the entity first and use the `fqn` field from the response.
-
-## Users, Teams, and Virtual Accounts
-
-For Gateway access control (users, teams, VAs, PATs, external identities) → read `ai-gateway/references/access-management.md`.
-For AI Engineering RBAC → https://www.truefoundry.com/docs/collaboration-and-access-control.
-
-## Secrets
-
-Secrets are stored in **Secret Groups** and referenced by FQN: `tfy-secret://<owner>:<secret-group>:<secret-key>`. The platform resolves at runtime. For details → https://www.truefoundry.com/docs/manage-secrets.
-
-## Base URLs
-
-Two base URLs exist — they are different and serve different purposes:
-
-- **`controlPlaneUrl`** — from the session context. Base URL for constructing platform links (e.g. post-creation pages, access management).
-- **Gateway base URL** — from `list_gateway_installations`. Base URL for all Gateway API interactions (e.g. OpenAI-compatible chat completions, MCP server endpoints, SDK `baseURL`). Always use the `gateway-default` installation unless the user specifies otherwise.
-
-Never guess or hardcode either — always fetch from the respective tool.
-
-# AI Gateway
-
-## Entities and Policies
-
-Throughout the platform, `policy` and `configuration` mean the same thing and are used interchangeably.
-
-- **Entities**: Models, Virtual Models, MCP Servers, Virtual MCP Servers, Guardrail Integrations.
-  - Models/Virtual Models/Guardrails are identified by `model_id` in the format `{accountName}/{integrationName}`.
-  - MCP Servers (including Virtual) are identified by their `name` (unique in a tenant).
-- **Policies**: Rate Limiting, Budget Limiting, Guardrails Config, Load Balancing (deprecated → use Virtual Models).
-
-**If your answer will mention, use, or explain any entity or policy below, read its reference file first** — no matter how the question was phrased, and before starting any operation. Do not skip this step. Paths are under `ai-gateway/references/`.
-
-| **Entity** or Policy | File |
+| The user wants to… | Read |
 | --- | --- |
-| Models | `models.md` |
-| Virtual Models | `virtual-models.md` |
-| MCP Servers (Remote, Stdio, and Virtual) | `mcp-servers.md` |
-| Guardrail Integrations and Guardrail Policy | `guardrails.md` |
-| Rate Limiting Policy | `rate-limiting.md` |
-| Budget Limiting (default — use V2 for all budget work) | `budget-limiting-v2.md` |
-| Budget Limiting V1 (legacy — reading, disabling, migration) | `budget-limiting.md` |
-| Load Balancing Policy (Deprecated) | `load-balancing.md` |
-| Users, Teams, VAs, Roles, Access Control and Permissions | `access-management.md` |
-| Teams (Create/Manage) | `teams.md` |
-| Virtual Accounts (Create/Manage) | `virtual-accounts.md` |
-| Personal Access Tokens (Create) | `personal-access-tokens.md` |
+| Add a provider (OpenAI, Bedrock, Azure, Vertex, …), add or remove models, ask whether a model is supported, set model pricing | `models.md` |
+| Route, fall back or load-balance across models | `virtual-models.md` (`load-balancing.md` only for the deprecated policy) |
+| Add, connect or troubleshoot an MCP server or virtual MCP server | `mcp-servers.md` |
+| Guardrails — PII, content safety, prompt injection; guardrail groups or policies | `guardrails.md` |
+| Rate limits | `rate-limiting.md` |
+| Budgets, spend limits | `budget-limiting-v2.md` (`budget-limiting.md` for legacy V1 rules) |
+| Who can access what, roles, external identities, API keys | `access-management.md` |
+| Create or change a team | `teams.md` |
+| Create or change a virtual account | `virtual-accounts.md` |
+| Create a personal access token | `personal-access-tokens.md` |
+| Usage, cost, latency, errors, traces, feedback, "how many requests" | `observability.md` |
+| Call a Gateway model from code or a tool — base URL, SDK, snippet | `using-models-from-code.md` |
 
-## Handling Gateway Entity Questions
+Other platform topics: integrations with cloud accounts → https://www.truefoundry.com/docs/integrations-overview · secrets are referenced as `tfy-secret://<owner>:<secret-group>:<key>` → https://www.truefoundry.com/docs/manage-secrets.
 
-1. **Read the entity's reference file** from the table above. It says how to fetch data, what to ask the user, and how to build manifests.
+## AI Engineering
 
-For **read/query** operations, follow the reference file's instructions to fetch and present data, with real values in every URL. For **write** operations, continue with the write workflow below.
+Files are under `ai-engineering/references/`. Read the file for what you are about to do, before you do it — it covers what the schema cannot: which path applies, what to check first, and how to tell a real failure from a tool that cannot see.
 
-### Write Workflow
-
-2. **Get the session context** — the current user's identity (for collaborators) and `controlPlaneUrl` (for the post-creation UI link).
-3. **Call `get_manifest_json_schema`** — always call this tool to get the actual schema for the entity type. The schema defines required fields, types, and the exact input format that `validate_manifest` and `apply_manifest` expect. Do not rely on reference file templates alone — they are simplified examples.
-4. **Ask user for required inputs** — use `ask_user_question` to collect decisions (auth method, region, which models to add, etc.) when multiple options exist. Never guess — always confirm.
-5. **Fetch existing state when needed** — two kinds of gateway config:
-   - **Legacy singletons** (`gateway-rate-limiting-config`, `gateway-budget-config`): call `get_gateway_config` right before building the manifest and merge your rule into its `rules` — never replace them, and never rebuild the list from memory or a summary.
-   - **Named policies** (`gateway-guardrails-config`, `tenant-rate-limit-config/model`, `tenant-rate-limit-config/mcp`, `tenant-budget-config`, `team-budget-config`): each policy is its own manifest; apply it on its own and there is nothing to merge. Read existing budget policies with `list_gateway_budgets`. `get_gateway_config` returns nothing for named guardrails and rate-limit policies and no tool lists them: to create, use a new unique `name`; to change one, ask the user for its name and current YAML. Applying under an existing `name` replaces that policy. `tenant-rate-limit-config/*` cannot be validated or applied through the tools today; send the user to the UI for those.
-   - **Never send a `rules` array in a `gateway-guardrails-config` manifest** — the platform treats it as a full replace and deletes every guardrails policy not listed.
-6. **Construct the manifest as JSON** — build a JSON object following the schema strictly. Include a top-level `name` on every gateway config manifest: named policies require it (it is in their schema); legacy singletons ignore it.
-   - **Lists that replace everything:** on an update, these lists replace the entity's whole current list, so anything you leave out is removed. Start from the entity's current manifest, change only what was asked, and confirm the final list with the user: `collaborators`, virtual account `permissions`, team `members`/`managers`, guardrail group `integrations`, legacy gateway config `rules`. Applying a role with an existing name overwrites that role.
-7. **Validate, then apply** — `validate_manifest`, then `apply_manifest` (see Manifest tools in Global Operating Principles for the shared input format and failure handling). `apply_manifest` is idempotent — the same `name` updates the existing entity rather than creating a duplicate. **When the user asks to "create" an entity, always use a new unique name — do not reuse or update an existing entity.**
-8. **Show UI link** — use `controlPlaneUrl` from step 2 to show the user the relevant page (see Post-creation links table below).
-
-### Collaborators
-
-Required for every entity that supports them (models, virtual models, guardrails, MCP servers):
-
-- Use the current user from the session context (step 2) as **manager**.
-- Add `team:everyone` as **access**.
-- Never omit collaborators — entities without them become invisible to other users.
-- If the user provides a specific collaborator list, use exactly what they specified (but still include the current user as manager).
-- On an update, `collaborators` replaces every existing grant on the entity: start from the current manifest and keep every existing entry unless the user asked to remove it.
-
-Each collaborator has two fields: `role_id` and `subject`.
-
-- `subject` format: `user:<email>` for users, `team:<team-name>` for teams.
-- `role_id` varies by entity type — look up the correct values from the table below (do NOT guess):
-
-| Entity Type | Manager role_id | Access role_id |
-| --- | --- | --- |
-| Provider Accounts / Models | `provider-account-manager` | `provider-account-access` |
-| Virtual Models | `provider-account-manager` | `provider-account-access` |
-| Guardrail Config Groups | `provider-account-manager` | `provider-account-access` |
-| MCP Servers | `mcp-server-manager` | `mcp-server-user` |
-
-Do NOT call list tools to look up the collaborator structure — use this table directly. These role_ids are static platform constants, unlike FQNs which are tenant-specific.
-
-## Post-creation Links
-
-After a successful `apply_manifest`, show the user the relevant page. Substitute `{controlPlaneUrl}` below with the actual value from the session context (see Global Operating Principles).
-
-| Entity created/modified | Path (append to controlPlaneUrl) |
-| --- | --- |
-| Model provider account | `/llm-gateway/models?provider={providerName}` |
-| Virtual model | `/llm-gateway/virtual-models` |
-| MCP server (including Virtual) | `/llm-gateway/mcp-servers` |
-| Rate limit rule | `/llm-gateway/settings?configTab=rate-limiting` |
-| Budget rule (V2 — default) | `/llm-gateway/settings?configTab=budget-limiting-v2` |
-| Budget rule (V1 — legacy) | `/llm-gateway/settings?configTab=budget-limiting` |
-| Guardrail config group | `/guardrails/registry` |
-| Guardrail policy (rules) | `/guardrails/policies` |
-| Team | `/access-management?tab=teams` |
-| Virtual account | `/access-management?tab=service-accounts` |
-| Role | `/access-management?tab=custom-roles` |
-| PAT | `/access-management?tab=personal-access-token` |
-
-### Deep-linking to traces and metrics
-
-Append `?filters=<url-encoded-json>` to monitoring URLs to pre-filter. JSON format: `{"rules":[{"field":"<fieldName>","value":"<value>","operator":"<op>"}]}`. URL-encode the JSON before appending. Common fields: `traceId`, `userEmail`, `modelName`, `teamName`. Operators: `IN`, `STRING_CONTAINS`. For the full list, use `search_docs` with "request logs filtering".
-
-Base paths: `{controlPlaneUrl}/monitoring/request-traces`, `{controlPlaneUrl}/monitoring/metrics?monitorTab=metrics&viewBy=modelName`.
-
-Always provide direct links when showing trace or metrics results.
-
-## Querying Gateway Usage Data
-
-Read `ai-gateway/references/observability.md` to understand how to query traces and metrics.
-
-## Integration with Tools/Libraries/Frameworks
-
-Read `ai-gateway/references/integrations.md` to understand how to use models already configured in the Gateway with different tools/libraries/frameworks.
-
-## Checklist Before Responding to a Gateway Question
-
-- [ ] Did I read the entity's reference file first?
-- [ ] Did I search docs (`search_docs`) for conceptual or "how does X work" questions?
-- [ ] Did I look up entities by name before assuming they don't exist?
-- [ ] Did I analyze queried data before arriving at conclusions?
-- [ ] Does my answer cite observation/data behind any claims?
-- [ ] Did I take URLs from the session context / `list_gateway_installations` and substitute real values for every URL in my response? No placeholders.
-- [ ] If I couldn't answer the question, did I read `references/support-tickets.md` and follow it instead of suggesting external contact?
-
-# AI Engineering
-
-Entity hierarchy: `Cluster → Workspace → Application`, with RBAC enforced at the cluster and workspace level.
-
-Docs: [applications](https://www.truefoundry.com/docs/introduction-to-a-service) · [ML Repos](https://www.truefoundry.com/docs/introduction-to-ml-repo) · [monitoring](https://www.truefoundry.com/docs/monitor-your-service)
-
-## Reference files
-
-**Read the file for what you are about to do, before you do it** — it covers what the schema cannot: which path applies, what to check first, and how to tell a real failure from a tool that cannot see. Paths are under `ai-engineering/references/`.
-
-| Task | File |
+| The user wants to… | Read |
 | --- | --- |
 | Deploy from a git repo or local code (service, async-service, job) | `deploy-from-source.md` |
-| Deploy a prebuilt image (service, async-service, job) | `deploy-from-image.md` |
+| Deploy a prebuilt image | `deploy-from-image.md` |
 | Deploy a Helm chart | `helm-deploy.md` |
-| Deploy a model — HuggingFace, model catalogue, NIM (vLLM, SGLang, …), or classical ML | `model-deploy.md` |
+| Deploy a model — HuggingFace, catalogue, NIM (vLLM, SGLang, …), classical ML | `model-deploy.md` |
 | Deploy a `notebook`, `rstudio` or `ssh-server` | `notebook-ssh.md` |
-| Rules shared by every deploy path, **changing an existing application**, and the links to print after | `deploy-common.md` |
-| Autoscaling, scale-to-0, cost right-sizing | `autoscaling.md` |
-| Endpoints, sticky sessions, SSL / custom domains, connectivity | `networking.md` |
+| Change an existing application; rules shared by every deploy | `deploy-common.md` |
+| Autoscaling, scale-to-zero, right-sizing | `autoscaling.md` |
+| Endpoints, sticky sessions, SSL, custom domains, connectivity | `networking.md` |
 | Secrets, HuggingFace tokens, registry credentials | `secrets.md` |
-| Rollout strategy, downtime on a replica change, canary, blue-green | `rollout-strategy.md` |
-| How model serving works — vLLM architecture, GPUs, weight download, upgrades | `model-serving-faq.md` |
-| Adding a cluster, or a cluster-wide problem — disconnected, addons, many apps failing at once | `cluster-onboard.md` |
+| Rollout strategy, canary, blue-green, downtime on a change | `rollout-strategy.md` |
+| How model serving works — vLLM, GPUs, weight download, upgrades | `model-serving-faq.md` |
+| Add a cluster, or a cluster-wide problem (disconnected, addons, many apps failing) | `cluster-onboard.md` |
 | Build logs, a failed build | `builds.md` |
-| **Anything about a deployed application** — logs, events, metrics, health, crashes, Pending pods, a stuck rollout, a broken model server, what changed. Read this before _any_ read tool (an empty result is what a tool returns when it cannot see, not an error); it routes you to the failure-mode playbook | `troubleshooting.md` |
-| `volume`, `workflow`, `spark-job`, `application-set`, ML Repos, Model Registry | none — work from `get_manifest_json_schema` and `search_docs`, and say so |
+| **Anything about a deployed application** — logs, events, metrics, health, crashes, Pending pods, stuck rollout, broken model server, what changed | `troubleshooting.md` — before any read tool, because an empty result means the tool could not see, not that nothing is wrong |
+| `volume`, `workflow`, `spark-job`, `application-set`, ML repos, model registry | No file — work from `get_manifest_json_schema` and `search_docs`, and say so |
 
-`redis`, `postgres`, `kafka` and similar ship as both an image and a chart. They are not interchangeable — a chart brings persistence and replication defaults, an image is one container you configure yourself. Ask which they want; never infer from the name.
+- `redis`, `postgres`, `kafka` and similar exist as both an image and a chart; they are not interchangeable (a chart brings persistence and replication). Ask which, never infer from the name.
+- Deploying under an existing name replaces the whole manifest. A fresh manifest silently drops the app's env vars, secrets, limits and replicas, and still reports success — fetch the deployed manifest and edit it.
+- Docs: [applications](https://www.truefoundry.com/docs/introduction-to-a-service) · [repositories](https://www.truefoundry.com/docs/platform/repositories) · [roles and permissions](https://www.truefoundry.com/docs/platform/manage-user-roles-and-permissions) · [monitoring](https://www.truefoundry.com/docs/monitor-your-service)
 
-Read `deploy-common.md` before any deploy. One rule bears repeating here: **deploying under an existing name replaces the whole manifest.** Fetch the deployed one and edit that — a fresh manifest silently drops every env var, secret, limit and replica count the application had, and still reports success.
+## Before you respond
 
-## Checklist Before Responding to an AI Engineering Question
-
-- [ ] Did I read the reference file for what I was about to do — and, when debugging, the failure-mode playbook `troubleshooting.md` sent me to?
-- [ ] Did I identify the application type? It changes which tools can answer.
-- [ ] For a model, did I start from `get_model_deployment_specs` rather than writing a vLLM service from memory?
-- [ ] For a deployed application, did I read pod state (`list_k8s_pods` / `reason`) and real logs, events or metrics instead of inferring from `DEPLOY_SUCCESS` — and treat an empty result as "could not see" until I ruled that out?
-- [ ] When proposing a fix, did I edit from the live manifest, validate, and apply only with approval?
-- [ ] After a successful deploy or update, did I print the links per `deployment-links.md`?
-- [ ] If I couldn't answer the question, did I read `references/support-tickets.md` and follow it instead of suggesting external contact?
+- [ ] Every URL uses real values from the session context or `list_gateway_installations`.
+- [ ] Every claim cites the data or doc it came from; entities were looked up before being called missing.
+- [ ] Gateway writes: validated before applying, collaborators included, UI link shown.
+- [ ] AI Engineering: identified the application type; started a model from `get_model_deployment_specs`; read pod state and real logs or events instead of trusting `DEPLOY_SUCCESS`; edited from the live manifest; printed links per `ai-engineering/references/deployment-links.md`.

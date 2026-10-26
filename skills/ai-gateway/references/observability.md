@@ -100,6 +100,15 @@ To construct a trace link, you need the `TraceId` from the `traces` table — qu
 
 > **WARNING — response `id` ≠ trace ID.** The `id` field in a chat completion response (e.g. `chatcmpl-xxx`) is the **response ID**, NOT the trace ID. Never use it in trace links. Always query the `traces` table to get the actual `TraceId`.
 
+### Linking to Traces and Metrics
+
+Always give a direct link when showing trace or metrics results. Base paths: `{controlPlaneUrl}/monitoring/request-traces` and `{controlPlaneUrl}/monitoring/metrics`.
+
+Pre-filter with `?filters=<url-encoded JSON>`, where the JSON is `{"rules":[{"field":"<field>","operator":"<op>","value":[...]}]}`:
+- Request traces: `traceId`, `userEmail`, `genAIRequestModel`, `virtualAccount`, `spanType` — operator `IN`, value an array. Example: `{"rules":[{"field":"traceId","operator":"IN","value":["<id>"]}]}`.
+- Metrics: `modelName`, `userEmail`, `virtualAccount` with `IN`; `team` with `ARRAY_HAS_ANY`.
+- Other fields: `search_docs` with "request logs filtering".
+
 ### Checklist For SQL Queries
 
 - [ ] Did I read the table schema and used the correct column names?
