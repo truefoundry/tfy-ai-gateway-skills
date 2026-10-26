@@ -1,137 +1,103 @@
 ---
 name: model-debug
-description: Debug a deployed model service (vLLM, SGLang, TRT-LLM, Infinity, TEI, NIM, …) — distinguish download vs server failures, handle empty events on StatefulSets, research recipes/GitHub, then propose and apply a fixed service manifest. Read when a model deployment is Pending, CrashLooping, OOM, slow to become Ready, or returning inference errors.
+description: Debug a deployed model service (vLLM, SGLang, TRT-LLM, TGI, Infinity, TEI, NIM, …) — tell download failures from server failures, find the downloader's logs, handle empty application events, research recipes/GitHub, then propose and apply a fixed service manifest. Read when a model deployment is Pending, CrashLooping, OOM, slow to become Ready, or returning inference errors.
 ---
 
 Model services fail in layers. Diagnose the layer first, then research the specific model server, then patch the **service** manifest (these are ordinary services) and ask for approval to apply.
 
-## Contents
-- Identify it is a model deployment
-- Layered triage
-- Empty events / StatefulSet caveat
-- Model download vs model server
-- Hard cases (GPU util, probes, wrong tag, image drift)
-- Research (GitHub, recipes, docs)
-- Propose and apply a fix
-- Checklist
-
 ## Identify it is a model deployment
 
-From `get_application` / active deployment manifest, look for:
+From `get_application` (active deployment manifest), treat it as a model deployment if any of these is present: `artifacts_download` (`huggingface-hub` or `truefoundry-artifact`), label `tfy_model_server` (vLLM, SGLang, TRT-LLM, TGI, Infinity, TEI, NIM, …) or `nvidia_nim_task`, or a model-server image (`vllm`, `sglang`, `text-embeddings-inference`, `infinity`, `tensorrt_llm`, `nim`). `huggingface_model_task` may be missing on Ingress-based clusters.
 
-- `artifacts_download` with `huggingface-hub` or `truefoundry-artifact`
-- Labels such as `truefoundry.com/model-server` (vLLM, SGLang, …) and `truefoundry.com/huggingface-model-task`
-- Image names containing `vllm`, `sglang`, `text-embeddings-inference`, `infinity`, `tensorrt_llm`, `nim`
-
-If those are absent, use generic `troubleshooting.md` playbooks. If present, continue here **and** still use the shared failure-mode files for Pending / OOM / ImagePull.
+If none is present, use the generic `troubleshooting.md` playbooks. If present, continue here **and** still use the shared failure-mode files for Pending / OOM / ImagePull.
 
 ## Layered triage
 
-Follow `troubleshooting.md` Phase 1–2 first (`get_application_state`).
-
-Then split on evidence:
+Follow `troubleshooting.md` Phase 1–2 first (`get_application_state`). Then split on evidence:
 
 | Observation | Layer | Next |
 |---|---|---|
 | `Pending` / FailedScheduling / GPU | Schedule | `failure-modes/pending-scheduling.md` |
 | `ImagePullBackOff` | Image | `failure-modes/image-pull.md` |
-| Init / early logs: download, HF Hub, 401, disk, PVC | **Model download** | Section below |
-| Download finished; main container restarting; vLLM/SGLang stack traces | **Model server** | Section below |
+| Download logs: HF Hub, 401, disk, PVC; or no new pods yet | **Model download** | Section below |
+| Download finished; main container restarting; engine stack traces | **Model server** | Section below |
 | Ready but 4xx/5xx on `/v1/chat/completions` or embeddings | Runtime config / template / max length | Server logs + research |
 | Many model apps stuck together | Cluster / agent | `failure-modes/cluster-capacity.md`, `failure-modes/rollout-argocd.md` |
 
-Always inspect **all** containers: init (`tfy-model-downloader` or similar) **and** the main server. Use `get_logs` with `podName` and `containerName=<name>`; on crashloops, use a window ending just after the container's `lastState.finishedAt`.
-
-## Empty events / StatefulSet caveat
-
-**Do not treat empty `list_application_events` as healthy.**
-
-Some model (and other) workloads are backed by **StatefulSets**. Application-scoped event APIs can return **no events** even while pods are CrashLooping. When events are empty or suspiciously quiet:
-
-1. Read container `state` / `reason` / `lastState` from `get_application_state` — that remains authoritative.
-2. Read the pod logs with `get_logs` (`podName`, `containerName`).
-3. Say that application events may be incomplete for this workload shape; continue diagnosis from state and logs, and give the user `kubectl get events -n <workspace>` if events matter.
-
-Never conclude “no problems” from an empty event list alone.
+Read logs with `get_logs` (`applicationId`, plus `podName` and `containerName`); on crashloops, use a window ending just after the container's `lastState.finishedAt`.
 
 ## Model download vs model server
 
+### Where the download runs
+
+Check `artifacts_download.cache_volume` in the manifest — there are two download paths:
+
+- **No `cache_volume`:** an init container `download-models` in the service pod. Read it with `get_logs podName=<pod> containerName=download-models`.
+- **`cache_volume` set:** no init container. A PreSync Argo Workflow `downloader-<deploymentId>` downloads into the PVC `<app>-artifacts-volume` before any new service pod is created, so no new pods during the download is expected, not a stall. Its pods carry the application label: `get_logs applicationId=<id> podNamesRegex=downloader-<deploymentId>.* containerName=main` (`deploymentId` from `get_application` → `lastDeployment`). Pods are deleted on success and kept on failure; the Workflow itself is deleted 300 s after it finishes.
+
+### Empty events caveat
+
+`list_application_events` only returns events for objects named after the application. Events for the downloader workflow (`downloader-<deploymentId>`) and the cache PVC (`<app>-artifacts-volume`) never appear there. **Do not treat empty events as healthy.** Diagnose from `get_application_state` (container `state` / `reason` / `lastState`) and logs; if PVC or workflow events matter, give the user `kubectl get events -n <workspace> --field-selector involvedObject.name=<app>-artifacts-volume`.
+
 ### Download failed / stuck
 
-Signals: long time in init; logs mentioning HuggingFace, `HF_TOKEN`, 401/403, gated repo, disk quota, `No space left`, PVC mount errors; pod never passes startup probe.
+Signals: logs mentioning HuggingFace, `HF_TOKEN`, 401/403, gated repo, `No space left`, mount errors; pod never passes its startup probe.
 
-Check:
+Check, in one parallel batch where you can: downloader logs (above), `list_application_events` for FailedMount on the service pod, and the manifest's `artifacts_download` and HF token env.
 
-1. `list_application_events` for FailedMount / mount / disk (if empty, see the StatefulSet caveat above).
-2. Init container logs — auth vs network vs size.
-3. Manifest `artifacts_download` and whether HF token secret / env is present for gated models.
-4. Cache volume size vs model weight size (large LLMs need tens–hundreds of GB).
+Fixes:
 
-Fixes: attach/correct HF token secret FQN, enlarge cache volume, fix storage class / mount (`failure-modes/volumes-storage.md`), confirm Hub URL/revision.
+- Gated model: the token secret must be referenced (`secrets.md`); regenerating specs needs `huggingfaceHubTokenSecretFqn=tfy-secret://<fqn>` (`model-deploy.md`).
+- Disk full: raise `artifacts_download.cache_volume.cache_size` (GB) to more than 2× the model size. It can only grow; `storage_class` cannot be changed on an existing application.
+- Mount / storage class problems: `failure-modes/volumes-storage.md`.
+- Wrong repo or revision: confirm the Hub URL / revision.
 
 ### Download succeeded, server failed
 
-Signals: weights on disk / download logs completed; main container `CrashLoopBackOff` or `OOMKilled`; logs from vLLM/SGLang/Infinity engine.
+Signals: download logs completed; main container `CrashLoopBackOff` or `OOMKilled`; engine logs from vLLM/SGLang/Infinity.
 
-Classify:
-
-| Log / reason pattern | Likely fix direction |
+| Log / reason pattern | Fix direction |
 |---|---|
-| Container `reason: OOMKilled` (cgroup / memory limit) | Raise **memory** `resources` limits/requests — not GPU util. See `failure-modes/crashloop-oom-probes.md` |
-| CUDA OOM / `torch.OutOfMemoryError` / GPU OOM in logs (pod may still show CrashLoop, not always `OOMKilled`) | Lower `--gpu-memory-utilization` (or equivalent) in **command/args or env** (especially from ~0.90 on small GPUs), smaller max length, quant variant, more/bigger GPUs, TP size — regenerate via `get_model_deployment_specs` or edit args/env/resources |
-| `ValueError` / unsupported architecture / missing multimodal | Wrong server or `pipeline_tag` — override tag and regenerate; or switch vLLM ↔ SGLang |
-| Engine args rejected / unknown flag | Align args with the **image tag’s** docs; bump image tag or remove flags from a newer recipe |
-| NCCL / TP size errors | GPU count not matching `--tensor-parallel-size`; fix resources + args together |
-| Startup probe killed (exit 137, events Unhealthy) | Lengthen probes — large models need long `initialDelaySeconds` / failure thresholds (`failure-modes/crashloop-oom-probes.md`). Corroborate exit 137 before calling it OOM |
-| Tokenizer / chat template errors | Mount or set chat template; check Hub tokenizer files |
+| Container `reason: OOMKilled` (memory limit) | Raise **memory** `resources` — not GPU memory. `failure-modes/crashloop-oom-probes.md` |
+| CUDA OOM / `torch.OutOfMemoryError` (pod may show CrashLoop, not `OOMKilled`) | See **GPU memory utilization on small GPUs** in `model-deploy.md` |
+| `ValueError` / unsupported architecture / missing multimodal | Wrong server or tag — regenerate with `pipelineTagOverride` (table in `model-deploy.md`), or switch vLLM ↔ SGLang |
+| Engine args rejected / unknown flag | Align args with the **image tag's** docs; bump the tag or drop flags from a newer recipe |
+| NCCL / tensor-parallel errors | GPU count does not match `--tensor-parallel-size`; fix resources and args together |
+| Startup probe killed (exit 137, Unhealthy events) | Lengthen probes (`failure-modes/crashloop-oom-probes.md`). Exit 137 with healthy load logs usually means slow startup, not memory — corroborate before calling it OOM |
+| Tokenizer / chat template errors | Mount or set a chat template; check Hub tokenizer files |
+| Ready but bad responses | Served model id, max tokens, chat template, sticky header, Gateway base URL path |
 
-Re-read applied resources with `get_applied_k8s_manifest` — catalogue recommendations and what actually runs can diverge after manual edits.
-
-## Hard cases (GPU util, probes, wrong tag, image drift)
-
-1. **Small-GPU CUDA OOM at load** — first suspect is the catalogue default `--gpu-memory-utilization ≈ 0.90`. The fix is in **GPU memory utilization on small GPUs** in `model-deploy.md`. Do not confuse with container `OOMKilled`.
-2. **Wrong Hub task** — regenerate with `pipelineTagOverride` from the modality table in `model-deploy.md`.
-3. **Probe vs OOM** — exit 137 + Unhealthy probe events often means slow startup, not memory; lengthen probes first when download/load logs look healthy.
-4. **Recipe newer than image** — bump vLLM/SGLang image tag carefully; re-validate; expect longer pull + startup.
-5. **Inference-only failures** (Ready but bad responses) — check served model id, max tokens, chat template, sticky header mismatch, Gateway base URL pointing at wrong path.
+Compare with `get_applied_k8s_manifest` — what runs can diverge from the catalogue spec after manual edits.
 
 ## Research (GitHub, recipes, docs)
 
-When the stack trace names a model server library, **search before guessing**:
+When the stack trace names a model server library, search before guessing:
 
-1. **Recipes** — https://recipes.vllm.ai/`<org>/<model>`
-2. **Support matrices** — vLLM / SGLang / Infinity / TEI docs
-3. **GitHub issues** scoped to model id + error string:
-   - vLLM: `https://github.com/vllm-project/vllm/issues`
-   - SGLang: `https://github.com/sgl-project/sglang/issues`
-   - Infinity: `https://github.com/michaelfeil/infinity/issues`
-   - TEI / TGI / TensorRT-LLM / NIM as applicable
+1. Recipes — `https://recipes.vllm.ai/<org>/<model>`
+2. Support matrices — vLLM / SGLang / Infinity / TEI docs
+3. GitHub issues scoped to model id + error string: `https://github.com/vllm-project/vllm/issues`, `https://github.com/sgl-project/sglang/issues`, `https://github.com/michaelfeil/infinity/issues`, and TEI / TGI / TensorRT-LLM / NIM as applicable
 4. HF discussions / release notes when GitHub is quiet
 
-Summarize the best matching issue/recipe (title + URL + what they changed). Translate into a concrete TrueFoundry manifest edit — do not dump unrelated workarounds.
+Summarize the best match (title + URL + what they changed) and translate it into a concrete manifest edit.
 
 ## Propose and apply a fix
 
-Fixes are **service manifest** updates:
+1. Start from `get_application` → `activeDeployment.manifest` (a full replace — `deploy-common.md`).
+2. Where the catalogue can give a better baseline, regenerate with `get_model_deployment_specs` and merge the user's bits (name, mounts, autoscaling, sticky labels). **Keep the live `artifacts_download.cache_volume.storage_class` and never lower `cache_size`** — the apply is rejected otherwise. Moving to a different storage class means deleting and recreating the app; ask the user first.
+3. Otherwise patch only real service fields: `resources`, `image`, command/args, env, probes, `artifacts_download`. GPU memory fraction is an env var, not a manifest field.
+4. `validate_manifest` → explain the diff → `apply_manifest` (approval). For "redeploy the same spec" use `redeploy_application`.
+5. Verify with `get_application_state` + logs; for inference errors re-run the smoke test from `model-deploy.md`.
 
-1. Start from `get_application` → `activeDeployment.manifest` (full replace — `deploy-common.md`).
-2. Prefer regenerating with `get_model_deployment_specs` (correct `pipelineTagOverride`, token, workspace) and merging user-specific bits (name, mounts, autoscaling, sticky labels) when the catalogue can produce a better baseline.
-3. Otherwise surgically patch only real service fields: `resources`, `image`, command/args, env, probes, `artifacts_download`. GPU memory fraction is a **server flag in args/env** (e.g. `--gpu-memory-utilization`), not a manifest field.
-4. `validate_manifest` → explain the diff → `apply_manifest` (approval). For trivial “redeploy same spec” use `redeploy_application`.
-5. Verify with `get_application_state` + logs. For inference errors, re-run the smoke curl from `model-deploy.md`.
-
-This same **diagnose → research → patch manifest → ask approval → apply → verify** loop applies to **any** service/job deployment when the user wants a fix — for non-models skip catalogue regeneration.
+The same diagnose → research → patch → approve → apply → verify loop works for any service or job; for non-models skip regeneration.
 
 ## Checklist
 
-- [ ] Did I confirm model-server labels / `artifacts_download` before using this playbook?
-- [ ] Did I separate download failures from server runtime failures (init vs main)?
-- [ ] For CrashLoop, did I read the previous attempt's logs with the correct `containerName`?
-- [ ] If `list_application_events` was empty, did I fall back to `get_application_state` and pod logs?
-- [ ] Did I separate container `OOMKilled` (memory limits) from CUDA OOM (args/env GPU util)?
-- [ ] Did I consider probes, pipeline tag and image tag before inventing engine flags?
-- [ ] Did I search recipes + GitHub for the exact model/error?
-- [ ] Did I propose a concrete manifest diff and apply only after approval?
-- [ ] Did I verify pods/logs (and smoke test) after the fix?
+- [ ] Confirmed it is a model deployment (labels / `artifacts_download` / image)?
+- [ ] Checked `cache_volume` to know whether the download runs in `download-models` or the `downloader-<deploymentId>` workflow, and read the right logs?
+- [ ] Did not read empty `list_application_events` as healthy?
+- [ ] Separated container `OOMKilled` (memory limit) from CUDA OOM (GPU memory env)?
+- [ ] Considered probes, pipeline tag and image tag before inventing engine flags; searched recipes + GitHub?
+- [ ] When merging a regenerated spec, kept `storage_class` and did not shrink `cache_size`?
+- [ ] Proposed a concrete diff, applied only after approval, and verified?
 
 For more info: `search_docs` with "deploying an LLM", "monitor your service", "model catalogue".

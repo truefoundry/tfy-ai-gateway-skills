@@ -1,174 +1,115 @@
 ---
 name: models
-description: Model integrations connect vendor models to the Gateway; manifests and validation for provider accounts and third-party or self-hosted models.
+description: Read to list a tenant's models, answer "do you support model X / provider Y?", or create or update a model provider account (OpenAI, Bedrock, Azure, Vertex, …) and its model integrations, including "add all models".
 ---
 
-**Model integrations** are individual models from third party vendors or self hosted. Each integration has a `type` of `integration/model/<provider>` e.g. `integration/model/openai`.
+A **model provider account** (`provider-account/<provider>`) holds credentials and a list of **model integrations**. An integration is addressed as `{accountName}/{integrationName}`; its `model_id` is the provider's own name for the model. The integration type follows the host account, not the model maker: Claude on Vertex is `integration/model/vertex`.
 
-Note: The integration type always reflects the host provider account, not the model maker. For example, Anthropic Claude models on Vertex use `integration/model/vertex`, not `integration/model/anthropic`. Always derive the correct type from the `list_providers` response rather than inferring it from the model name.
+## List the tenant's models
 
-A tenant can have multiple model accounts (provider accounts). Each account can have multiple model integrations. A model integration is referred as `{accountName}/{integrationName}`.
+Call `list_provider_accounts` with `includeModelProviders: true` and `includeCustomEndpoints: true` (custom-endpoint accounts are model accounts too), and `includeInfraProviders`, `includeMCPProviders`, `includeGuardrailConfigs` set to `false`. Omit `limit` to get every account. Each `data[]` item has `name`, `provider`, `fqn` and `manifest` (with `integrations`); `data[].integrations[]` adds `id`, `fqn` and the integration `manifest` (`name`, `type`, `model_id`, `model_types`). Virtual-model groups come back too (`provider: virtual-model`). For one account by id, use `get_provider_account`.
 
-## Contents
-- Fetching existing model configurations
-- Querying supported models with `list_providers`
-- Creating Model Provider Accounts (Write Flow)
+## "Do you support model X / provider Y?"
 
-## Fetching existing model configurations
+Answer from `list_providers`, the platform catalogue, never from memory. Call it with `includeModelProviders: true` and the other four `include*` flags `false`. The result is millions of characters and is saved to a file: extract only what you need with one `jq`/program.
 
-Use the `list_provider_accounts` tool with `includeModelProviders: true` (and other `include*` flags set to `false` to filter out non-model accounts) to list model provider accounts along with their model integrations. The response shape is:
+- Shape: `data[]` is one entry per provider, with `type` (e.g. `provider-account/openai`) and `label`. Providers have no `name` field; filter on `type`.
+- Models: `data[i].integrations[0].metadata` is an object keyed by `model_id`. Each value has `model`, `mode`, optional `supportedModes`, `status` (`active`, `deprecated`, `preview`, `retired`) and `costs[]`.
+- Providers: list `type` and `label`. `provider-account/virtual-model` has no catalogue.
+- If a provider's `metadata` is empty or missing, recheck the `type` filter; if it is still empty, say the catalogue has no models for that provider. Never invent models.
 
-```yaml
-data:
-  - id: ...
-    name: my-openai-account
-    fqn: truefoundry:openai:my-openai-account
-    provider: openai
-    manifest:
-      name: my-openai-account
-      type: provider-account/openai
-      collaborators:
-        - role_id: provider-account-manager
-          subject: user:alice@example.com
-        - role_id: provider-account-access
-          subject: team:everyone
-      integrations:
-        - name: gpt-4o
-          type: integration/model/openai
-          model_id: gpt-4o
-          # Fields specific to integration/model/openai
-    integrations:
-      - id: ...
-        name: gpt-4o
-        fqn: truefoundry:openai:my-openai-account:model:gpt-4o
-        type: model
-        providerAccountFqn: truefoundry:openai:my-openai-account
-        manifest:
-          name: gpt-4o
-          type: integration/model/openai
-          model_id: gpt-4o
-          # Fields specific to integration/model/openai
-        # ...other top-level integration fields (createdBySubject, timestamps, etc.)
-pagination:
-  total: ...
-  offset: 0
-  limit: 100
-```
+## Create or update a provider account
 
-The integration manifest under `data[].manifest.integrations` and `data[].integrations[].manifest` are equivalent for the integration spec; the latter additionally exposes `id`, `fqn`, `providerAccountFqn`, and audit fields.
+Read this file and `write-rules.md` together. Follow the write steps there; the steps below say what is specific to models.
 
-The identifier `my-openai-account/gpt-4o` refers to the `gpt-4o` integration under provider account `my-openai-account`.
+### Inputs to collect
 
-To inspect a single provider account by id, use `get_provider_account`.
+- Provider (the `provider-account/<provider>` type) and account name.
+- Create a new account or update an existing one.
+- Auth method, if the schema offers more than one, and a `tfy-secret://<owner>:<secret-group>:<secret-key>` reference for each key or secret (never a raw value).
+- Region, if the schema has one (Azure OpenAI and Microsoft Foundry: `deployment_type` instead).
+- Which models: "all", a list of names, or modes (for example "all chat and embedding models"). Never dump the catalogue to the user; ask by name or mode.
 
-## Querying supported models with `list_providers`
+### Step 1 — one parallel batch
 
-`list_providers` returns the **platform catalog** — every provider, model, and pricing tier the platform *supports*. It does NOT return the user's existing/configured provider accounts (use `list_provider_accounts` for that).
+These are independent; issue them together:
 
-Use `list_providers` for:
-- **Checking model support** — when the user asks "do you support X model?", "is X available?", always call `list_providers` and search the response. Do NOT answer from memory.
-- **Checking provider support** — when asked "which providers do you support?", "which providers are available?", list the top-level `type` / `label` entries from the response.
-- **Building provider account manifests** — when creating a provider account (write flow), use this data to present available models, get the correct `model_id` values, and determine available regions.
+- `list_provider_accounts` (flags as in "List the tenant's models") to find accounts of this provider or with this name.
+- `get_manifest_json_schema` for the account type, e.g. `provider-account/openai`. Reuse it if it is still in the conversation; otherwise call it again.
+- `list_providers` from the sandbox (flags as above), saved to a file. If a saved `list_providers` file from this conversation is still referenced and still exists, reuse it; otherwise call it again.
 
-The response is `{ "data": [...] }` — an object with a `data` array. Each element in `data` is a provider:
+If matching accounts exist, ask whether to update one or create a new one with a different name. If that answer is no longer in the conversation, ask again before applying.
 
-```yaml
-{
-  "data": [
-    {
-      "type": "provider-account/openai",    # use this to filter — NOT "name"
-      "label": "OpenAI",
-      "integrations": [
-        {
-          "type": "integration/model/openai",
-          "metadata": {                      # keys are model_id strings
-            "gpt-4o": {
-              "model": "gpt-4o",            # model_id to use in manifests
-              "mode": "chat",
-              "costs": [
-                { "input_cost_per_token": 0.0000025, "output_cost_per_token": 0.00001, "region": "*" }
-              ]
-            }
-          }
-        }
-      ]
-    }
-  ]
-}
-```
+### Step 2 — read the schema
 
-**How to find a provider:** access `result["data"]`, then filter by `type` field (e.g. `type == "provider-account/openai"`). Providers do NOT have a `name` field — do not filter by `name`.
-**How to get models:** `provider["integrations"][0]["metadata"]` — this is a dict keyed by `model_id`.
-**Key fields per model:** `model` (model_id for manifests), `mode`, `costs[]` (per-region availability + pricing).
-**`costs[]`:** Each entry has `region`. If the entry also has `input_cost_per_token` → public pricing exists for that region. If only `region` is present → model is available but has no public pricing.
-ModelType enum: `chat`, `completion`, `embedding`, `realtime`, `rerank`, `audio_transcription`, `audio_translation`, `text_to_speech`, `moderation`, `image`, `responses`.
+From the schema, extract with one `jq`:
 
-## Creating Model Provider Accounts (Write Flow)
+- The integration `type` constant under `integrations` items. Take it from the schema, not from `list_providers` (which says `integration/model/aws-sagemaker` instead of `integration/model/sagemaker`, and `integration/model/virtual-model` instead of `integration/model/virtual`). It differs from the account suffix for `aws-bedrock` → `integration/model/bedrock`, `aws-bedrock-mantle` → `integration/model/bedrock-mantle`, `google-vertex` → `integration/model/vertex`, `google-gemini` → `integration/model/gemini`, `aws-sagemaker` → `integration/model/sagemaker`.
+- The account `name` pattern (it varies by provider; OpenAI allows 3–32 lowercase letters, digits and `-`).
+- The `auth_data` variants. Some providers require `auth_data` (for example `azure-openai`, `google-gemini`); some offer several shapes (Bedrock has three). If there is more than one, ask which.
+- The `region` enum, if the account has `region`.
 
-### Phase 1: Check for Existing Accounts
+**Region.** If the schema has `region`, collect the distinct `costs[].region` values of this provider's models, keep only values that are also in the schema's `region` enum, and ask the user to choose. `*` means "default price for any region"; never offer it as a region. Skip this if the schema has no `region`.
 
-Call `list_provider_accounts` with `includeModelProviders: true` and check if a provider account matching what the user asked for already exists (by name if they gave one, or by provider type if the request is general).
+### Step 3 — build the manifest in the sandbox with one program
 
-- **Matches found:** Present the matching accounts to the user and ask whether they want to create a new account (with a different name) or update an existing one. Carry their choice forward into Phase 2.
-- **No matches:** Proceed to Phase 2.
+Write one program that reads the saved `list_providers` file and writes the complete manifest as JSON to a file. Do not build the integration list by hand or inline; for a large provider it is over a hundred objects.
 
-### Phase 2: Get Schema and Provider Data
+**Inputs:** the provider `type`; the integration `type` from Step 2; the account `name`; the chosen region or `deployment_type`; the model selection; `auth_data`; collaborators (from `write-rules.md`); and, when updating, the account's current manifest from `list_provider_accounts`.
 
-1. Call `get_manifest_json_schema` with the provider account type the user wants (e.g. `provider-account/openai`, `provider-account/aws-bedrock`, `provider-account/anthropic`, `provider-account/azure-openai`, etc.).
-2. Call `list_providers` — always call this for every model provider account creation. It returns the supported models, their types, pricing, and regions. Never use your own knowledge for model names, IDs, or modes — only use what `list_providers` returns. Your training data is outdated; `list_providers` is the source of truth.
+**Program:**
 
-### Phase 3: Determine Authentication, Region, and Models
+1. Select the provider: `data[]` where `type` equals the provider type. Models are `integrations[0].metadata`, keyed by `model_id`.
+2. For each model, compute `model_types`: `mode` plus every value in `supportedModes`, de-duplicated, keeping only `chat`, `completion`, `embedding`, `realtime`, `rerank`, `audio_transcription`, `audio_translation`, `text_to_speech`, `moderation`, `image`, `responses`, `ocr`, `video`, `decision`. Drop `unknown` and `unsupported`. If nothing is left, skip the model. Never default to `[chat]`: the gateway rejects calls whose type is not in `model_types` (for example `/embeddings` on a `[chat]` model), so the model looks configured but fails every real call.
+3. Skip models whose `status` is `retired`, and models outside the user's selection (by name or by `model_types`).
+4. Region filter (accounts with `region`): keep only models with a `costs` entry whose `region` is the chosen region or `*`.
+5. Name: `model_id` with every `/` and `:` replaced by `-` (for example `openai/tts-1:v2` → `openai-tts-1-v2`). For `realtime`, `text_to_speech`, `audio_transcription` and `audio_translation` models this exact name is required, and `apply_manifest` rejects any other (the audio check is skipped on `aws-bedrock` and `aws-bedrock-mantle` accounts; the realtime check applies everywhere). The name must match `^[a-zA-Z](?:[a-zA-Z0-9\-._]{0,62}[a-zA-Z0-9])$`; for other models you may replace remaining invalid characters with `-`. Skip names that still fail, and duplicates (integration names must be unique in the account).
+6. **Pricing rule** — decides `cost`, and is what returns a 400 for every model it gets wrong. Pick the model's cost entry: the one whose `region` equals the target (Bedrock, Bedrock Mantle and Vertex: the chosen `region`; Azure OpenAI and Microsoft Foundry: the `deployment_type` value `global`, `datazone_us` or `datazone_eu`, with `standard` meaning `*`); if there is none, the `region: "*"` entry; for providers without a region, the `*` entry or else any entry. Add `cost: {metric: public_cost}` only if that entry exists and has at least one key besides `region` (for example `input_cost_per_token`, `input_cost_per_character`, `input_cost_per_second`, `input_cost_per_image`, `tiered_pricing`). Otherwise omit `cost`. Never copy price values; add a custom cost only if the user gives their own pricing.
+7. Each integration is `{name, type, model_id, model_types}` plus `cost` when step 6 allows it, plus any field the schema requires on the integration (Azure OpenAI: `api_version`). For Azure OpenAI and Microsoft Foundry, `model_id` is the user's deployment name, so ask for the deployments rather than taking "all"; set `deployment_type`, and `foundation_model` to the catalogue key (pricing is looked up by `foundation_model`, else `model_id`).
+8. When updating, start from the current manifest's `integrations` and append only models whose name is not already there. **`integrations` replaces the whole list: a dropped integration is deleted.**
+9. Write the manifest (template below) to a file. Print only a summary: number of integrations by model type, how many have `cost`, and each skipped model with its reason.
 
-1. If the schema shows multiple authentication methods, use `ask_user_question` to ask the user which auth method to use.
-2. The `list_providers` response is very large (200K+ lines). Call it from sandbox, save to a file, then parse. Access `result["data"]` to get the providers array, then **filter by `type` field first** (e.g. `type == "provider-account/openai"`) — NOT `name` (providers don't have a `name` field). Extract models from `provider["integrations"][0]["metadata"]`. Every provider has models — if you find none, your filter is wrong.
-3. **Region** — check the JSON schema from Phase 2. If the schema includes a `region` field, collect the distinct `region` values from the **filtered provider's** models' `costs[]` entries and ask the user which region to use (via `ask_user_question`). If the schema does not have a `region` field, skip this step.
-4. **Filter models by region** — if a region was selected, only include models that have a `costs` entry whose `region` matches the user's selected region (or `region: "*"`). Do NOT add models unavailable in the chosen region.
-5. Do NOT dump the full model list to the user — it can be very large. Ask the user which models they want to add (by name or type) and look them up in the `list_providers` response.
-6. **Naming rule**: For `realtime`, `audio_transcription`, `audio_translation`, `text_to_speech` modes, integration `name` MUST equal `model_id`. For all other modes, any descriptive name works.
-7. **Pricing rule:** Add `cost: metric: public_cost` to a model **only if** its `costs` entry for the target region has `input_cost_per_token`. Otherwise omit `cost` entirely. Never manually copy cost values — only add custom cost if the user provides their own pricing.
-8. **Model types rule:** set each integration's `model_types` from the model's `mode` in `list_providers`, plus any values in its `supportedModes`. Never default to `[chat]`: the gateway rejects calls whose type is not in `model_types` (for example, `/embeddings` on a `[chat]` model), so the model looks configured but fails every real call. Skip models whose `mode` is `unknown` or `unsupported`.
+Show the user the summary, not the full list.
 
-### Phase 4: Validate and Apply
+### Step 4 — validate once, apply once
 
-Build the manifest as JSON → pass to `validate_manifest` → fix if needed → pass to `apply_manifest`.
+Pass the JSON from the file as `{"manifest": …}` to `validate_manifest`. Once it returns `valid: true`, pass the same JSON to `apply_manifest` in a separate call. `validate_manifest` checks only the schema; the pricing, naming and credential checks run at apply, which is why steps 5 and 6 must be right before you apply. If apply fails, fix the program's rule (not individual entries), rebuild the file and validate again.
 
-### Manifest Structure
+Then show the UI link from `write-rules.md`.
+
+### Manifest template
 
 ```yaml
-type: <provider-account/type>
-name: <unique-account-name>
+type: provider-account/<provider>
+name: <account-name>                     # schema's name pattern
+auth_data:                               # shape from the schema, e.g.
+  type: api-key
+  api_key: tfy-secret://<owner>:<secret-group>:<secret-key>
+region: <region>                         # only if the schema has region
 collaborators:
   - role_id: provider-account-manager
-    subject: user:<current-user-email>  # from the session context
+    subject: user:<current-user-email>   # from the session context; call get_session_context only if it is missing
   - role_id: provider-account-access
     subject: team:everyone
-region: <region>                          # only if schema has region field
 integrations:
-  # Model with public pricing available (costs entry has input_cost_per_token)
-  - name: <integration-name>
-    type: <integration/model/provider>
-    model_id: <provider-model-id>
-    model_types: [<mode from list_providers>]
-    cost:
+  - name: <model_id with / and : replaced by ->
+    type: <integration type const from the schema>
+    model_id: <metadata key>
+    model_types: [<mode>, <supportedModes>…]
+    cost:                                # only per the pricing rule
       metric: public_cost
-  # Model without public pricing (costs entry has only region) — omit cost
-  - name: <integration-name>
-    type: <integration/model/provider>
-    model_id: <provider-model-id>
-    model_types: [<mode from list_providers>]
 ```
 
 ### Checklist
 
-- [ ] For "do you support X model?" questions, did I call `list_providers` and check the metadata?
-- [ ] Did I call `get_manifest_json_schema` to get the current schema for the provider account type?
-- [ ] Did I ask the user which auth method to use if multiple are available?
-- [ ] If the schema has a `region` field, did I ask the user which region to use?
-- [ ] If a region was selected, did I filter models to only those available in that region?
-- [ ] Did I avoid dumping the full model list and instead ask the user which models they want?
-- [ ] For `realtime`/`audio_transcription`/`audio_translation`/`text_to_speech` modes, is the integration `name` set to exactly the `model_id`?
-- [ ] Did I check each model's `costs` entry for `input_cost_per_token` before adding `cost: metric: public_cost`? Omitted `cost` when absent?
-- [ ] Did every model I added come from the `list_providers` response (not from my own knowledge)?
-- [ ] Is each model's `model_types` taken from its `mode` (and `supportedModes`), not defaulted to `[chat]`?
+- [ ] Did every model come from `list_providers`, not memory?
+- [ ] Is each integration `type` taken from the schema?
+- [ ] Is `model_types` from `mode` plus `supportedModes`, never defaulted to `[chat]`, with no `unknown`/`unsupported`?
+- [ ] For realtime/TTS/STT/audio-translation models, is `name` the `model_id` with `/` and `:` replaced by `-`?
+- [ ] Is `cost: {metric: public_cost}` only on models whose picked cost entry has a price field?
+- [ ] If the schema has `region`, did the user choose one from the schema enum (never `*`), and are the models filtered by it?
+- [ ] Are credentials `tfy-secret://` references in the schema's `auth_data` shape?
+- [ ] When updating, did I keep every existing integration and collaborator?
+- [ ] Was the manifest built by one program into a file, validated once and applied once?
 
 For more info: `search_docs` with "supported model providers", "model integrations".

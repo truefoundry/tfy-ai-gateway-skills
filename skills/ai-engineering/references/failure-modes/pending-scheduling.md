@@ -15,13 +15,12 @@ A `Pending` pod is waiting for a node. Kubernetes will leave it there forever. T
 
 ## Triage sequence
 
-After `troubleshooting.md` Phase 1–2 have given you the application `id`, `clusterId` and a Pending pod:
+After `troubleshooting.md` Phase 1–2 have given you the application `id`, `clusterId` and a Pending pod (if they are no longer in the conversation, resolve them again):
 
-0. **FailedMount first.** `Pending` is also what you see for volume mount failures, and those are **not** `FailedScheduling`. Call `list_application_events` for the app. If you see `FailedMount`, `FailedAttachVolume`, or PVC bind errors → stop and open `failure-modes/volumes-storage.md`.
-1. Read the scheduler's reason: the pod's `message` and its `PodScheduled` condition in `get_application_state`, and `FailedScheduling` events from `list_application_events`.
-2. `get_applied_k8s_manifest` — the pod's requests, nodeSelector/affinity, tolerations and topology constraints as applied.
-3. **If the message is capacity / GPU / unschedulable — check provisioning next (do not stop at the pod event).** See **Karpenter / node provisioning** below. This is required for GPU scheduling problems, not optional.
-4. `list_cluster_addons` + `get_cluster_status` when provisioning looks broken or addons look unhealthy.
+1. Issue in one message: `list_application_events` (with a `startTs` covering the Pending period), `get_applied_k8s_manifest` (requests, nodeSelector/affinity, tolerations, topology constraints as applied) and `list_clusters attributes=["id","name","manifest.cluster_type"]`. Reuse `get_application_state` if it is still in the conversation.
+2. **FailedMount first.** `Pending` with a `node` set is not a scheduling problem: `FailedMount`, `FailedAttachVolume` or PVC bind errors in the events → stop and open `failure-modes/volumes-storage.md`.
+3. Read the scheduler's reason: the `PodScheduled` condition with `reason: Unschedulable` in `get_application_state` (its `message` is "0/N nodes are available: …") and `FailedScheduling` events. Live events last about an hour; older windows show only a lifecycle "pending" event without the message.
+4. **If the message is capacity / GPU / unschedulable — check provisioning next (do not stop at the pod event).** See **Karpenter / node provisioning** below. This is required for GPU scheduling problems, not optional.
 
 Node lists, taints and allocatable capacity are not visible to any tool (`tools.md` → What no tool can see). The FailedScheduling message already summarises them ("0/5 nodes are available: 3 Insufficient nvidia.com/gpu, 2 node(s) had untolerated taint …"); work from it, and when you need the raw nodes, give the user `kubectl get nodes -L node.kubernetes.io/instance-type` / `kubectl describe node <name>`.
 
@@ -45,7 +44,7 @@ Symptoms from the field: nodes come up but pods stay Pending; device plugin not 
 Check in order:
 
 1. **Pod requests** — `get_applied_k8s_manifest`. Confirm `nvidia.com/gpu` (or Neuron) count and whether CPU/memory + GPU + zone + capacity-type constraints can coexist on one instance.
-2. **Device plugin** — if a GPU node exists (other pods on it in `get_application_state`, or the user confirms) but the message still says `insufficient nvidia.com/gpu`, the GPU operator / device plugin is likely broken: check `list_cluster_addons` for GPU operator health, and give the user `kubectl describe node <name>` to confirm `allocatable` shows `nvidia.com/gpu: 0`. This is **not** fixed by changing the application CPU request.
+2. **Device plugin** — if a GPU node exists (other pods on it in `get_application_state`, or the user confirms) but the message still says `insufficient nvidia.com/gpu`, the GPU operator / device plugin is likely broken: confirm the GPU operator is installed (`list_cluster_addons`), check its pods with `get_application_state` on its `applicationId`, and give the user `kubectl describe node <name>` to confirm `allocatable` shows `nvidia.com/gpu: 0`. This is **not** fixed by changing the application CPU request.
 3. **Taints** — GPU nodes often carry taints. The workload must tolerate them (TrueFoundry GPU node pools usually inject this; custom node pools may not).
 4. **Wrong accelerator family** — Neuron taints (`aws.amazon.com/neuron`) will reject NVIDIA GPU pods and vice versa. The FailedScheduling text names the taint.
 5. **Multi-GPU + instance filters** — combining `nvidia.com/gpu: 2` with a narrow instance family/size allow-list often yields `no instance type satisfied`. Quote that phrase to the user; the fix is relaxing instance requirements or reducing GPU count, not "waiting longer".
@@ -55,18 +54,17 @@ Check in order:
 
 **When to run this section (required, not optional):** FailedScheduling mentions provisioners/NodePools/`no instance type`; GPU/accelerator insufficient; insufficient cpu/memory with no spare nodes; nodes never appear after several minutes; user says Karpenter / node pool / autoscaling.
 
-Do these in order:
+Pick the branch from `manifest.cluster_type` and issue its calls together with `list_cluster_addons` in one message:
 
-1. **`get_cluster_autoscaler_logs`** with the cluster `id`.
-   - **Azure / GCP:** this is the provisioning log stream (cluster-autoscaler or NAP). Read the recent lines for scale-up refused, quota, or instance-type unavailable — quote them.
-   - **AWS:** this tool returns **501 / not implemented**. That is expected. Continue with step 2.
-2. **Events** — `list_application_events` often carries Karpenter's own events on the pod (`Nominated`, `FailedScheduling` from karpenter, launch errors). Quote them.
-3. **NodeClaims / NodePools (AWS Karpenter)** — no tool can read them. Ask the user to run `kubectl get nodeclaims` and `kubectl describe nodeclaim <name>` (launch failures: IAM, quotas, subnet, AMI, spot capacity, instance type unavailable), and `kubectl get nodepool <name> -o yaml` to compare requirements (family In/NotIn, zone, capacity-type, arch, GPU instance families) with the pod.
-4. **`list_cluster_addons`** — Karpenter / karpenter-config / GPU operator not installed or unhealthy means no provisioning path. Say which addon.
+- **`aws-eks` → Karpenter.** Skip `get_cluster_autoscaler_logs` (it returns 501). Karpenter's own pod events (`Nominated`, karpenter `FailedScheduling`, launch errors) are in `list_application_events` — quote them. NodeClaims / NodePools are not readable by any tool: ask the user for `kubectl get nodeclaims`, `kubectl describe nodeclaim <name>` (launch failures: IAM, quotas, subnet, AMI, spot capacity, instance type unavailable) and `kubectl get nodepool <name> -o yaml` to compare requirements (family In/NotIn, zone, capacity-type, arch, GPU instance families) with the pod.
+- **`azure-aks` / `gcp-gke-standard` → `get_cluster_autoscaler_logs`** with the cluster `id` and `direction: "desc"` (the default is the oldest 100 lines of the last hour). Quote scale-up refused, quota, or instance-type-unavailable lines. Karpenter is not supported there; skip NodeClaims.
+- **`generic` / `civo-talos`** — neither applies; check `list_cluster_addons` and ask the user how nodes are provisioned.
+
+In every branch, `list_cluster_addons` tells you whether Karpenter / karpenter-config / the GPU operator is installed; a missing one means no provisioning path — say which. It has no health field: check an installed addon with `get_application_state` on its `applicationId`.
 
 **Before** concluding the pod is incompatible with a NodePool, you must have the pod scheduling fields (applied manifest) **and** provisioning evidence (autoscaler logs, Karpenter events, or NodeClaim output from the user). Guessing from the pod event alone causes wrong "relax the GPU count" advice when the real issue is quota, zone, capacity-type, or AMI. If you do not have that evidence yet, say so and give the commands.
 
-Karpenter **controller** logs live in a system namespace no tool can read. Ask the user, or follow `references/support-tickets.md` with the evidence you already have — do not pretend you fetched `kube-system`.
+Karpenter **controller** logs live in `kube-system`, which no tool can read. Ask the user, or follow `references/support-tickets.md` with the evidence you gathered (re-read it if it is no longer in the conversation) — do not pretend you fetched `kube-system`.
 
 ## What not to do
 
@@ -78,9 +76,9 @@ Karpenter **controller** logs live in a system namespace no tool can read. Ask t
 
 ## Checklist
 
-- [ ] Did I read the FailedScheduling message (pod `message` / events) before guessing?
+- [ ] Did I read the scheduler's message (`Unschedulable` condition / events) before guessing?
 - [ ] Did I read requests/affinity/tolerations from `get_applied_k8s_manifest`?
-- [ ] For GPU / capacity Pending, did I call `get_cluster_autoscaler_logs` (and handle AWS 501), read Karpenter events, and ask for NodeClaim / NodePool output where needed?
+- [ ] For GPU / capacity Pending, did I follow the `cluster_type` branch (autoscaler logs on Azure/GCP; Karpenter events and NodeClaim / NodePool output from the user on AWS)?
 - [ ] For GPU, did I check the GPU operator in `list_cluster_addons`?
 - [ ] Did I name what I could not see and give the user the `kubectl` command for it?
 - [ ] Did I avoid application-log conclusions for a pod that never scheduled?

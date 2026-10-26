@@ -6,7 +6,7 @@ description: Stores metrics for both Models and Virtual Models.
 ## CRITICAL
 
 - For enum values and attribute details, use `get_section_content` on https://www.truefoundry.com/docs/ai-gateway/fetch-request-logs-span-attributes to get the full reference.
-- For a virtual model request,there will be multiple rows in the table, one row for the virtual model and one row for each of the underlying models till the request is fulfilled.
+- For a virtual model request, there will be multiple rows in the table, one row for the virtual model and one row for each of the underlying models till the request is fulfilled.
 - A virtual model metrics row has `VirtualModelName` column set to the name of the virtual model while for the underlying model rows this column is set to `NULL`.
 - Care should be taken to never query virtual model and underlying model rows together since virtual models themselves are not real models and are just a grouping of underlying models.
 
@@ -41,6 +41,10 @@ InputTokens: BIGINT, nullable
     Count of input (prompt) tokens billed or reported for the call.
 OutputTokens: BIGINT, nullable
     Count of output (completion) tokens for the call.
+CacheCreationInputTokens: BIGINT, nullable
+    Provider prompt-cache write tokens.
+CacheReadInputTokens: BIGINT, nullable
+    Provider prompt-cache read tokens.
 LatencyMs: DOUBLE PRECISION, nullable
     End-to-end model call latency in milliseconds. NULL on failed calls (IsFailure = true); populated for all successful calls. Filter IsFailure = false for latency queries.
 TimeToFirstTokenMs: DOUBLE PRECISION, nullable
@@ -63,15 +67,13 @@ ErrorType: TEXT, nullable
     Categorized error type when IsFailure is true.
 ModelType: TEXT, nullable
     Identifies whether the row is for a virtual model. Value is "virtual" for virtual model rows, NULL for regular model rows.
-## NOTE: The following cache columns pertain to Gateway-level caching (semantic/exact-match) only. Provider-side prompt caching tokens (cache_read_tokens, cache_write_tokens) are not available in this table — see the traces table's TfyGatewayOutput field instead.
+## NOTE: The Cache* columns below refer to Gateway caching (semantic/exact-match). Provider prompt caching is in CacheReadInputTokens/CacheCreationInputTokens above.
 CacheType: TEXT, nullable
     Kind of response cache involved (e.g. semantic, exact) when applicable.
-CacheHit: BOOLEAN, nullable
-    Whether the response was served from cache.
 PotentialCostSavings: DOUBLE PRECISION, nullable
     Estimated USD saved by serving from cache instead of the provider.
 CacheLookupStatus: TEXT, nullable
-    Outcome of the cache lookup (hit, miss, error, etc.).
+    Outcome of the cache lookup. Values: hit, miss, error. NULL when no gateway cache lookup happened.
 CacheLookupLatencyMs: DOUBLE PRECISION, nullable
     Time spent on cache lookup in milliseconds.
 CacheNamespace: TEXT, nullable
@@ -83,21 +85,25 @@ SemanticCacheSimilarityThreshold: DOUBLE PRECISION, nullable
 Metadata: Map(Text, Text), nullable
     TrueFoundry Gateway and User Metadata, matches the "TfyGatewayMetadata" column in the "traces" table.
 CreatedBySubjectSlug: TEXT
-    Slug of the subject on whose request the config was evaluated. User email or virtual account name
+    Slug of the subject who made the request. User email or virtual account name.
 CreatedBySubjectType: TEXT
-    Type of the requesting subject. Possible values: user, virtualaccount.
+    Type of the requesting subject. Common values: user, virtualaccount, agent. Do not assume the list is exhaustive.
 Teams: Array(Text), nullable
     Teams attributed to the caller.
 CreatedBySubjectId: TEXT
     Identifier of the subject for the request.
 CreatedBySubject: TEXT
     Full caller identity for the request.
+ProviderAccountId: TEXT, nullable
+    ID of the provider account used.
 ProviderAccountType: TEXT, nullable
     Kind of provider account (cloud, BYOK, etc.).
 ProviderIntegrationType: TEXT, nullable
     Integration flavor for the provider connection.
 ProviderModelName: TEXT, nullable
     Upstream provider’s model name as sent to the API.
+Date: TEXT
+    Partition column, UTC date 'YYYY-MM-DD' of CreatedAt.
 ```
 
 ## Checklist

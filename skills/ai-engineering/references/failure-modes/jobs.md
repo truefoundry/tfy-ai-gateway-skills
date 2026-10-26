@@ -7,26 +7,27 @@ Jobs are not long-running services. Debug against a **specific run**, not only t
 
 ## Triage
 
-1. Confirm `type: job` from `get_application`.
-2. `list_job_runs` — pick the failing/latest run; note `jobRunName` / id and status.
-3. `get_job_run` for that run.
-4. `get_logs` with `jobRunName` set (and time window around the run).
-5. `list_application_events` with the same `jobRunName` (do **not** also pass `podNames`).
-6. If the run created pods: `get_application_state` + same crash/pending playbooks as services (`failure-modes/crashloop-oom-probes.md`, `failure-modes/pending-scheduling.md`).
+`type: job` is known from `troubleshooting.md` Phase 1.
+
+1. `list_job_runs` (path `jobId` = application `id`; filter `status: ["FAILED"]` when looking for failures). Runs come newest first with `name`, `status`, `error`, `exitCode`, `totalRetries`. Skip `get_job_run` — it adds nothing for triage.
+2. In one message, for the chosen run `name` as `jobRunName`: `get_logs(applicationId, jobRunName, direction="desc", limit=200)` and `list_application_events(applicationId, jobRunName)` (do **not** also pass `podNames` — rejected). Add a `startTs` around the run's `createdAt` when it is older than a day.
+3. If the run created pods: `get_application_state` + the same crash/pending playbooks as services (`failure-modes/crashloop-oom-probes.md`, `failure-modes/pending-scheduling.md`).
 
 ## Status reading
+
+Run statuses: `CREATED`, `SCHEDULED`, `RUNNING`, `FINISHED` (succeeded), `FAILED`, `TERMINATION_REQUESTED`, `TERMINATING`, `TERMINATED`, `UNKNOWN`.
 
 | Observation | Meaning |
 |---|---|
 | No runs at all | Trigger/cron/manual run never fired — check schedule, pause state, permissions to trigger |
 | Run `FAILED` with pods | Same as service failure modes on those pods |
 | Run failed with no pods | Often schedule/quota/validation — events + deployment status |
-| Run succeeded but user expected new code | Build dedup / old image — `builds.md` |
+| Run `FINISHED` but user expected new code | Build dedup / old image — `builds.md` |
 | Retries looping | Backoff; fix root cause in logs rather than raising retry count blindly |
 
 ## Cron / schedule
 
-If "job did not run today": verify the application is not paused (`pause_application` state), the cron expression/timezone, and cluster agent health (`get_cluster_status`). Lack of a run is not proven by empty pod lists alone.
+If "job did not run today": verify the application is not paused (`get_application` → `metadata.paused`), the cron expression/timezone, and that tfy-agent is publishing (`get_application_state`, see `failure-modes/rollout-argocd.md`). Lack of a run is not proven by empty pod lists alone.
 
 ## Checklist
 

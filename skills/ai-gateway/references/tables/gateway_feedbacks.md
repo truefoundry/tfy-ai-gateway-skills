@@ -9,6 +9,7 @@ description: Stores user feedback (ratings, comments) linked to trace spans.
 - Always include time-range filters on `"TargetCreatedAt"` to avoid full table scans.
 - Feedback rows are versioned: an update or delete writes a new row with the same `FeedbackId`. Always keep only the latest row per `FeedbackId` (`ROW_NUMBER() OVER (PARTITION BY "FeedbackId" ORDER BY "CreatedAt" DESC) = 1`), then filter `"IsDeleted" = false`. Never filter `IsDeleted` before deduplicating — counts and averages are otherwise wrong with no error.
 - Multiple feedbacks can exist for the same trace/span (e.g. different metrics like `rating`, `accuracy`, etc.).
+- Traces and feedback for the same request are in the same destination. Pick it as described in observability.md (Writing SQL Queries).
 
 ## Schema
 
@@ -42,7 +43,7 @@ MetricValue: DOUBLE PRECISION
 CreatedBySubjectSlug: TEXT, nullable
     Slug of the subject who created the feedback. User email or virtual account name.
 CreatedBySubjectType: TEXT, nullable
-    Type of the subject who created the feedback. Possible values: user, virtualaccount.
+    Type of the subject who created the feedback. Common values: user, virtualaccount, agent. Do not assume the list is exhaustive.
 TargetCreatedBySubjectId: TEXT, nullable
     Identifier of the subject who created the target span.
 TargetCreatedBySubjectType: TEXT, nullable
@@ -61,7 +62,7 @@ TargetCreatedBySubjectTeams: Array(Text), nullable
 WITH f AS (
     SELECT * FROM (
         SELECT *, ROW_NUMBER() OVER (PARTITION BY "FeedbackId" ORDER BY "CreatedAt" DESC) AS rn
-        FROM "default"."gateway_feedbacks"
+        FROM "{dataRoutingDestination}"."gateway_feedbacks"
         WHERE "TargetCreatedAt" > now() - INTERVAL '7 days'
     ) AS v
     WHERE rn = 1 AND "IsDeleted" = false
@@ -78,7 +79,7 @@ SELECT
     f."Comment",
     f."CreatedBySubjectSlug" AS "FeedbackBy",
     f."CreatedAt" AS "FeedbackUpdatedAt"
-FROM "default"."{tracesTable}" t
+FROM "{dataRoutingDestination}"."{tracesTable}" t
 LEFT JOIN f
     ON f."TargetTraceId" = t."TraceId"
     AND f."TargetSpanId" = t."SpanId"
@@ -92,4 +93,5 @@ LIMIT 10
 
 - [ ] Did I deduplicate by `FeedbackId` (latest `CreatedAt`) before filtering `"IsDeleted" = false`?
 - [ ] When joining with traces, did I join on `"TargetTraceId"` and `"TargetSpanId"`?
-- [ ] Did I replace `{tracesTable}` with `tracesTable` from the session context?
+- [ ] Did I use the same destination for both tables?
+- [ ] Did I replace `{tracesTable}` with `tracesTable` from the session context (call `get_session_context` only if it is missing)?

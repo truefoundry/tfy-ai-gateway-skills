@@ -1,22 +1,20 @@
 ---
 name: access-management
-description: Identity types, authentication tokens (PATs/VATs), access control, roles, permissions, giving access to users, and virtual account token management.
+description: Read for questions about who can access what — identity types, PATs vs virtual account tokens, Identity Providers, tenant roles, custom roles, role bindings, and giving a user or team access to a resource.
 ---
 
-**Access Management** covers the identity types, authentication mechanisms, access control, and token management for the Gateway.
+**Access Management** covers identities, authentication, roles and access grants for the Gateway. For a specific entity, read its own file: `teams.md`, `virtual-accounts.md`, `personal-access-tokens.md`.
 
-## Identity Types
+## Identity types
 
-- **Users**: Individuals who can log in to the platform. Each user has an email and can create Personal Access Tokens (PATs).
-- **Teams**: Groups of users. Granting a team access to a resource automatically grants access to all members. Teams can be managed manually or synced via SSO groups.
-- **Virtual Accounts**: Non-user identities for applications and services. Each virtual account has its own token (VAT) and can be scoped to minimum required permissions. One virtual account per application is recommended.
-- **External Identity**: Allows authentication via external identity providers (Okta, Azure AD) using JWT tokens, without requiring TrueFoundry user accounts. Useful for B2B applications.
-
-**Note**: There is an 'everyone' team which includes all users in the tenant. (not virtual accounts)
+- **Users** — people who log in. Each user can create Personal Access Tokens (PATs).
+- **Teams** — groups of users; access granted to a team applies to every member. See `teams.md`.
+- **Virtual accounts** — non-human identities for applications, with their own token (VAT). See `virtual-accounts.md`.
+- **Identity Providers** — TrueFoundry validates JWTs from your IdP (Okta, Azure AD, any OIDC provider) and resolves them to a user or virtual account through `identity_provider_mapping` on the virtual account, team, or user. Configure under Settings > Security & Access > Identity Providers. Docs: https://www.truefoundry.com/docs/platform/identity-providers
 
 ## Authentication
 
-Gateway uses TrueFoundry API keys, not provider keys (OpenAI, Anthropic, etc.). Pass the key as a Bearer token:
+The Gateway takes TrueFoundry API keys, not provider keys (OpenAI, Anthropic, etc.). Pass the key as a Bearer token:
 
 ```
 Authorization: Bearer <truefoundry-api-key>
@@ -29,111 +27,108 @@ export OPENAI_BASE_URL="https://<gateway-host>"
 export OPENAI_API_KEY="<truefoundry-api-key>"
 ```
 
-Two token types exist:
-
-| Token Type | Tied To | Best For |
+| Token type | Tied to | Best for |
 |---|---|---|
 | **Personal Access Token (PAT)** | A user | Development and testing |
-| **Virtual Account Token (VAT)** | A virtual identity | Production applications, CI/CD, shared apps |
+| **Virtual Account Token (VAT)** | A virtual account | Production applications, CI/CD, shared apps |
 
-Always recommend Virtual Accounts for production, CI/CD, or shared application use cases — PATs are tied to individual users and become invalid if the user leaves the organization, which makes them unsuitable for long-lived application credentials.
+Recommend virtual accounts for production, CI/CD and shared apps: a PAT becomes invalid when its owner is deleted or deactivated.
 
-## Access Control
+## Choosing how to grant access
 
-Access to models users/teams is managed at the **provider account** level. You can find collaborators in the provider account manifest. Two permission levels:
+| Need | Use |
+|---|---|
+| Broad platform capability for a person or group (e.g. "can create provider accounts") | A tenant role or custom role, assigned in the UI (see "Assign a tenant role") |
+| Access to one specific resource (a provider account, MCP server, workspace) | The resource's **Access Control** page, or a `role-binding` if you are a tenant admin |
+| Several people need the same access | Grant it to a team; future members inherit it |
+| An application needs access | A virtual account's `permissions` (see `virtual-accounts.md`) |
 
-- **Provider Account Manager**: Can modify settings, add/remove models, manage permissions for others.
-- **Provider Account User**: Can use all models in the account. Cannot change settings or permissions.
+Roles can be assigned to users, teams (every member inherits them), virtual accounts, and agents. Tenant admins can use every model without being a collaborator.
 
-Permissions can be granted to users, teams from collaborator section in the provider account manifest. The `collaborators` list replaces all current grants on apply: start from the account's current manifest and keep every existing entry.
+## Access to one resource
 
-Tenant admins automatically have access to all models without needing explicit collaborator assignment.
+Default path: send the user to the resource's three-dot menu → **Access Control** → **Grant Access**, pick subjects and a role, and save. Model access is granted at the **provider account** level with these roles:
 
-Virtual Account can have permissions to models, provider accounts, mcp servers. These permissions are present in the virtual account manifest and managed from the virtual account manifest.
+- **Manager** (`provider-account-manager`) — can change settings, add or remove models, and manage access.
+- **User** (`provider-account-access`) — can use every model in the account; cannot change settings or access.
 
-## Virtual Account Token Management
+**Editing `collaborators` in a manifest replaces all current grants** — anyone left out loses access. If you do edit it, start from the resource's current manifest and keep every existing entry; see `write-rules.md` ("Lists that replace everything", "Collaborators"). Subjects are `user:<email>` or `team:<name>`.
 
-Virtual accounts support:
+### Role bindings (tenant admins)
 
-- **Auto-rotation**: Automatically rotate tokens at a configured interval. Old tokens remain valid for a configurable grace period.
-- **Secret store sync**: Sync tokens to AWS Parameter Store, AWS Secrets Manager, Google Secret Manager, HashiCorp Vault, Azure Vault, etc. Tokens auto-sync on rotation.
-- **Rotation notifications**: Get notified via email or Slack when tokens rotate.
+Tenant admins can grant a role on a specific resource as code. Non-admins get 403 — send them to the resource's **Access Control** page instead.
 
-## Roles and Permissions
+1. Call `get_manifest_json_schema` with type `role-binding` (reuse it if it is still in the conversation).
+2. Build the manifest below, then `validate_manifest` → `apply_manifest` per `write-rules.md`. Re-applying the same `name` updates that binding.
 
-- **Admin**: Full control over all resources, users, and settings. Should be limited to a few users.
-- **Member**: No default resource access. Must be explicitly granted access.
-- **Custom Roles**: Admins can create custom roles with fine-grained permissions scoped to specific resource types (provider accounts, MCP servers, virtual accounts, teams, etc.).
+```yaml
+type: role-binding
+name: <binding-name>            # 3-66 chars: lowercase letters, digits, hyphens; starts with a letter
+subjects:
+  - type: user                  # user | team | virtualaccount | agent
+    name: <email, or team / virtual account / agent name>
+permissions:
+  - resourceType: workspace     # e.g. workspace, cluster, provider-account
+    resourceFqn: <resource-fqn>
+    role: workspace-editor      # a role valid for that resource type
+```
 
-Roles are assigned per user.
+A binding is either one subject with many permissions or many subjects with one permission, not many of both — write one binding per role when several people need several roles.
 
-### Access Control Strategy
+## Roles
 
-There are two ways to grant access in TrueFoundry:
+- **Tenant Admin** (`tenant-admin`): full control; not editable. Keep to a few users.
+- **Member** (`member`): default role with a small baseline (read clusters, list environments/settings/users, create repositories, secret groups, agents); no access to individual models, MCP servers or workspaces. Editable — changes apply to every member.
+- **Read-Only Member** (`read-only-member`): read-only across supported resources; not editable.
+- **Team Member** / **Team Manager**: team-scoped defaults for the team's virtual accounts and membership.
+- **Custom roles**: tenant-wide permission sets created by admins.
 
-1. **Custom role granted to the user** — for granting broad permissions across the entire tenant (e.g., "this user can create provider accounts and MCP servers"). Create a custom role with the permissions needed, then grant it to the user (see Giving Access to a User below).
-2. **Collaborators on the entity** — for granting access to a *specific* resource (e.g., "this user can manage this particular provider account"). Prefer the resource's **Access Control** page in the UI, or add them to a team that already has access. If you edit `collaborators` in a manifest, start from the resource's current manifest and keep every existing entry: the list replaces all current collaborators, so anyone you leave out loses access. Subjects are `user:<email>` or `team:<name>`.
+### Assign a tenant role
 
-When to use which:
-- Need to grant someone broad platform-level capabilities? → Custom role granted to the user
-- Need to give someone access to a specific provider account, MCP server, workspace, etc.? → Add them as a collaborator on that entity, or add them to an appropriate team
+Do this in the UI:
 
-### Fetching Existing Roles
+- **To a user:** open `{controlPlaneUrl}/access-management?tab=users`, edit the user, select the role, and save.
+- **To a team:** open `{controlPlaneUrl}/access-management?tab=teams`, edit the team, select the role, and save — every member inherits it.
 
-Use the `list_roles` tool to get all roles (built-in and custom).
+Full walkthrough: https://www.truefoundry.com/docs/platform/manage-user-roles-and-permissions
 
-Each role in the response has two permission representations:
-- `manifest.permissions`: `["account:ReadAccount", "cluster:ReadCluster"]` — this is the correct format to use when creating roles
-- `permissionSetsV2[].permissions`: `["READ_ACCOUNT", "READ_CLUSTER"]` — internal expanded format, do not copy this
+### Reading existing roles
 
-When creating custom roles, use the `{resource-type}:{ActionInCamelCase}` format (as seen in `manifest.permissions`). The `SCREAMING_SNAKE_CASE` format from `permissionSetsV2` is an internal representation — using it in manifests causes validation errors.
+Call `list_roles` (pass `roleName=<name>` to fetch one). Custom roles list their permissions in `manifest.permissions` (e.g. `["cluster:ReadCluster", "settings:ListSettings"]`) — that is the format to use. Built-in roles may have no `manifest`. Never copy `permissionSetsV2[].permissions` (e.g. `READ_CLUSTER`); it is an internal format and fails validation.
 
-### Creating Custom Roles (Write Flow)
+## Creating or updating a custom role
 
-#### Phase 1: Get Schema and Check the Name
+Custom roles are not available on the Free plan.
 
-1. Call `get_manifest_json_schema` with type `role`.
-2. Call `list_roles` with `roleName=<name>`. If a role with that name exists, show it and ask whether to update it or pick another name — applying a role under an existing name overwrites it for everyone who holds it. Never apply a role named `member`, `team-member` or `team-manager` unless the user explicitly wants to change that default for everyone.
+### Steps
 
-#### Phase 2: Determine Permissions
+1. In one parallel batch: `get_manifest_json_schema` with type `role` (reuse it if still in the conversation), `list_roles` with `roleName=<name>`, and `get_section_content` with url `https://www.truefoundry.com/docs/platform/manage-user-roles-and-permissions#available-platform-permissions` for the permission keys.
+   - **Applying a role under an existing name overwrites it for everyone who holds it.** If `list_roles` returns a role, show it and ask whether to update it or pick another name. Never apply a role named `member`, `team-member` or `team-manager` unless the user explicitly wants to change that default for everyone.
+   - If `get_section_content` returns a page layout instead of content, fetch `#ai-gateway`, `#ai-engineering` and `#common` from the same URL.
+2. Ask the user what the role should allow, and map each action to a permission key from the docs. Copy the keys verbatim.
+3. Build the manifest, then `validate_manifest` → `apply_manifest` per `write-rules.md`.
 
-1. Ask the user what actions the role should allow.
-2. Map user intent → permission strings using the **Permission Strings** section below.
+### Rules
 
-#### Phase 3: Validate and Apply
+- Set `resourceType: tenant`. Other values (`provider-account`, `workspace`, `cluster`) are reserved for built-in roles and return "Resource type is not supported".
+- Permission keys use `{resource-type}:{ActionInCamelCase}` (e.g. `provider-account:CreateProviderAccount`).
+- The Global Settings prefix is `settings`, not `global-settings` — a common validation failure.
+- You can only put permissions you hold yourself into a role; the apply fails otherwise.
+- At least one permission, with no duplicates.
 
-Build the manifest as JSON → pass to `validate_manifest` → fix if needed → pass to `apply_manifest`.
-
-#### Manifest Structure
+### Manifest
 
 ```yaml
 type: role
-name: <unique-role-name>           # lowercase, 3-35 chars, letters/digits/hyphens
+name: <role-name>                  # 3-35 chars: lowercase letters, digits, hyphens; starts with a letter, ends with a letter or digit
 displayName: <Human Readable Name>
 description: <What this role is for>
-resourceType: tenant               # always "tenant" for custom roles
+resourceType: tenant
 permissions:
-  - <resource-type>:<ActionInCamelCase>
   - <resource-type>:<ActionInCamelCase>
 ```
 
-#### Important Constraints
-
-- Set `resourceType` to `tenant` for custom roles — other values (`provider-account`, `workspace`, `cluster`) are reserved for built-in roles and will return `"Resource type is not supported"`.
-- Permission strings must follow `{resource-type}:{ActionInCamelCase}` format (e.g., `provider-account:CreateProviderAccount`). The SCREAMING_SNAKE_CASE format is internal and gets rejected by validation.
-- `name` pattern: `^[a-z][a-z0-9\-]{1,33}[a-z0-9]$` (starts with letter, ends with letter/digit, 3–35 chars).
-- The **Global Settings** resource prefix is `settings` (not `global-settings`) — this is a common source of validation failures.
-
-### Permission Strings
-
-Get the exact permission keys from the docs. This is a two-step process — you cannot fetch all permissions at once (the `#available-platform-permissions` anchor returns no content):
-
-1. **Get the page layout first.** Call `get_page_layout` on https://www.truefoundry.com/docs/platform/manage-user-roles-and-permissions. This returns the page structure and the list of section anchors available.
-2. **Then fetch each relevant section.** Call `get_section_content` with the specific anchor from step 1 to get that section's permissions grouped by resource type, with their exact keys and descriptions.
-
-Copy the keys verbatim.
-
-### Example: Gateway Config Creator Role
+Example — a role that can create gateway resources:
 
 ```yaml
 type: role
@@ -148,22 +143,12 @@ permissions:
   - gateway-controls:ManageGatewayControls
 ```
 
-### Custom Role Checklist
+### Checklist
 
-- [ ] Did I call `get_manifest_json_schema` with type `role`?
-- [ ] Is `resourceType` set to `tenant` (not `provider-account`, `workspace`, etc.)?
-- [ ] Are all permission strings in `{resource-type}:{ActionInCamelCase}` format?
+- [ ] Do I have the `role` schema from `get_manifest_json_schema` in the conversation? If not, call it again.
+- [ ] Did I check `list_roles` with `roleName` and confirm with the user before overwriting an existing role?
+- [ ] Is `resourceType` set to `tenant`?
+- [ ] Are all permission keys copied verbatim from the docs, in `{resource-type}:{ActionInCamelCase}` format?
+- [ ] Do I hold every permission I'm putting in the role, and is there at least one, with no duplicates?
 
-## Giving Access to a User
-
-**Always recommend doing this via the UI** — show the steps below.
-
-**To give a user permissions:**
-
-1. Go to **Users > Access Control** and search for the user.
-2. Open the user's **Access Control** and click **Grant access**.
-3. Pick the role — a built-in role or a custom role (see Roles above) — and click **Update**.
-
-Full walkthrough: https://www.truefoundry.com/docs/platform/manage-user-roles-and-permissions
-
-For more info: `search_docs` with "authentication PAT VAT", "virtual account management", "access control provider account", "custom role permissions", "assign role to user", "grant workspace access".
+For more info: `search_docs` with "authentication PAT VAT", "identity providers", "access control provider account", "custom role permissions", "assign role to user", "role binding".

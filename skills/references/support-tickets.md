@@ -15,10 +15,10 @@ Do not suggest other contact channels (website, Discord, email). The ticket is t
 
 ## Create flow
 
-1. Get the user's email and name from the session context.
-2. Call `get_pylon_account_id` — get the tenant's Pylon account ID.
-3. Construct title and description from conversation context. Do not ask the user to re-explain.
-4. Select priority using the severity guide below. Confirm with user via `ask_user_question` (Yes / No). If rejected, let user pick from the options.
+1. Take `email` from the session context. If it is absent (non-user session), ask the user for a contact email.
+2. Call `get_pylon_account_id`; use `pylonAccountId` from the response as `account_id`.
+3. Write the title and body from the conversation; do not ask the user to re-explain. If key details (error text, entity names) are no longer in the conversation, ask the user for just those.
+4. Pick a priority using the severity guide below and confirm it with the user via `ask_user_question` (Yes / No); if rejected, let them pick from the options. If you are a sub-agent and `ask_user_question` is not available, stop and return the question to the main agent.
 
 **Severity guide:**
 
@@ -30,27 +30,28 @@ Do not suggest other contact channels (website, Discord, email). The ticket is t
 | `low` | Question, nice-to-have feature request, or non-blocking issue |
 
 **If the user picks `urgent`:** ask clarifying questions about the impact (which service, how many users, when did it start). Only proceed with `urgent` if a production system is fully down. Otherwise, suggest the appropriate priority from the table above.
-5. Call `create_issue`:
+
+5. Call `create_issue`. The requester is emailed the ticket and can reply to it, so write `body_html` as a message from the user to the support team, not a third-person summary:
 
 ```json
 {
-  "account_id": "from-get-pylon-account-id",
+  "account_id": "<pylonAccountId from get_pylon_account_id>",
   "title": "Unable to add image models for Bedrock",
-  "body_html": "<p>User wanted to add image-mode Bedrock models.</p><ul><li>Called <code>list_providers</code>, filtered for image models</li><li><code>apply_manifest</code> returned: model type image not supported</li></ul><p>Likely needs platform-side fix.</p>",
-  "requester_email": "from-get-me",
+  "body_html": "<p>Hi TrueFoundry team,</p><p>I'm trying to add image-mode Bedrock models. <code>apply_manifest</code> returned: model type image not supported. Can you enable this or suggest a workaround?</p>",
+  "requester_email": "<email from the session context>",
   "priority": "high"
 }
 ```
 
-6. Show ticket number, title, and that someone from TrueFoundry will follow up. Never show ticket link, URL, or status.
+6. Show the ticket number and title, and say the user will get the ticket by email and can reply there. Do not show the link or status.
 
 ### Fields
 
 | Field | Required | Source |
 |---|---|---|
-| `account_id` | yes | `get_pylon_account_id` |
-| `requester_email` | yes | session context |
+| `account_id` | yes | `pylonAccountId` from `get_pylon_account_id` |
+| `requester_email` | yes | session context `email`, or asked from the user |
 | `title` | yes | conversation context |
-| `body_html` | yes | conversation context, HTML formatted |
-| `priority` | yes | `ask_user_question` confirmation |
+| `body_html` | yes | conversation context, HTML, addressed to the support team |
+| `priority` | no (always set it after the user confirms) | `urgent`, `high`, `medium` or `low` |
 | `tags` | no | string array |

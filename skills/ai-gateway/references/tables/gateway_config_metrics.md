@@ -19,7 +19,7 @@ RuleId: TEXT, nullable
 ResolvedRuleId: TEXT, nullable
     Identifier of the rule actually applied after resolution and inheritance.
 ConfigType: TEXT
-    Category of configuration.
+    One of 'loadbalance', 'ratelimit', 'budget'. One row per nominated rule.
 RequestedModel: TEXT, nullable
     Model name from the request. E.g. can be virtual model name or slug
 Model: TEXT, nullable
@@ -35,11 +35,17 @@ LoadbalanceTargetAttemptCount: INTEGER, nullable
 LoadbalanceRuleId: TEXT, nullable
     Identifier of the load balancing rule configuration.
 Status: TEXT, nullable
-    Outcome of the config application.
+    'blocked' when a ratelimit/budget rule blocked the request; 'all_model_failed' when a loadbalance rule had no successful target; NULL otherwise (rule evaluated, request allowed).
 Metadata: Map(Text, Text), nullable
     TrueFoundry Gateway and User Metadata, matches the "TfyGatewayMetadata" column in the "traces" table.
 CreatedBySubjectSlug: TEXT
     Slug of the subject on whose request the config was evaluated. User email or virtual account name
 CreatedBySubjectType: TEXT
-    Type of the requesting subject. Possible values: user, virtualaccount.
+    Type of the requesting subject. Common values: user, virtualaccount, agent. Do not assume the list is exhaustive.
+Teams: Array(Text), nullable
+    Teams attributed to the caller.
+CreatedBySubjectId: TEXT
+    Identifier of the subject for the request.
+CreatedBySubject: TEXT
+    Full caller identity for the request.
 ```

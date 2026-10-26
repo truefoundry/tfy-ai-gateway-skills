@@ -39,9 +39,15 @@ Metadata: Map(Text, Text), nullable
 CreatedBySubjectSlug: TEXT
     Slug of the subject that invoked the MCP path. User email or virtual account name
 CreatedBySubjectType: TEXT
-    Type of the calling subject. Possible values: user, virtualaccount.
+    Type of the calling subject. Common values: user, virtualaccount, agent. Do not assume the list is exhaustive.
 Teams: Array(Text), nullable
     Teams associated with the caller for attribution.
 CreatedBySubjectId: TEXT
     Identifier of the subject that invoked the MCP path.
+CreatedBySubject: TEXT
+    Full caller identity for the request.
+TfyActorSlug: TEXT, nullable
+    Slug of the acting identity when an agent acts on behalf of the subject.
+TfyActorType: TEXT, nullable
+    Type of that acting identity.
 ```

@@ -31,9 +31,9 @@ RequestPath: TEXT, nullable
 Metadata: Map(Text, Text), nullable
     TrueFoundry Gateway and User Metadata, matches the "TfyGatewayMetadata" column in the "traces" table.
 CreatedBySubjectSlug: TEXT
-    Slug of the subject on whose request the config was evaluated. User email or virtual account name
+    Slug of the subject who made the request. User email or virtual account name.
 CreatedBySubjectType: TEXT
-    Type of the requesting subject. Possible values: user, virtualaccount.
+    Type of the requesting subject. Common values: user, virtualaccount, agent. Do not assume the list is exhaustive.
 Teams: Array(Text), nullable
     Teams attributed to the caller.
 CreatedBySubjectId: TEXT

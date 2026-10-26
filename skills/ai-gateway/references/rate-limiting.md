@@ -1,118 +1,105 @@
 ---
 name: rate-limiting
-description: Rate limiting policies control request and token throughput for Gateway traffic scoped by subject, model, and metadata.
+description: Legacy Rate Limiting V1 (`gateway-rate-limiting-config`) — reading, changing or removing existing V1 rules and migrating them to V2. New rate limits go to `rate-limiting-v2.md`.
 ---
 
-**Rate Limiting Config** defines **Rate Limit Rules** that cap usage using `when` matchers (subjects, models, metadata), `limit_to`, `unit`, and optional `rate_limit_applies_per` for per-entity buckets.
+> **V1 is deprecated.** New rate limits belong in Rate Limiting V2 (`tenant-rate-limit-config/model` for LLM traffic, `tenant-rate-limit-config/mcp` for MCP tool calls): read `rate-limiting-v2.md`. Use this file to read V1 rules, change or remove them, and migrate them. Add a new V1 rule only if the user explicitly asks for V1.
 
-## Fetching existing rate limiting configuration
+**Rate Limiting Config** is one document per tenant holding an ordered `rules[]`. Each rule caps usage with `when` matchers (subjects, models, metadata), `limit_to`, `unit`, and optional `rate_limit_applies_per` for per-entity buckets.
 
-Use the `get_gateway_config` tool with `type: gateway-rate-limiting-config` to get the rate limiting config manifest. The response is shaped like:
+## Reading V1 rules
+
+Call `get_gateway_config` with `type: gateway-rate-limiting-config`. The response is shaped like:
 
 ```yaml
 id: ...
-tenantName: ...
 type: gateway-rate-limiting-config
 manifest:
-  name: platform-rate-limits
+  name: platform-rate-limits      # optional, reference only
   type: gateway-rate-limiting-config
   rules:
     - id: per-user-rpm
       when:
         subjects: []
-        models:
-          - my-openai/gpt-4o
+        models: [my-openai/gpt-4o]
         metadata: {}
       limit_to: 100
       unit: requests_per_minute
-      rate_limit_applies_per:
-        - user
-    - # more rules
+      rate_limit_applies_per: [user]
 createdBySubject: { ... }
-createdAt: ...
 updatedAt: ...
 ```
 
-## Resolving rate limit scope
+A null or empty result means there are no V1 rules, not that there are no rate limits: V2 limits can't be read with tools. When reporting, say V2 limits (if any) are visible only at `{controlPlaneUrl}/llm-gateway/policies/rate-limiting-v2`.
 
-A rate limit rule has two dimensions — resolve each independently:
+## Rule semantics
 
-**1. Target — who does the rule apply to? (`when` field)**
+**Target (`when`)** — `subjects`, `models` and `metadata` are ANDed.
 
 | User mentions | `when` field |
 |---|---|
 | a user / email | `subjects: [user:email]` |
 | a team | `subjects: [team:name]` |
 | a VA / virtual account | `subjects: [virtualaccount:name]` |
-| a metadata term (tenant, app, feature, etc.) | `metadata: { key: value }` |
+| a metadata term (tenant, app, feature…) | `metadata: { key: value }` |
 
-`subjects`, `models`, and `metadata` in a `when` block are **ANDed** — a request must match all specified conditions.
+A term that isn't a user, team or VA is a metadata key. Don't ask the user for the key name: discover it from live data (see `observability.md`, `gateway_model_metrics`).
 
-If the term does not match user, team, or VA — it is a metadata key. **Do not ask the user for the key name.** Read `ai-gateway/references/observability.md` and query `gateway_model_metrics` to discover metadata keys from live data, scoped to whatever the user specified.
+**Bucketing (`rate_limit_applies_per`)** — omitted means all matching requests share one pool. At most 2 values per rule (e.g. `['user', 'model']`): `user`, `model`, `virtualaccount`, or `metadata.<key>`.
 
-**2. Bucketing — how is the limit counted? (`rate_limit_applies_per` field)**
+**Ordering** — Rules are evaluated top to bottom. The first matching rule decides block or allow, but **every** matching rule counts the request. So a broad shared rule lower down can fill up from traffic that an earlier rule allowed, and then 429 everyone else whose first match it is. Put overrides above defaults, and give generic rules `rate_limit_applies_per` (e.g. `['user','virtualaccount']`) so callers don't share one bucket.
 
-By default, all matching requests share a **single rate limit pool**. Use `rate_limit_applies_per` to create **separate limits per entity** instead. Maximum **2 values** per rule — you can combine (e.g., `['user', 'model']`).
+V1 is checked before V2: if a V1 rule blocks, V2 is not consulted.
 
-| Value | Effect |
-|---|---|
-| *(omitted)* | all matched subjects/models share one rate limit pool |
-| `user` | separate limit per user |
-| `model` | separate limit per model |
-| `virtualaccount` | separate limit per VA |
-| `metadata.<key>` | separate limit per unique metadata value |
+## Changing V1 rules (write flow)
 
-If the bucketing term does not match user, model, or VA — it is a metadata key. **Do not ask the user for the key name.** Discover it from live data as described above.
+Read `write-rules.md` in the same batch. This is a legacy singleton: the whole `rules[]` is replaced on every apply.
 
-A user query can specify both dimensions. Example: "per user rate limit on gpt-4o" → target is `when: { models: [openai/gpt-4o] }`, bucketing is `rate_limit_applies_per: ['user']`.
+1. In one batch: `get_manifest_json_schema` with type `gateway-rate-limiting-config`, and `get_gateway_config` with `type: gateway-rate-limiting-config`.
+2. **Always merge into the full `rules[]` from a `get_gateway_config` result that is still in the conversation. If it isn't, call `get_gateway_config` again right before building. Never rebuild `rules[]` from memory or a summary** — a missing rule is deleted.
+3. Position the rule: review existing rules for overlapping scope and insert the new rule above any broader rule it should override (see Ordering).
+4. Build the manifest as JSON. Top-level `name` is optional for this type and used only for reference. Keep the existing config's `name` if it has one; if there is no existing config, use `rate-limits`.
+5. `validate_manifest`, wait for `valid: true`, then `apply_manifest` (separate batches). `validate_manifest` checks the schema only; the 2-value cap and allowed `rate_limit_applies_per` values are enforced by `apply_manifest`, so check them yourself first.
+6. Link `{controlPlaneUrl}/llm-gateway/policies/rate-limiting`.
 
-## Rule ordering
-
-Rules are evaluated top to bottom. **Only the first matching rule is applied** — subsequent rules are ignored. Place higher-priority rules (overrides, exceptions) above general defaults.
-
-## Creating/Updating Rate Limiting Rules (Write Flow)
-
-> Keep the top-level `name` from the existing config. This legacy config is a single document looked up by `type`, so `name` is not required, but keeping it is harmless.
-
-### Phase 1: Get Schema and Existing Config
-
-1. Call `get_manifest_json_schema` with type `gateway-rate-limiting-config`.
-2. Call `get_gateway_config` with `type: gateway-rate-limiting-config` to fetch the existing config. New rules must be merged with existing ones — never replace. Note the `name` field from the existing config — you will need it.
-
-### Phase 2: Position the Rule
-
-Call `search_docs` for "rate limiting rule ordering" to understand how rule order works (only the first matching rule applies). Review existing rules for overlapping scope before deciding where to insert the new rule.
-
-### Phase 3: Build and Apply
-
-Build the manifest as JSON (include `name` from existing config) → pass to `validate_manifest` → fix if needed → pass to `apply_manifest`.
-
-### Manifest Structure
+### Manifest structure
 
 ```yaml
-name: <config-name>
+name: <existing-name-if-any>
 type: gateway-rate-limiting-config
 rules:
   - id: <unique-rule-id>
     unit: <requests_per_minute|requests_per_hour|requests_per_day|tokens_per_minute|tokens_per_hour|tokens_per_day>
-    when:
-      subjects:
-        - <user:email or team:name or virtualaccount:name>
-      models:
-        - <account-name/model-name>
-      metadata:
-        <key>: <value>
-    limit_to: <numeric-limit>
-    rate_limit_applies_per:
-      - <user|model|virtualaccount|metadata.key>  # max 2 values
+    when:                      # required; when: {} matches all traffic
+      subjects: [<user:email | team:name | virtualaccount:name>]
+      models: [<account-name/model-name>]
+      metadata: { <key>: <value> }
+    limit_to: <positive-integer>
+    rate_limit_applies_per: [<user|model|virtualaccount|metadata.key>]   # max 2
 ```
 
-### Checklist
+## Disabling V1 rules
 
-- [ ] Did I call `get_manifest_json_schema` with type `gateway-rate-limiting-config`?
-- [ ] Did I fetch the existing config and merge rules (not replace)?
-- [ ] Did I check existing rules for overlapping scope and position the new rule correctly (not just append at the end)?
-- [ ] Did I include the `name` field in the manifest?
-- [ ] Did I call `validate_manifest` before applying?
+V1 rules have no disable flag and no audit mode. To stop one rule: fetch with `get_gateway_config` → remove that rule from `rules[]` (here removal is intended; keep every other rule unchanged) → `validate_manifest` → `apply_manifest`. Only when every rule has been migrated, delete the whole config with `delete_manifest` and manifest `{type: gateway-rate-limiting-config}`. This removes all V1 rules, so confirm with the user first.
 
-For more info: `search_docs` with "Gateway Rate Limit Rules", "rate limiting", "token limits".
+## Migrating V1 rules to V2
+
+V2 limits are applied by the user in the UI (see `rate-limiting-v2.md`), so migration is: you build one V2 YAML per V1 rule, the user applies them, then you remove the V1 rules.
+
+1. Fetch V1 with `get_gateway_config` and map each rule to a `tenant-rate-limit-config/model` manifest:
+   - `id` → `name`. V2 names allow only letters, digits and hyphens (start with a letter, 2–62 chars); rename ids containing `.`, `_` or `{}`.
+   - `subjects: [user:a, team:t, virtualaccount:v]` → `when.subjects.users.in: [a]`, `teams.in: [t]`, `virtual_accounts.in: [v]`
+   - `models: [m]` → `when.models: { in: [m] }`; `metadata: { k: v }` → `when.metadata: { k: { in: [v] } }`
+   - `limit_to` + `unit` → `limits: { <unit>: <limit_to> }` (same unit names)
+   - `rate_limit_applies_per`: omitted → `applies_to: { type: aggregate }`; `user` / `model` / `virtualaccount` → `per-user` / `per-model` / `per-virtual-account`; `metadata.<key>` → `{ type: metadata, metadata: <key> }`. V2 has exactly one partition: a two-value V1 rule has no direct equivalent, so tell the user and agree on one.
+2. V2 has no ordering. If a V1 rule was an override above a default, exclude that group from the default with `not_in`, or use per-entity `overrides` inside `applies_to`.
+3. Suggest `mode: audit` first, then `enforce` once usage looks right.
+4. After the user confirms the V2 limits are live, remove the migrated V1 rules (see Disabling V1 rules). Until then both run: V1 is checked first and both count the traffic they match.
+
+## Checklist
+
+- [ ] Is this really V1 work (reading, changing, removing or migrating existing rules)? Otherwise use `rate-limiting-v2.md`.
+- [ ] Merged into the full `rules[]` from a current `get_gateway_config` result?
+- [ ] Positioned the rule against overlapping rules, not just appended?
+- [ ] Kept the existing `name`, if any?
+- [ ] `validate_manifest` returned `valid: true` before `apply_manifest`?

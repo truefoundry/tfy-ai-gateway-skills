@@ -3,6 +3,10 @@ name: gateway_guardrail_metrics
 description: Stores metrics for guardrail calls.
 ---
 
+## CRITICAL
+
+- Each guardrail evaluation writes one row with `RecordType = 'guardrail'` plus one copy with `RecordType = 'policy'` for every guardrail policy that nominated it. Always filter `("RecordType" = 'guardrail' OR "RecordType" IS NULL)` for counts, rates and latency — otherwise numbers are inflated with no error. Use `"RecordType" = 'policy'` only when grouping by `PolicyName`.
+
 ## Schema
 
 ```
@@ -37,9 +41,9 @@ AppliedOnEntityType: TEXT, nullable
 Metadata: Map(Text, Text), nullable
     TrueFoundry Gateway and User Metadata, matches the "TfyGatewayMetadata" column in the "traces" table.
 CreatedBySubjectSlug: TEXT
-    Slug of the subject on whose request the config was evaluated. User email or virtual account name
+    Slug of the subject who made the request. User email or virtual account name.
 CreatedBySubjectType: TEXT
-    Type of the requesting subject. Possible values: user, virtualaccount.
+    Type of the requesting subject. Common values: user, virtualaccount, agent. Do not assume the list is exhaustive.
 Teams: Array(Text), nullable
     Teams attributed to the caller.
 CreatedBySubjectId: TEXT
@@ -62,6 +66,6 @@ NominatedPolicyNames: Array(Text), nullable
     Set on guardrail rows: policies that nominated this guardrail.
 ```
 
-## CRITICAL
+## Checklist
 
-- Each guardrail evaluation writes one row with `RecordType = 'guardrail'` plus one copy with `RecordType = 'policy'` for every guardrail policy that nominated it. Always filter `("RecordType" = 'guardrail' OR "RecordType" IS NULL)` for counts, rates and latency — otherwise numbers are inflated with no error. Use `"RecordType" = 'policy'` only when grouping by `PolicyName`.
+- [ ] For counts, failure rates and latency, did I filter `("RecordType" = 'guardrail' OR "RecordType" IS NULL)`?

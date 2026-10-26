@@ -43,7 +43,7 @@ Every create, update and delete goes through a manifest tool, which asks the use
 - **"My", "I", "mine"** mean the current user, not the tenant. Filter by their subject slug: `CreatedBySubjectSlug` on gateway metrics tables, `TfyCreatedBySubjectSlug` on traces, owner filters for deployments.
 - **Entity names** are often partial or misspelt. Look the entity up before saying it doesn't exist ("github mcp" → MCP servers containing "github"). An application is identified by workspace and name together; if several match, ask which.
 - **"Application", "app", "use case"** in a Gateway context means a virtual account (occasionally an `x-tfy-metadata` key).
-- **"API key", "token"**: present both — a personal access token (tied to a user, breaks when they leave) and a virtual account token (recommended for production). Details in `ai-gateway/references/access-management.md`.
+- **"API key", "token"**: present both — a personal access token (tied to a user, stops working when that user is deleted or deactivated) and a virtual account token (recommended for production). Details in `ai-gateway/references/access-management.md`.
 - **"Caching"**: ask whether they mean Gateway caching (a Gateway policy) or provider prompt caching (shows in token usage).
 
 ## AI Gateway
@@ -54,20 +54,20 @@ Files are under `ai-gateway/references/`. **For any create, update or delete, al
 
 | The user wants to… | Read |
 | --- | --- |
-| Add a provider (OpenAI, Bedrock, Azure, Vertex, …), add or remove models, ask whether a model is supported, set model pricing | `models.md` |
+| Create or add a provider account (OpenAI, Bedrock, Azure, Vertex, …), add all or some models, add or remove models, ask whether a model or provider is supported, set model pricing | `models.md` |
 | Route, fall back or load-balance across models | `virtual-models.md` (`load-balancing.md` only for the deprecated policy) |
 | Add, connect or troubleshoot an MCP server or virtual MCP server | `mcp-servers.md` |
 | Guardrails — PII, content safety, prompt injection; guardrail groups or policies | `guardrails.md` |
-| Rate limits | `rate-limiting.md` |
+| Rate limits — any new limit, MCP tool-call limits, "what rate limits exist" | `rate-limiting-v2.md` (`rate-limiting.md` for legacy V1 rules and migration) |
 | Budgets, spend limits | `budget-limiting-v2.md` (`budget-limiting.md` for legacy V1 rules) |
-| Who can access what, roles, external identities, API keys | `access-management.md` |
+| Who can access what, roles, role bindings, identity providers, API keys | `access-management.md` |
 | Create or change a team | `teams.md` |
 | Create or change a virtual account | `virtual-accounts.md` |
 | Create a personal access token | `personal-access-tokens.md` |
 | Usage, cost, latency, errors, traces, feedback, "how many requests" | `observability.md` |
 | Call a Gateway model from code or a tool — base URL, SDK, snippet | `using-models-from-code.md` |
 
-Other platform topics: integrations with cloud accounts → https://www.truefoundry.com/docs/integrations-overview · secrets are referenced as `tfy-secret://<owner>:<secret-group>:<key>` → https://www.truefoundry.com/docs/manage-secrets.
+Other platform topics: integrations with cloud accounts → https://www.truefoundry.com/docs/integrations-overview · secrets are referenced as `tfy-secret://<tenant>:<secret-group>:<key>` (the `fqn` from `list_secrets` has no scheme; add the prefix) → https://www.truefoundry.com/docs/manage-secrets.
 
 ## AI Engineering
 
@@ -78,7 +78,8 @@ Files are under `ai-engineering/references/`. Read the file for what you are abo
 | Deploy from a git repo or local code (service, async-service, job) | `deploy-from-source.md` |
 | Deploy a prebuilt image | `deploy-from-image.md` |
 | Deploy a Helm chart | `helm-deploy.md` |
-| Deploy a model — HuggingFace, catalogue, NIM (vLLM, SGLang, …), classical ML | `model-deploy.md` |
+| Deploy a model — HuggingFace or registry transformers model (vLLM, SGLang, TEI, Infinity, …) | `model-deploy.md` |
+| Deploy an NVIDIA NIM or a sklearn/XGBoost model | `model-deploy-nim-classical.md` |
 | Deploy a `notebook`, `rstudio` or `ssh-server` | `notebook-ssh.md` |
 | Change an existing application; rules shared by every deploy | `deploy-common.md` |
 | Autoscaling, scale-to-zero, right-sizing | `autoscaling.md` |

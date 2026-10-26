@@ -5,8 +5,10 @@ description: Stores OTEL compliant spans with additional columns for gateway spe
 
 ## CRITICAL
 
-- The physical table name varies by tenant. Query `"{dataRoutingDestination}"."{tracesTable}"` with `tracesTable` from the session context. Never assume `traces`.
-- `TfyGatewayInput` and `TfyGatewayOutput` columns store the request and response payloads of the gateway. These are huge json serialized payloads that contain sensitive data. Only fetch these when necessary
+- The physical table name varies by tenant. Query `"{dataRoutingDestination}"."{tracesTable}"` with `tracesTable` from the session context (call `get_session_context` only if it is missing). Never assume `traces`.
+- `TfyGatewayInput` and `TfyGatewayOutput` columns store the request and response payloads of the gateway. These are huge json serialized payloads that contain sensitive data. Only fetch these when necessary.
+- To filter by team use `array_has("SpanAttributesStringList"['tfy.request.created_by_subject_teams'], '<team>')`. On metrics tables use `array_has("Teams", '<team>')`.
+- Enum-like columns (`SpanKind`, `StatusCode`, `TfyGatewaySpanType`) are case-sensitive.
 - When working with `SpanAttributes.*` columns, use `get_section_content` on https://www.truefoundry.com/docs/ai-gateway/fetch-request-logs-span-attributes to get the full list of attribute keys and their meanings.
 
 ## Schema
@@ -20,12 +22,14 @@ SpanId: TEXT
     Unique identifier for this span within the trace.
 ParentSpanId: TEXT
     Span ID of the parent span; empty when this is a root span.
+TfyParentSpanId: TEXT, nullable
+    Parent span within the gateway's own span tree; use this (not ParentSpanId) to build the gateway span hierarchy.
 SpanName: TEXT
     Operation name for the span (e.g. HTTP route or RPC method).
 SpanKind: TEXT
-    OpenTelemetry span kind (client, server, internal, producer, consumer).
+    OpenTelemetry span kind: 'Server', 'Client', 'Internal', 'Producer', 'Consumer', 'Unspecified' (case-sensitive).
 Duration: BIGINT
-    Span duration in the pipeline's native unit (typically nanoseconds per OpenTelemetry).
+    Span duration in nanoseconds (divide by 1e6 for milliseconds).
 StatusCode: TEXT, nullable
     OpenTelemetry span status code (Unset, Ok, Error).
 StatusMessage: TEXT, nullable
@@ -44,7 +48,7 @@ TfyGatewayOutput: TEXT, nullable
     JSON serialized gateway output payload. Contains sensitive data.
     For Model spans (TfyGatewaySpanType = 'Model'), this contains the full LLM response JSON
 TfyGatewaySpanType: TEXT, nullable
-    Classifies the gateway span (e.g. model call, MCP, guardrail) for analysis.
+    Gateway span type (case-sensitive). Common values: 'Model' (one per provider call), 'ChatCompletion', 'Responses', 'Messages', 'Embedding', 'Rerank', 'MCPGateway', 'MCP', 'Guardrail', 'Hook', 'Proxy', 'AgentResponse', 'CacheLookup', 'CacheWrite'.
 SpanAttributesString: Map(Text, Text), nullable
     String-valued OpenTelemetry span attributes as a key–value map.
 SpanAttributesNumber: Map(Text, DOUBLE PRECISION), nullable
@@ -60,11 +64,17 @@ SpanAttributesBoolList: Map(Text, Array(BOOLEAN)), nullable
 TfyCreatedBySubjectSlug: TEXT, nullable
     URL-safe slug for the TrueFoundry subject that created the span. User email or virtual account name
 TfyCreatedBySubjectType: TEXT, nullable
-    Type of the requesting subject. Possible values: user, virtualaccount.
+    Type of the requesting subject. Common values: user, virtualaccount, agent. Do not assume the list is exhaustive.
 TfyCreatedBySubjectId: TEXT, nullable
     Stable identifier of the TrueFoundry subject.
 TfyCreatedBySubject: TEXT
     Identity of the caller or principal attributed to the span (TrueFoundry subject).
+TfyActorSlug: TEXT, nullable
+    Slug of the acting identity when an agent acts on behalf of the subject.
+TfyActorType: TEXT, nullable
+    Type of that acting identity.
+Date: TEXT
+    Partition column, UTC date 'YYYY-MM-DD' of Timestamp. Filter on it in scans so partitions are pruned.
 ```
 
 ## Checklist

@@ -1,56 +1,57 @@
 ---
 name: teams
-description: Create and manage teams — groups of users that can be used for access control, rate limiting, and budget scoping.
+description: Read before listing, creating or changing teams — groups of users used for access control, rate limiting and budget scoping — including adding or removing members and managers.
 ---
 
-**Teams** are groups of users used for access control and config scoping across the platform. Granting a team access to a resource automatically grants access to all its members.
+**Teams** are groups of users used for access control and config scoping. Access granted to a team applies to all its members.
 
-Note: There is an implicit `everyone` team which includes all users in the tenant (but not virtual accounts).
+Note: there is an implicit `everyone` team that includes every user in the tenant (but not virtual accounts). It cannot be edited.
 
-## Fetching existing teams
+Teams can be created manually or provisioned from your IdP via SCIM. Members of SCIM-managed teams can only be changed in the IdP.
 
-Use `list_teams_for_user` to list teams. This tool is **user-scoped** — it returns only teams the current user belongs to, not every team in the tenant. There is no tool to list all teams tenant-wide; `list_teams_for_user` is the only option. Use `get_team` to inspect a single team by name or ID. Use `list_team_members` and `list_team_managers` to get team membership.
+## Reading teams
 
-## Creating Teams (Write Flow)
+- `list_teams_for_user` returns every team you can read (all teams for tenant admins) plus the teams you belong to. Pass `includeMembership=false` when you only need names and IDs, and `role=manager` for teams you can manage.
+- `get_team` takes the team's `id` (from `list_teams_for_user`); it does not accept a name. `list_team_members`, `list_team_managers`, `generate_team_manifest`, `get_team_permissions`, `delete_team` and the add/remove tools also take the team `id`.
 
-### Phase 1: Check for Existing Teams
+## Inputs to collect
 
-Call `list_teams_for_user` and check if a team matching what the user asked for already exists.
+- Team name (3-50 chars: letters, digits, `_` or `-`; starts with a letter).
+- Member and manager emails. Every email must belong to an existing user in the tenant.
 
-- **Matches found:** Present the matching teams to the user and ask whether they want to create a new team (with a different name) or update an existing one. Carry their choice forward into Phase 2.
-- **No matches:** Proceed to Phase 2.
+## Creating a team
 
-Note: `list_teams_for_user` only returns teams the current user belongs to. A team with the same name may already exist tenant-wide. If creation fails with 403 or a name conflict, suggest a different name.
+1. In one parallel batch: `list_teams_for_user` with `includeMembership=false`, and `get_manifest_json_schema` with type `team` (reuse the schema if it is still in the conversation).
+2. If a team with that name (or a similar one) exists, show it and ask whether to create a new team with a different name or update the existing one. Restate the user's choice (create a new name, or update `<name>`) in your reply before continuing. For an update, go to "Updating an existing team".
+3. Build the manifest, then `validate_manifest` → `apply_manifest` per `write-rules.md`.
+   - Applying a team manifest whose `name` matches an existing team updates that team. If the apply returns 403, a team with that name exists and you cannot manage it; ask the user for a different name.
+   - A 422 listing emails means those users do not exist in the tenant.
 
-### Phase 2: Get Schema
+## Updating an existing team
 
-1. Call `get_manifest_json_schema` with type `team`.
-
-### Phase 3: Build and Apply
-
-Collect team name and member emails → build the manifest as JSON → pass to `validate_manifest` → fix if needed → pass to `apply_manifest`.
-
-### Updating an Existing Team
-
-> **CRITICAL**: Never change an existing team's members or managers with `apply_manifest`: a `members` or `managers` list replaces the whole current list, so everyone you leave out is removed.
+**Never change an existing team's members or managers with `apply_manifest`: a `members` or `managers` list replaces the whole current list, so everyone you leave out is removed.**
 
 - **Add or remove people:** use `add_team_members` / `remove_team_members` / `add_team_managers` / `remove_team_managers` with the team `id` and body `{"emails": ["a@example.com"]}`. Everyone else stays.
-- **Other field changes:** start from `generate_team_manifest` (team `id`) and either keep its `members` and `managers` exactly as returned or delete both fields so membership stays unchanged.
+- **Other field changes:** call `generate_team_manifest` (team `id`) right before editing, and either keep its `members` and `managers` exactly as returned or delete both fields so membership stays unchanged.
 - SCIM-managed teams reject any `members` change.
 
-### Manifest Structure
+## Manifest
 
 ```yaml
 type: team
-name: <unique-team-name>
-members:
-  - <user-email-1>
-  - <user-email-2>
+name: <team-name>             # 3-50 chars: letters, digits, _ or -; starts with a letter
+displayName: <optional label>
+description: <optional>
+managers:                     # optional
+  - <email>
+members:                      # optional; every email must be an existing user
+  - <email>
 ```
 
-### Checklist
+## Checklist
 
-- [ ] Did I call `get_manifest_json_schema` with type `team`?
+- [ ] Do I have the `team` schema from `get_manifest_json_schema` in the conversation? If not, call it again.
+- [ ] Did I pass the team `id`, not its name, to `get_team` and the member/manager tools?
 - [ ] For an existing team, did I use the add/remove member and manager tools instead of sending a `members` or `managers` list?
 
 For more info: `search_docs` with "team management", "create team", "team access control".

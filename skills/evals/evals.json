@@ -65,7 +65,7 @@
         "Does not declare the app healthy from DEPLOY_SUCCESS alone",
         "Uses sync_application / Argo sync guidance from failure-modes/rollout-argocd.md when OutOfSync",
         "Checks tfy-agent / status publishing when UI state is stale",
-        "Treats empty list_k8s_* / log results as possible visibility gaps, not proof of health"
+        "Treats empty get_logs / list_application_events results as possible visibility gaps, not proof of health"
       ]
     },
     {
@@ -106,12 +106,12 @@
     {
       "id": 9,
       "prompt": "My vLLM pod has been Pending for 10 minutes with FailedScheduling insufficient nvidia.com/gpu. What's wrong?",
-      "expected_output": "Follows pending-scheduling: reads FailedScheduling + pod describe + GPU nodes, then checks Karpenter/autoscaler (get_cluster_autoscaler_logs and/or NodeClaims) instead of stopping at the pod event or looking for app logs.",
+      "expected_output": "Follows pending-scheduling: reads the Unschedulable condition / FailedScheduling events and the applied manifest, then follows the cluster_type branch (get_cluster_autoscaler_logs on Azure/GCP; Karpenter events and kubectl NodeClaim output from the user on AWS) instead of stopping at the pod event or looking for app logs.",
       "files": [],
       "expectations": [
         "Does not call application container logs as the primary signal for a Pending pod",
-        "Reads FailedScheduling events and describes the pod for GPU requests/tolerations",
-        "Calls get_cluster_autoscaler_logs and/or lists Karpenter NodeClaims/NodePools when no suitable GPU node exists",
+        "Reads the Unschedulable condition / FailedScheduling events and the applied manifest (get_applied_k8s_manifest) for GPU requests/tolerations",
+        "Calls get_cluster_autoscaler_logs on Azure/GCP, or reads Karpenter events and asks the user for kubectl NodeClaim/NodePool output on AWS",
         "On AWS, handles get_cluster_autoscaler_logs 501 by using NodeClaim status rather than giving up"
       ]
     },
@@ -130,13 +130,13 @@
     {
       "id": 11,
       "prompt": "We only changed our model service autoscaling min/max from 1-2 to 2-3 in production and it created a new ReplicaSet and killed the existing pod. Is this a bug?",
-      "expected_output": "Reads the app rollout_strategy; explains a replica edit is a new revision; with max surge 0% / unavailable >0 (common model default) the old pod can go down before the new one is Ready — expected, not necessarily a bug; proposes surge/minReplicas/canary/cache mitigations.",
+      "expected_output": "Reads the app rollout_strategy (applying platform defaults when absent: 0% surge / 25% unavailable); explains a replica-bounds edit usually scales rather than replaces pods, so checks get_pod_template_hash_map / get_application_state / events for a pod-template change; if the template changed, explains surge 0% with few replicas lets the old pod go down before the new one is Ready; proposes surge/min_replicas/canary/cache mitigations.",
       "files": [],
       "expectations": [
         "Does not call it a definite platform bug without reading rollout_strategy",
-        "Explains new revision + rolling update behavior for replica-only changes",
+        "Checks whether the pod template changed before attributing pod replacement to the replica edit",
         "Calls out max_surge_percentage 0 with few replicas as a downtime cause for GPU models",
-        "Suggests concrete mitigations (raise surge if capacity, minReplicas>=2, canary, cache PVC)"
+        "Suggests concrete mitigations (raise surge if capacity, min_replicas>=2, canary, cache volume)"
       ]
     },
     {
@@ -205,14 +205,301 @@
     {
       "id": 17,
       "prompt": "Add a rate limit of 100 requests per minute for the team ml-team across all models.",
-      "expected_output": "Reads rate-limiting.md, fetches the existing rate-limit config and merges the new rule into it, keeps the config's top-level name, validates then applies, and links the rate-limiting settings page with the real controlPlaneUrl.",
+      "expected_output": "Reads rate-limiting-v2.md, builds one named tenant-rate-limit-config/model YAML with when.subjects.teams.in: [ml-team], limits.requests_per_minute: 100 and applies_to.type: aggregate, shows it to the user, and hands off to {controlPlaneUrl}/llm-gateway/policies/rate-limiting-v2 → + Add Rule → Apply as YAML, without claiming it was applied.",
       "files": [],
       "expectations": [
-        "Reads ai-gateway/references/rate-limiting.md before building anything",
-        "Calls get_gateway_config and merges the new rule with the existing rules rather than replacing them",
-        "Includes the existing config's top-level name in the manifest",
-        "Calls validate_manifest and waits for valid: true before apply_manifest (not in the same parallel batch)",
-        "Shows {controlPlaneUrl}/llm-gateway/settings?configTab=rate-limiting with the real controlPlaneUrl from the session context"
+        "Reads ai-gateway/references/rate-limiting-v2.md before building anything",
+        "Builds a single tenant-rate-limit-config/model manifest with a new unique name, when.subjects.teams.in containing ml-team (bare, no team: prefix), limits.requests_per_minute: 100 and applies_to.type: aggregate",
+        "Does not call get_manifest_json_schema, validate_manifest or apply_manifest for tenant-rate-limit-config/model, and does not merge into gateway-rate-limiting-config",
+        "Shows the YAML and {controlPlaneUrl}/llm-gateway/policies/rate-limiting-v2 with the real controlPlaneUrl and the + Add Rule → Apply as YAML steps",
+        "Does not say the rate limit was created or applied"
+      ]
+    },
+    {
+      "id": 18,
+      "prompt": "Create an OpenAI provider account called openai-all with all models. My API key is in tfy-secret://acme:llm-keys:openai.",
+      "expected_output": "The agent reads models.md and write-rules.md, calls list_provider_accounts, get_manifest_json_schema and list_providers in one batch, and builds the manifest with one sandbox program into a file. It validates once and applies once without a 400. Models without a price field have no cost, and audio or realtime models are named after model_id.",
+      "files": [],
+      "expectations": [
+        "No apply_manifest 400 for public cost",
+        "Exactly one validate_manifest and one apply_manifest call",
+        "model_types come from mode/supportedModes and are never defaulted to [chat]; no unknown/unsupported",
+        "auth_data uses the tfy-secret reference",
+        "Collaborators include the current user as provider-account-manager"
+      ]
+    },
+    {
+      "id": 19,
+      "prompt": "Make a virtual model that sends 80% of embedding traffic to openai-main/text-embedding-3-small and 20% to openai-main/gpt-4o.",
+      "expected_output": "The agent checks each target's manifest.model_types, sees that gpt-4o lacks embedding, and tells the user before applying instead of hitting the apply error.",
+      "files": [],
+      "expectations": [
+        "Reads virtual-models.md and write-rules.md",
+        "Checks target model_types against the virtual model's model_types",
+        "Does not apply a manifest with an incompatible target",
+        "Weights sum to 100"
+      ]
+    },
+    {
+      "id": 20,
+      "prompt": "Route simple prompts to a cheap model and hard ones to gpt-4o automatically.",
+      "expected_output": "The agent proposes complexity-based-routing with at least one target in each of simple, medium and complex, no model in two tiers, and model_types limited to chat/completion/responses.",
+      "files": [],
+      "expectations": [
+        "Uses routing_config type complexity-based-routing",
+        "Every tier has a target",
+        "No target appears in more than one tier"
+      ]
+    },
+    {
+      "id": 21,
+      "prompt": "Register the Linear MCP server (https://mcp.linear.app/mcp) on our gateway with OAuth.",
+      "expected_output": "Checks list_mcp_servers and list_mcp_catalogue together, calls get_mcp_server_oauth_config with mcpUrl, builds an mcp-server/remote manifest whose oauth2 auth_data has provider and grant_type and copies formContent, validates then applies, and shows the endpoint built from proxyUrl and the default gateway installation.",
+      "files": [],
+      "expectations": [
+        "Calls get_mcp_server_oauth_config with mcpUrl set to an https URL",
+        "auth_data includes provider (e.g. custom) and grant_type: authorization_code",
+        "Uses registration_url only if formContent has it, and never writes registration_endpoint",
+        "Calls validate_manifest before apply_manifest",
+        "The endpoint shown has the form <gateway url>/<tenant>/mcp/<name>/server with no {{mcpProxyBaseURL}} placeholder"
+      ]
+    },
+    {
+      "id": 22,
+      "prompt": "Make a virtual MCP server called eng-tools that exposes only create_issue from github-mcp and search from notion-mcp.",
+      "expected_output": "Calls list_mcp_server_tools for both sources, then builds an mcp-server/virtual manifest with a servers list using source names and enabled_tools.",
+      "files": [],
+      "expectations": [
+        "Manifest uses servers: [{name, enabled_tools}] and not mcp_servers or mcp_server_id",
+        "servers[].name holds the source server names (github-mcp, notion-mcp), not ids",
+        "Includes a description and collaborators"
+      ]
+    },
+    {
+      "id": 23,
+      "prompt": "Add a tfy-prompt-injection guardrail on every MCP tool call to our existing 'security' guardrail group and turn it on for all MCP servers.",
+      "expected_output": "Reads the existing group with list_provider_accounts, keeps every existing integration and appends the new one, then applies a new named gateway-guardrails-config policy targeting MCP with a non-empty mcp_tool_pre_invoke_guardrails list.",
+      "files": [],
+      "expectations": [
+        "The group manifest keeps every existing integration",
+        "The policy is a single manifest with a new name and has no rules: array",
+        "Does not use get_gateway_config to decide which policies exist",
+        "The policy targets mcpServers or mcpTools and sets mcp_tool_pre_invoke_guardrails to [security/<integration-name>]",
+        "All four hook arrays are present"
+      ]
+    },
+    {
+      "id": 24,
+      "prompt": "What rate limits do we have set up?",
+      "expected_output": "Reads rate-limiting-v2.md, calls get_gateway_config for gateway-rate-limiting-config, reports any V1 rules, and says V2 limits can only be seen at {controlPlaneUrl}/llm-gateway/policies/rate-limiting-v2; never answers 'no rate limits' from V1 alone.",
+      "files": [],
+      "expectations": [
+        "Calls get_gateway_config with type gateway-rate-limiting-config",
+        "Does not conclude there are no rate limits when V1 is empty",
+        "Links {controlPlaneUrl}/llm-gateway/policies/rate-limiting-v2 with the real controlPlaneUrl",
+        "Does not call apply_manifest or validate_manifest"
+      ]
+    },
+    {
+      "id": 25,
+      "prompt": "How much of the team-research monthly budget has been spent so far?",
+      "expected_output": "Reads budget-limiting-v2.md, finds the budget with list_gateway_budgets (team_name: research), reports its limits, explains V2 spend isn't readable with tools, and links {controlPlaneUrl}/llm-gateway/policies/budget-limiting-v2.",
+      "files": [],
+      "expectations": [
+        "Calls list_gateway_budgets, optionally filtered by team_name",
+        "Does not use get_budget_usage to report V2 spend",
+        "Does not invent usage numbers",
+        "Links the budget-limiting-v2 policies page with the real controlPlaneUrl"
+      ]
+    },
+    {
+      "id": 26,
+      "prompt": "Give everyone a $500 lifetime budget plus a $50 daily cap in the same rule.",
+      "expected_output": "Explains cost_per_lifetime can't be combined with day/week/month/quarter in one budget and proposes two separate tenant-budget-config rules, each validated then applied.",
+      "files": [],
+      "expectations": [
+        "Does not put cost_per_lifetime and cost_per_day in one limits block",
+        "Proposes two manifests with distinct names",
+        "Checks list_gateway_budgets for name collisions",
+        "validate_manifest then apply_manifest per rule, not in the same batch"
+      ]
+    },
+    {
+      "id": 27,
+      "prompt": "Add priya@acme.com to the ml-platform team.",
+      "expected_output": "Reads teams.md and write-rules.md, finds the team id with list_teams_for_user, calls add_team_members with that id and {\"emails\": [\"priya@acme.com\"]}, and does not apply a team manifest.",
+      "files": [],
+      "expectations": [
+        "Gets the team id from list_teams_for_user (does not pass the name to get_team or add_team_members)",
+        "Calls add_team_members with body {\"emails\": [\"priya@acme.com\"]}",
+        "Does not call apply_manifest with a members or managers list"
+      ]
+    },
+    {
+      "id": 28,
+      "prompt": "Give the virtual account checkout-bot access to the anthropic-main provider account too.",
+      "expected_output": "Finds the VA with list_virtual_accounts nameSearchQuery, fetches it with get_virtual_account by id, confirms the final full permissions list (existing grants plus provider-account-access on anthropic-main) with the user, and applies with ownedBy and expiration_date unchanged.",
+      "files": [],
+      "expectations": [
+        "Calls get_virtual_account with the VA id, not its name",
+        "Sends every existing permission plus the new one; never a list with only the new grant",
+        "Keeps ownedBy and expiration_date exactly as returned and does not set token_type",
+        "Shows the final permissions list to the user before apply_manifest"
+      ]
+    },
+    {
+      "id": 29,
+      "prompt": "Create a PAT for local testing.",
+      "expected_output": "Reads personal-access-tokens.md, asks for a name (and optional expiry/team), checks it with check_personal_access_token_exists, calls create_personal_access_token with only name (+ expirationDate/teamName if given), and shows the token once with a store-securely warning.",
+      "files": [],
+      "expectations": [
+        "Does not call apply_manifest or get_manifest_json_schema",
+        "Does not require a team, and never passes teamName=everyone",
+        "Calls check_personal_access_token_exists before create_personal_access_token",
+        "Shows the token once with a warning that it cannot be retrieved later"
+      ]
+    },
+    {
+      "id": 30,
+      "prompt": "What was our gateway semantic cache hit rate over the last 7 days, and how many provider prompt-cache read tokens did we use?",
+      "expected_output": "Runs gateway_execute_sql on \"default\".\"gateway_model_metrics\": hit rate from CacheLookupStatus='hit' over CacheLookupStatus IS NOT NULL, and SUM(\"CacheReadInputTokens\") with \"VirtualModelName\" IS NULL.",
+      "files": [],
+      "expectations": [
+        "Does not reference a CacheHit column",
+        "Uses CacheReadInputTokens from gateway_model_metrics, not traces/TfyGatewayOutput",
+        "Uses the \"default\" destination",
+        "Filters VirtualModelName IS NULL for token sums"
+      ]
+    },
+    {
+      "id": 31,
+      "prompt": "How many guardrail evaluations failed yesterday, by guardrail name?",
+      "expected_output": "Queries \"default\".\"gateway_guardrail_metrics\" with (\"RecordType\" = 'guardrail' OR \"RecordType\" IS NULL), grouped by GuardrailName, counting IsFailure = true.",
+      "files": [],
+      "expectations": [
+        "Includes the RecordType guardrail-or-NULL filter",
+        "Has a time range filter on CreatedAt",
+        "Gives a link under /monitoring/metrics"
+      ]
+    },
+    {
+      "id": 32,
+      "prompt": "Show me my 10 most recent requests with their feedback ratings.",
+      "expected_output": "Uses tracesTable from session context and the chosen data routing destination for both the traces table and gateway_feedbacks; dedupes feedback by FeedbackId (ROW_NUMBER, latest CreatedAt) before IsDeleted = false; LEFT JOIN on TargetTraceId/TargetSpanId; LIMIT 10.",
+      "files": [],
+      "expectations": [
+        "Does not hard-code \"traces\" as the table name",
+        "Same destination for traces and feedback",
+        "Deduplicates before filtering IsDeleted",
+        "Does not select TfyGatewayInput/TfyGatewayOutput"
+      ]
+    },
+    {
+      "id": 33,
+      "prompt": "Enable autoscaling on my service web-api in workspace dev: 1 to 4 replicas at 70% CPU, and scale it to zero after 10 minutes idle.",
+      "expected_output": "Fetches the live manifest, sets replicas: {min_replicas: 1, max_replicas: 4, metrics: {...}} and auto_shutdown: {wait_time: 600}; explains auto_shutdown requires an rps metric when autoscaling, so asks whether to switch to rps or drop one of the two; validates and asks approval before apply_manifest.",
+      "files": [],
+      "expectations": [
+        "Writes autoscaling under replicas with min_replicas/max_replicas, not an autoscaling block or minReplicas",
+        "Uses wait_time: 600 (seconds), not 10",
+        "Flags that auto_shutdown with autoscaling requires metrics.type rps",
+        "Starts from activeDeployment.manifest and asks approval before apply_manifest"
+      ]
+    },
+    {
+      "id": 34,
+      "prompt": "Deploy the bitnami redis chart from oci://registry-1.docker.io/bitnamicharts/redis version 20.1.0 into workspace dev with password from my secret group redis-creds key password.",
+      "expected_output": "Calls validate_oci_chart with chartUrl; builds a helm manifest with source.type oci-repo and oci_chart_url; references the password as tfy-secret://<tenant>:redis-creds:password; validates then apply_manifest; confirms pods via get_application_state and prints the console link using data.applicationId.",
+      "files": [],
+      "expectations": [
+        "Uses oci_chart_url, not chart_url",
+        "Calls validate_oci_chart and reports accessible:false instead of retrying",
+        "Prefixes the secret fqn with tfy-secret:// and uses the tenant name",
+        "Console link uses applicationId (data.applicationId), not the deployment id"
+      ]
+    },
+    {
+      "id": 35,
+      "prompt": "Deploy this repo https://github.com/acme/fastapi-uv-app as a service on port 8000 in workspace dev. It has pyproject.toml and uv.lock, no Dockerfile.",
+      "expected_output": "Clones, picks tfy-python-buildpack with python_dependencies {type: uv} and a command; checks docker info for local_build; includes replicas, explicit expose, host from generate_deployment_endpoint, and ephemeral storage in resources; validate_manifest, then writes truefoundry.yaml and runs tfy deploy -f truefoundry.yaml --no-wait; reads get_build_logs.",
+      "files": [],
+      "expectations": [
+        "Uses python_dependencies type uv, not requirements_path",
+        "Manifest includes replicas and resources.ephemeral_storage_request/limit",
+        "Runs tfy deploy -f truefoundry.yaml --no-wait (never tfy apply)",
+        "Reads build logs before reporting success"
+      ]
+    },
+    {
+      "id": 36,
+      "prompt": "Deploy https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct to my dev workspace. My HF token is in the secret group hf-tokens under key HF_TOKEN.",
+      "expected_output": "Resolves the workspace and checks for an existing app, calls list_secrets for the fqn, then calls get_model_deployment_specs with huggingfaceHubTokenSecretFqn=tfy-secret://<fqn>, picks an isAvailableInWorkspace option, validates and applies.",
+      "files": [],
+      "expectations": [
+        "Calls get_model_deployment_specs before writing any manifest",
+        "Passes the token as tfy-secret://<fqn>, not a bare FQN or raw token",
+        "Never asks the user to paste the token",
+        "Picks an option with isAvailableInWorkspace: true or asks before using one that is not",
+        "Calls validate_manifest before apply_manifest"
+      ]
+    },
+    {
+      "id": 37,
+      "prompt": "Deploy my sklearn model model:acme/fraud/fraud-clf:3 to workspace prod-ws.",
+      "expected_output": "Calls get_model_deployment_specs with modelVersionFqn, treats the empty deployments for FastAPI/Triton as expected, and gives the tfy deploy-init model command plus the sklearn/XGBoost docs link.",
+      "files": [],
+      "expectations": [
+        "Reads model-deploy-nim-classical.md",
+        "Does not treat empty deployments as a failure or run similar-model recovery",
+        "Gives the tfy deploy-init model command with --model-server fastapi or triton",
+        "Does not hand-write a vLLM service"
+      ]
+    },
+    {
+      "id": 38,
+      "prompt": "I deployed Qwen2.5-72B 40 minutes ago and there are still no new pods. Is it stuck?",
+      "expected_output": "Checks artifacts_download.cache_volume. If it is set, explains that the PreSync downloader workflow runs before service pods exist and reads its logs with get_logs podNamesRegex=downloader-<deploymentId>.* containerName=main. Does not read empty list_application_events as healthy.",
+      "files": [],
+      "expectations": [
+        "Checks for cache_volume in the manifest",
+        "Explains that no new pods during the download is expected",
+        "Uses get_logs with applicationId and a downloader-<deploymentId> pod regex",
+        "Does not call any *_k8s_* tool",
+        "Does not read empty events as healthy"
+      ]
+    },
+    {
+      "id": 39,
+      "prompt": "My service `orders-api` is in CrashLoopBackOff. The cluster has no Loki or VictoriaLogs. What's crashing it?",
+      "expected_output": "Reads get_application_state, notes the previous attempt's logs are unreachable without a log backend (get_logs reads only the live container's current attempt), and gives kubectl logs --previous instead of calling the app silent.",
+      "files": [],
+      "expectations": [
+        "Calls get_application_state before get_logs",
+        "Passes podName and containerName to get_logs",
+        "States the crashed attempt's logs cannot be read without VictoriaLogs/Loki",
+        "Gives `kubectl logs <pod> -c <container> --previous -n <namespace>`"
+      ]
+    },
+    {
+      "id": 40,
+      "prompt": "get_application_state shows my pod as Pending, node is set, restarts is 7. Is it a scheduling problem?",
+      "expected_output": "Recognises a started but unready pod (status Pending because it is not Ready), reads the container reason and lastState, and routes to crashloop-oom-probes, not pending-scheduling.",
+      "files": [],
+      "expectations": [
+        "Uses node != null to rule out scheduling",
+        "Reads container reason / lastState",
+        "Opens failure-modes/crashloop-oom-probes.md"
+      ]
+    },
+    {
+      "id": 41,
+      "prompt": "Show me the logs of the redis master in my Helm release `my-cache`.",
+      "expected_output": "Takes the real pod name (my-cache-master-0) from get_application_state, calls get_logs with applicationId and podName or podNamesRegex, direction desc; does not construct my-cache-0 or call get_logs without a pod filter.",
+      "files": [],
+      "expectations": [
+        "Calls get_application_state for pod names",
+        "Passes a pod filter to get_logs",
+        "Does not invent a pod name"
       ]
     }
   ]
