@@ -39,7 +39,7 @@ data:
         manifest: { ... }
 ```
 
-**Policies:** each policy is its own named manifest, and the available tools cannot list them. `get_gateway_config` returns nothing for `gateway-guardrails-config`, so never use it to decide which policies exist. To see or change a policy, ask the user for its exact `name` and current YAML (UI: `{controlPlaneUrl}/llm-gateway/policies/guardrails` → Edit as YAML).
+**Policies:** each policy is its own named manifest. List them with `list_gateway_config_instances` and `type: gateway-guardrails-config`; each row's `manifest` is the full policy. `get_gateway_config` returns nothing for this type, so never use it to decide which policies exist. If `list_gateway_config_instances` is not in your tool list, ask the user for the policy's exact `name` and current YAML (UI: `{controlPlaneUrl}/llm-gateway/policies/guardrails` → Edit as YAML).
 
 ## Create or update a guardrail group
 
@@ -97,9 +97,9 @@ integrations:
 
 ### Steps
 
-1. In one batch: `get_manifest_json_schema` with type `gateway-guardrails-config`, and `list_provider_accounts` (as above) to get valid `{groupName}/{integrationName}` selectors.
-2. **Create:** `name` is the policy's unique ID — it starts with a letter and uses letters, digits and hyphens (2–62 chars). Propose a descriptive new name and confirm it with the user. Applying a new name adds one policy and leaves every other policy untouched, so there is nothing to merge.
-3. **Update:** ask the user for the policy's exact `name` and its current YAML. Applying an existing `name` replaces that whole policy, so start from its current YAML and change only what was asked.
+1. In one batch: `get_manifest_json_schema` with type `gateway-guardrails-config`, `list_provider_accounts` (as above) to get valid `{groupName}/{integrationName}` selectors, and `list_gateway_config_instances` with `type: gateway-guardrails-config`.
+2. **Create:** `name` is the policy's unique ID — it starts with a letter and uses letters, digits and hyphens (2–62 chars). Propose a descriptive name not already listed and confirm it with the user. Applying a new name adds one policy and leaves every other policy untouched, so there is nothing to merge.
+3. **Update:** start from that policy's listed `manifest`. Applying an existing `name` replaces that whole policy, so change only what was asked.
 4. Build the manifest (rules below), then validate and apply (`write-rules.md` → Steps).
 
 ### Rules for policies
@@ -142,7 +142,7 @@ mcp_tool_post_invoke_guardrails: []
 ### Checklist
 
 - [ ] Is the manifest one policy with a top-level `name`, and no `rules:` or `id:` fields?
-- [ ] For a create, is the `name` new and confirmed? For an update, did I start from the user's current YAML?
+- [ ] For a create, is the `name` new and confirmed? For an update, did I start from the policy's current manifest?
 - [ ] Does `when.target` have a non-empty condition, with a matching non-empty hook for each target kind?
 - [ ] Are all four hook arrays present (`[]` when unused), and does every selector exist in `list_provider_accounts`?
 - [ ] Did I call `validate_manifest` before `apply_manifest`?

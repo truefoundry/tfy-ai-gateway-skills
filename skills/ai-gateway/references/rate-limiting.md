@@ -30,7 +30,7 @@ createdBySubject: { ... }
 updatedAt: ...
 ```
 
-A null or empty result means there are no V1 rules, not that there are no rate limits: V2 limits can't be read with tools. When reporting, say V2 limits (if any) are visible only at `{controlPlaneUrl}/llm-gateway/policies/rate-limiting-v2`.
+A null or empty result means there are no V1 rules, not that there are no rate limits: V2 limits come from `list_rate_limit_configs` (see `rate-limiting-v2.md`). Report both.
 
 ## Rule semantics
 
@@ -84,7 +84,7 @@ V1 rules have no disable flag and no audit mode. To stop one rule: fetch with `g
 
 ## Migrating V1 rules to V2
 
-V2 limits are applied by the user in the UI (see `rate-limiting-v2.md`), so migration is: you build one V2 YAML per V1 rule, the user applies them, then you remove the V1 rules.
+Migration is: build and apply one V2 manifest per V1 rule (`rate-limiting-v2.md`), then remove the V1 rules.
 
 1. Fetch V1 with `get_gateway_config` and map each rule to a `tenant-rate-limit-config/model` manifest:
    - `id` → `name`. V2 names allow only letters, digits and hyphens (start with a letter, 2–62 chars); rename ids containing `.`, `_` or `{}`.
@@ -94,7 +94,7 @@ V2 limits are applied by the user in the UI (see `rate-limiting-v2.md`), so migr
    - `rate_limit_applies_per`: omitted → `applies_to: { type: aggregate }`; `user` / `model` / `virtualaccount` → `per-user` / `per-model` / `per-virtual-account`; `metadata.<key>` → `{ type: metadata, metadata: <key> }`. V2 has exactly one partition: a two-value V1 rule has no direct equivalent, so tell the user and agree on one.
 2. V2 has no ordering. If a V1 rule was an override above a default, exclude that group from the default with `not_in`, or use per-entity `overrides` inside `applies_to`.
 3. Suggest `mode: audit` first, then `enforce` once usage looks right.
-4. After the user confirms the V2 limits are live, remove the migrated V1 rules (see Disabling V1 rules). Until then both run: V1 is checked first and both count the traffic they match.
+4. Once the V2 limits are applied (and, if in audit, the user is happy with usage), remove the migrated V1 rules (see Disabling V1 rules). Until then both run: V1 is checked first and both count the traffic they match.
 
 ## Checklist
 

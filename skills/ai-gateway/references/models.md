@@ -11,12 +11,12 @@ Call `list_provider_accounts` with `includeModelProviders: true` and `includeCus
 
 ## "Do you support model X / provider Y?"
 
-Answer from `list_providers`, the platform catalogue, never from memory. Call it with `includeModelProviders: true` and the other four `include*` flags `false`. The result is millions of characters and is saved to a file: extract only what you need with one `jq`/program.
+Answer from `list_providers`, the platform catalogue, never from memory. For one provider, pass `providerType` (its `type`, below). To list all providers, pass `includeModelProviders: true` and the other `include*` flags `false` (very large). If saved to a file, extract only what you need with one `jq`.
 
 - Shape: `data[]` is one entry per provider, with `type` (e.g. `provider-account/openai`) and `label`. Providers have no `name` field; filter on `type`.
 - Models: `data[i].integrations[0].metadata` is an object keyed by `model_id`. Each value has `model`, `mode`, optional `supportedModes`, `status` (`active`, `deprecated`, `preview`, `retired`) and `costs[]`.
 - Providers: list `type` and `label`. `provider-account/virtual-model` has no catalogue.
-- If a provider's `metadata` is empty or missing, recheck the `type` filter; if it is still empty, say the catalogue has no models for that provider. Never invent models.
+- If `metadata` is empty or missing, recheck the type; if still empty, say the catalogue has no models for that provider. Never invent models.
 
 ## Create or update a provider account
 
@@ -36,7 +36,7 @@ These are independent; issue them together:
 
 - `list_provider_accounts` (flags as in "List the tenant's models") to find accounts of this provider or with this name.
 - `get_manifest_json_schema` for the account type, e.g. `provider-account/openai`. Reuse it if it is still in the conversation; otherwise call it again.
-- `list_providers` from the sandbox (flags as above), saved to a file. If a saved `list_providers` file from this conversation is still referenced and still exists, reuse it; otherwise call it again.
+- `list_providers` from the sandbox with `providerType` (the account type), saved to a file. If a saved `list_providers` file from this conversation is still referenced and still exists, reuse it; otherwise call it again.
 
 If matching accounts exist, ask whether to update one or create a new one with a different name. If that answer is no longer in the conversation, ask again before applying.
 

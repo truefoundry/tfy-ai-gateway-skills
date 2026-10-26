@@ -205,14 +205,14 @@
     {
       "id": 17,
       "prompt": "Add a rate limit of 100 requests per minute for the team ml-team across all models.",
-      "expected_output": "Reads rate-limiting-v2.md, builds one named tenant-rate-limit-config/model YAML with when.subjects.teams.in: [ml-team], limits.requests_per_minute: 100 and applies_to.type: aggregate, shows it to the user, and hands off to {controlPlaneUrl}/llm-gateway/policies/rate-limiting-v2 → + Add Rule → Apply as YAML, without claiming it was applied.",
+      "expected_output": "Reads rate-limiting-v2.md and write-rules.md, calls list_rate_limit_configs and get_manifest_json_schema for tenant-rate-limit-config/model in one batch, builds one named manifest with when.subjects.teams.in: [ml-team], limits.requests_per_minute: 100 and applies_to.type: aggregate, validates until valid, applies once, and links {controlPlaneUrl}/llm-gateway/policies/rate-limiting-v2.",
       "files": [],
       "expectations": [
         "Reads ai-gateway/references/rate-limiting-v2.md before building anything",
-        "Builds a single tenant-rate-limit-config/model manifest with a new unique name, when.subjects.teams.in containing ml-team (bare, no team: prefix), limits.requests_per_minute: 100 and applies_to.type: aggregate",
-        "Does not call get_manifest_json_schema, validate_manifest or apply_manifest for tenant-rate-limit-config/model, and does not merge into gateway-rate-limiting-config",
-        "Shows the YAML and {controlPlaneUrl}/llm-gateway/policies/rate-limiting-v2 with the real controlPlaneUrl and the + Add Rule → Apply as YAML steps",
-        "Does not say the rate limit was created or applied"
+        "Calls list_rate_limit_configs and picks a name not already used",
+        "Builds a single tenant-rate-limit-config/model manifest with when.subjects.teams.in containing ml-team (bare, no team: prefix), limits.requests_per_minute: 100 and applies_to.type: aggregate",
+        "Calls validate_manifest until valid: true, then apply_manifest once in a separate batch; does not merge into gateway-rate-limiting-config",
+        "Links {controlPlaneUrl}/llm-gateway/policies/rate-limiting-v2 with the real controlPlaneUrl"
       ]
     },
     {
@@ -283,7 +283,7 @@
       "expectations": [
         "The group manifest keeps every existing integration",
         "The policy is a single manifest with a new name and has no rules: array",
-        "Does not use get_gateway_config to decide which policies exist",
+        "Calls list_gateway_config_instances with type gateway-guardrails-config and picks a policy name not already listed; does not use get_gateway_config for this",
         "The policy targets mcpServers or mcpTools and sets mcp_tool_pre_invoke_guardrails to [security/<integration-name>]",
         "All four hook arrays are present"
       ]
@@ -291,12 +291,12 @@
     {
       "id": 24,
       "prompt": "What rate limits do we have set up?",
-      "expected_output": "Reads rate-limiting-v2.md, calls get_gateway_config for gateway-rate-limiting-config, reports any V1 rules, and says V2 limits can only be seen at {controlPlaneUrl}/llm-gateway/policies/rate-limiting-v2; never answers 'no rate limits' from V1 alone.",
+      "expected_output": "Reads rate-limiting-v2.md, calls list_rate_limit_configs and get_gateway_config for gateway-rate-limiting-config in one batch, and reports V2 limits and V1 rules together.",
       "files": [],
       "expectations": [
-        "Calls get_gateway_config with type gateway-rate-limiting-config",
+        "Calls list_rate_limit_configs and get_gateway_config with type gateway-rate-limiting-config in one batch",
+        "Reports the V2 limits (name, family, limits, mode) and any V1 rules",
         "Does not conclude there are no rate limits when V1 is empty",
-        "Links {controlPlaneUrl}/llm-gateway/policies/rate-limiting-v2 with the real controlPlaneUrl",
         "Does not call apply_manifest or validate_manifest"
       ]
     },
@@ -583,6 +583,29 @@
         "Applies without collaborators",
         "Does not call create_grants for old entries without user confirmation",
         "Says existing access is unchanged"
+      ]
+    },
+    {
+      "id": 49,
+      "prompt": "Raise the ml-team-rpm rate limit to 200 requests per minute.",
+      "expected_output": "Reads rate-limiting-v2.md, finds ml-team-rpm with list_rate_limit_configs, starts from its listed manifest and changes only limits.requests_per_minute to 200, validates, then applies once.",
+      "files": [],
+      "expectations": [
+        "Calls list_rate_limit_configs to find ml-team-rpm",
+        "Keeps every other field of the listed manifest, including applies_to",
+        "Calls validate_manifest until valid: true, then apply_manifest once in a separate batch",
+        "Does not ask the user to paste the YAML"
+      ]
+    },
+    {
+      "id": 50,
+      "prompt": "Do you support Claude Sonnet on Bedrock?",
+      "expected_output": "Reads models.md, calls list_providers with providerType provider-account/aws-bedrock, and answers from the catalogue keys that contain sonnet, with their status.",
+      "files": [],
+      "expectations": [
+        "Calls list_providers with providerType provider-account/aws-bedrock",
+        "Answers only from catalogue keys, never from memory",
+        "Does not dump the whole catalogue"
       ]
     }
   ]
