@@ -109,7 +109,7 @@ ORDER BY "P95LatencyMs" DESC
 - **Provider Cache Token Usage**: `SUM("CacheReadInputTokens")` and `SUM("CacheCreationInputTokens")` from `"default"."gateway_model_metrics"` with `"VirtualModelName" IS NULL`. Cache read ratio = `SUM("CacheReadInputTokens") * 1.0 / SUM("InputTokens")`.
 - **Gateway Cache Hit Rates**: use `CacheLookupStatus` (`hit`/`miss`/`error`) and `CacheType` in `gateway_model_metrics`. Hit rate = `SUM(CASE WHEN "CacheLookupStatus" = 'hit' THEN 1 ELSE 0 END) * 1.0 / COUNT(*)` with `WHERE "CacheLookupStatus" IS NOT NULL`. This is gateway semantic/exact-match caching, not provider prompt caching.
 - **Guardrail counts and failure rates**: filter `("RecordType" = 'guardrail' OR "RecordType" IS NULL)` in `gateway_guardrail_metrics`, otherwise policy copies inflate the numbers (see its schema file).
-- **Feedback on Traces**: feedback is in `gateway_feedbacks`, linked via `TargetTraceId` and `TargetSpanId`; LEFT JOIN it with `traces` in the same destination. Deduplicate by `FeedbackId` first, then filter `"IsDeleted" = false` (see `gateway_feedbacks.md` for the sample join).
+- **Feedback on Traces**: feedback is in `gateway_feedbacks`, linked via `TargetTraceId` and `TargetSpanId`; LEFT JOIN it with `traces` in the same destination. Deduplicate by `FeedbackId` first, then filter `"IsDeleted" = false` (see `ai-gateway/references/tables/gateway_feedbacks.md` for the sample join).
 
 ### Getting a Trace Link
 
