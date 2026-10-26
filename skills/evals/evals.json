@@ -572,6 +572,18 @@
         "Gives the YAML",
         "Does not apply without the user asking"
       ]
+    },
+    {
+      "id": 48,
+      "prompt": "Our MCP server `github-tools` manifest still has a collaborators list from last year. Move it to the new access system.",
+      "expected_output": "Fetches the server and calls list_grants for it; explains the grants already exist and access checks use them, so nothing moves; applies the manifest without collaborators (force: false) after approval; does not re-grant entries missing from list_grants unless the user confirms them; mentions role-binding only if the user keeps the manifest in Git.",
+      "files": [],
+      "expectations": [
+        "Calls list_grants before changing anything",
+        "Applies without collaborators",
+        "Does not call create_grants for old entries without user confirmation",
+        "Says existing access is unchanged"
+      ]
     }
   ]
 }

@@ -76,6 +76,15 @@ These role IDs are platform constants — use the table instead of looking them 
 
 **On update**, delete `collaborators` from the fetched manifest before applying, and on provider accounts also each integration's `authorized_subjects` (per-model access, same rules). **To change access** on an existing resource, use the grant tools (`list_grants`, `create_grants`, `revoke_grant`) per `access-management.md` → Access to one resource; never write `collaborators`.
 
+### Migrating an entity that still has `collaborators`
+
+Access checks read only grants, and every past apply that included `collaborators` already wrote them as grants, so there is no access to move. Migrating means dropping the list from the manifest without changing who has access:
+
+1. When a fetched manifest still has `collaborators` (or `authorized_subjects`, or a VA's `permissions`), call `list_grants` for the resource and treat that as current access. Do not reconcile the two: an entry missing from `list_grants` was revoked later, and re-granting it would restore access someone removed.
+2. On the next update, delete the list as in "On update". Tell the user once that access is now managed with grants and is unchanged.
+3. If the user asks to restore an entry from the old list, show the difference against `list_grants` and add only the entries they confirm with `create_grants`.
+4. If the user keeps manifests in Git or CI with `collaborators`, every `tfy apply` of that file replaces the resource's inline grants. Have them delete `collaborators` from the files. If they want access kept as code, first apply a `role-binding` per subject and role (`access-management.md` → Role bindings); it takes over the matching inline grants, so nothing is duplicated or lost. Then remove the list.
+
 ## After applying: UI links
 
 Append to `controlPlaneUrl`:
