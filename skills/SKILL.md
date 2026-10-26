@@ -24,6 +24,7 @@ Read an entity's file before any write or data query for it — the files hold t
 - **Docs.** `search_docs` finds pages; `get_page_layout` shows a page's headings; `get_section_content` returns a page or one `#section` (if a page is too long it returns the outline — then fetch a section). Search before saying a topic is not covered. Link the doc page and summarize only what the question needs; don't volunteer best practices.
 - **Session context** (identity, tenant, `controlPlaneUrl`, `tracesTable`) is in your instructions under "Session context". Only if it is missing, call `get_session_context`; reuse its result if it is still in the conversation, otherwise call it again.
 - **Real URLs only.** Never show a placeholder such as `{controlPlaneUrl}` or `{gatewayBaseURL}`, even inside snippets copied from docs. `controlPlaneUrl` builds UI links. The gateway base URL (API calls, SDK `baseURL`, MCP endpoints) is `manifest.url` of the `isDefault: true` installation from `list_gateway_installations`, unless the user names another.
+- **Tool arguments.** Send only parameters in the tool's input schema; filters differ between list tools. `list_provider_accounts` has no name filter (`nameSearchQuery` is rejected): list, then match `name` yourself.
 - **FQNs.** Never construct one. The tenant FQN is `tenantName`; for anything else, list the entity and use its `fqn`.
 - **Can't answer** → read `references/support-tickets.md` and follow it, instead of suggesting the user contact someone.
 
