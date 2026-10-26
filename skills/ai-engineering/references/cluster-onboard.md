@@ -15,7 +15,7 @@ Cluster problems present as “my deploy is broken” but the fix is on the **cl
 ## Signals this is a cluster issue
 
 - Many apps in different workspaces Pending simultaneously.
-- `list_k8s_pods` / cluster tools fail or return empty for a cluster that should be connected.
+- `get_application_state` / cluster tools fail or return empty for a cluster that should be connected.
 - UI status stale for everyone; Argo/apps not syncing (`failure-modes/rollout-argocd.md`).
 - GPU / Karpenter / autoscaler addons missing while users request GPUs (`failure-modes/pending-scheduling.md`, `failure-modes/cluster-capacity.md`).
 

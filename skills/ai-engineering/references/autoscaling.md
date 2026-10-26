@@ -64,7 +64,7 @@ Docs: scale service to 0 / Elasti.
 
 When the user asks to reduce cost:
 
-1. Read current replicas, GPU type, and utilization (`list_k8s_pods`, metrics tools per `tools.md`).
+1. Read current replicas, GPU type, and utilization (`get_application_state`, metrics tools per `tools.md`).
 2. Prefer: smaller GPU shape via `get_model_deployment_specs`, lower maxReplicas, scale-to-0 for idle digests, or pause for unused apps.
 3. Do not silently destroy prod capacity — confirm environment.
 

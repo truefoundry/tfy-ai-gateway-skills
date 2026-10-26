@@ -27,7 +27,7 @@ If those are absent, use generic `troubleshooting.md` playbooks. If present, con
 
 ## Layered triage
 
-Follow `troubleshooting.md` Phase 1–2 first (`clusterId`, namespace, `list_k8s_pods`).
+Follow `troubleshooting.md` Phase 1–2 first (`get_application_state`).
 
 Then split on evidence:
 
@@ -40,7 +40,7 @@ Then split on evidence:
 | Ready but 4xx/5xx on `/v1/chat/completions` or embeddings | Runtime config / template / max length | Server logs + research |
 | Many model apps stuck together | Cluster / agent | `failure-modes/cluster-capacity.md`, `failure-modes/rollout-argocd.md` |
 
-Always inspect **all** containers: init (`tfy-model-downloader` or similar) **and** the main server. Use `get_k8s_pod_logs` with `container=<name>` and `previous: true` on crashloops.
+Always inspect **all** containers: init (`tfy-model-downloader` or similar) **and** the main server. Use `get_logs` with `podName` and `containerName=<name>`; on crashloops, use a window ending just after the container's `lastState.finishedAt`.
 
 ## Empty events / StatefulSet caveat
 
@@ -48,9 +48,9 @@ Always inspect **all** containers: init (`tfy-model-downloader` or similar) **an
 
 Some model (and other) workloads are backed by **StatefulSets**. Application-scoped event APIs can return **no events** even while pods are CrashLooping. When events are empty or suspiciously quiet:
 
-1. Call `list_k8s_events` for the pod/namespace (and `get_k8s_pod_logs` with `previous: true`).
-2. Read `list_k8s_pods` `reason` / container state — that remains authoritative.
-3. Say that application events may be incomplete for this workload shape; continue diagnosis from pod logs and cluster events.
+1. Read container `state` / `reason` / `lastState` from `get_application_state` — that remains authoritative.
+2. Read the pod logs with `get_logs` (`podName`, `containerName`).
+3. Say that application events may be incomplete for this workload shape; continue diagnosis from state and logs, and give the user `kubectl get events -n <workspace>` if events matter.
 
 Never conclude “no problems” from an empty event list alone.
 
@@ -62,7 +62,7 @@ Signals: long time in init; logs mentioning HuggingFace, `HF_TOKEN`, 401/403, ga
 
 Check:
 
-1. `list_k8s_events` / `list_application_events` for FailedMount / mount / disk (prefer k8s events if application events are empty).
+1. `list_application_events` for FailedMount / mount / disk (if empty, see the StatefulSet caveat above).
 2. Init container logs — auth vs network vs size.
 3. Manifest `artifacts_download` and whether HF token secret / env is present for gated models.
 4. Cache volume size vs model weight size (large LLMs need tens–hundreds of GB).
@@ -118,7 +118,7 @@ Fixes are **service manifest** updates:
 2. Prefer regenerating with `get_model_deployment_specs` (correct `pipelineTagOverride`, token, workspace) and merging user-specific bits (name, mounts, autoscaling, sticky labels) when the catalogue can produce a better baseline.
 3. Otherwise surgically patch only real service fields: `resources`, `image`, command/args, env, probes, `artifacts_download`. GPU memory fraction is a **server flag in args/env** (e.g. `--gpu-memory-utilization`), not a manifest field.
 4. `validate_manifest` → explain the diff → `apply_manifest` (approval). For trivial “redeploy same spec” use `redeploy_application`.
-5. Verify with pods + logs (+ `list_k8s_events` if application events stay empty). For inference errors, re-run the smoke curl from `model-deploy.md`.
+5. Verify with `get_application_state` + logs. For inference errors, re-run the smoke curl from `model-deploy.md`.
 
 This same **diagnose → research → patch manifest → ask approval → apply → verify** loop applies to **any** service/job deployment when the user wants a fix — for non-models skip catalogue regeneration.
 
@@ -126,8 +126,8 @@ This same **diagnose → research → patch manifest → ask approval → apply 
 
 - [ ] Did I confirm model-server labels / `artifacts_download` before using this playbook?
 - [ ] Did I separate download failures from server runtime failures (init vs main)?
-- [ ] For CrashLoop, did I use `previous: true` and the correct `container`?
-- [ ] If `list_application_events` was empty, did I fall back to `list_k8s_events` / pod logs?
+- [ ] For CrashLoop, did I read the previous attempt's logs with the correct `containerName`?
+- [ ] If `list_application_events` was empty, did I fall back to `get_application_state` and pod logs?
 - [ ] Did I separate container `OOMKilled` (memory limits) from CUDA OOM (args/env GPU util)?
 - [ ] Did I consider probes, pipeline tag and image tag before inventing engine flags?
 - [ ] Did I search recipes + GitHub for the exact model/error?

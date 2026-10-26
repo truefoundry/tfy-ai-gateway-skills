@@ -97,11 +97,11 @@ source:
 
 ## What a Helm release looks like afterwards
 
-A chart usually creates several workloads, and **their names are not the release name** — subcharts append their own suffixes and StatefulSet pods carry an ordinal. A query for a pod that does not exist returns empty rather than an error, so a constructed name produces a confident wrong answer. **Never construct a pod name: list them with `list_k8s_pods`, then use the real ones.**
+A chart usually creates several workloads, and **their names are not the release name** — subcharts append their own suffixes and StatefulSet pods carry an ordinal. A query for a pod that does not exist returns empty rather than an error, so a constructed name produces a confident wrong answer. **Never construct a pod name: take them from `get_application_state` (or `get_application_argocd_resources`), then use the real ones.**
 
 Events work normally — `list_application_events` covers a Helm release like any other application.
 
-Logs do not. There is no application-level log stream, so reading logs means `list_k8s_pods` → `get_k8s_pod_logs`. Do NOT call `get_logs` on a Helm release and report "no logs found".
+Logs need a pod filter: `get_logs` on a Helm app without `podName` / `podNames` / `podNamesRegex` is rejected. Get the pod names first, then call `get_logs` with `applicationId` and `podName`.
 
 `troubleshooting.md` has the naming example and the rest of the operational path.
 

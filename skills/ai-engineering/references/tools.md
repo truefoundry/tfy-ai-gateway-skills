@@ -10,7 +10,7 @@ Every tool below requires the `deployment` feature on the tenant. Gateway-only t
 - Model catalogue
 - Application and deployment
 - Logs, events, metrics, alerts
-- Kubernetes reads
+- What no tool can see
 - Cluster and workspace
 - Jobs
 - Write / mutate (approval required)
@@ -48,8 +48,8 @@ Use these instead of hand-writing vLLM/SGLang services. Full workflow: `model-de
 | `list_applications` | What exists, by name/workspace | Prefer filters; unbounded lists are huge |
 | `get_application` | Type, workspace, active/last deployment, user manifest | `id` |
 | `get_deployment` | Status machine, builds, whether image was produced | application `id`, deployment `id` |
-| `get_application_state` | Live components, active version, pod placement snapshot | application `id` |
-| `get_applied_k8s_manifest` | What was actually applied to the cluster (resolved resources, redacted secrets) | application `id` |
+| `get_application_state` | **First call for any runtime question.** Per pod: `status`, `message` (e.g. the scheduling failure), `conditions`, `restarts`, `version`, `node` (instance type, capacity type, pressure). Per container: `state`, `reason`, `exitCode`, and `lastState` (the attempt before the last restart — where `OOMKilled` / exit 137 shows). Returns `null` if the cluster agent has not published a status | application `id` |
+| `get_applied_k8s_manifest` | What was actually applied to the cluster: resources/requests, probes, nodeSelector, tolerations, env shape (secrets redacted) | application `id` |
 | `get_application_argocd_resources` | Argo CD resource tree/status — **Helm apps only** | application `id` |
 | `get_pod_template_hash_map` | Maps pod-template-hash → deployment version | When correlating pods to a version |
 | `generate_deployment_endpoint` | **Suggests** a `host` / `path` for a port you are about to expose — **service** or **async-service** only; other types are rejected | `applicationType`, `workspaceId`, `applicationName`, optional `port` / `preferWildcard` / `baseDomain`. Use while building a manifest (`deploy-common.md`). A deployed application's URL is in its manifest's `ports` — `deployment-links.md` |
@@ -58,53 +58,28 @@ Use these instead of hand-writing vLLM/SGLang services. Full workflow: `model-de
 
 - Read `currentStatus.state.isTerminalState` **before** trusting `currentStatus.state.type`. While a deploy is in progress, `type` can say `success` and still not be done.
 - `DEPLOY_SUCCESS` = rollout accepted, **not** pods healthy.
-- `BUILD_FAILED` / missing `imageUri` → go to `builds.md`, not k8s tools.
-- `DEPLOY_FAILED` / `DEPLOY_FAILED_WITH_RETRY` → events + pods; may still have partial pods.
+- `BUILD_FAILED` / missing `imageUri` → go to `builds.md`, not runtime tools.
+- `DEPLOY_FAILED` / `DEPLOY_FAILED_WITH_RETRY` → `get_application_state` + events; may still have partial pods.
 
 ## Logs, events, metrics, alerts
 
 | Tool | Layer | Retention | Use for |
 |---|---|---|---|
-| `get_logs` | Native app logs | Persisted | Historical stdout/stderr for service/async/job/notebook. Pass `applicationId` (from `list_applications` / `get_application`); never pass only `applicationFqn` — the query is then not filtered by application and returns logs from every app in the workspace. Optional `podName`/`deploymentId`/`jobRunName`/`searchString`. Default limit is large — pass a smaller `limit` and a tight `startTs`/`endTs` |
+| `get_logs` | App logs (stdout/stderr) | Persisted when the cluster has Loki or VictoriaLogs; otherwise live pods only | Any app, including crashed and replaced containers. Pass `applicationId` (from `list_applications` / `get_application`); never pass only `applicationFqn` — the query is then not filtered by application and returns logs from every app in the workspace. Narrow with one of `podName` / `podNames` / `podNamesRegex`, plus `containerName`, `deploymentId`, `jobRunName`, `searchString`. **Helm apps require a pod filter.** Default limit is 5000 — pass a smaller `limit` and a tight `startTs`/`endTs` |
 | `get_build_logs` | Build pipeline | Persisted | Build failures. Path param = build `name` (`pipelineRunName`). **Always pass build `logsStartTs` as `startTs`** |
-| `get_k8s_pod_logs` | Live container | Pod lifetime | Crashloops: set `previous: true`. Needs `clusterId` + one of `podName` / `deploymentName` / `jobName` / `labelSelector` |
-| `list_application_events` | Native events | Persisted | Pull/schedule/mount failures over days. `applicationId` or `applicationFqn`; optional `podNames`, `jobRunName`, time range (default last 24h). **Only registered when autopilot is enabled** — if it is not in your tools, use `list_k8s_events` and say that only the last ~1h is visible |
-| `list_k8s_events` | Live k8s events | ~1h | Fresh `FailedScheduling`, `FailedMount`, `Failed`. Narrow with `fieldSelector` e.g. `reason=FailedScheduling` |
+| `list_application_events` | Kubernetes events for the app | Persisted | Pull / schedule / mount / probe failures over days. `applicationId` or `applicationFqn`; optional `podNames`, `jobRunName`, time range (default last 24h) |
 | `list_app_metric_charts` | Prometheus chart catalog | — | Discover chart names/params for an app |
 | `get_application_chart_data` | Prometheus series | Persisted | CPU/memory/throughput trends. Never guess chart names |
-| `list_alerts` | Autopilot alerts | Persisted | Pre-classified issues (OOM, crashloop, etc.) for an application or cluster. **Only registered when autopilot is enabled** (same as `list_application_events`) — if it is missing, skip it |
-| `get_cluster_autoscaler_logs` | Provisioning logs: **Azure** cluster-autoscaler or **GCP** NAP | Persisted | **Required** on GPU / capacity Pending when nodes are not appearing (`failure-modes/pending-scheduling.md`). Path param = cluster `id`. **AWS returns 501** — expected; use Karpenter NodeClaim status instead. Not app-level |
+| `list_alerts` | Autopilot alerts | Persisted | Pre-classified issues (OOM, crashloop, etc.) for an application or cluster |
+| `get_cluster_autoscaler_logs` | Provisioning logs: **Azure** cluster-autoscaler or **GCP** NAP | Persisted | **Required** on GPU / capacity Pending when nodes are not appearing (`failure-modes/pending-scheduling.md`). Path param = cluster `id`. **AWS returns 501** — expected. Not app-level |
 
-Prefer native (`get_logs`, `list_application_events`) for anything older than ~1 hour. Prefer k8s for live crash and schedule diagnosis.
+## What no tool can see
 
-## Kubernetes reads
+There are no raw Kubernetes read tools. These are out of reach: node lists and taints, Karpenter NodeClaims / NodePools, PVC objects, Argo Rollout and KEDA objects of non-Helm apps, and anything in system namespaces (`kube-system`, `argocd`, `istio-system`, `tfy-agent`), including controller and agent logs.
 
-All take `clusterId` as a path param. Namespace-scoped ones need `namespace` = workspace name.
+What you can still get: the node a pod landed on and its conditions (`get_application_state`), the scheduler's reason in the pod `message` / `conditions` and in `list_application_events`, the applied spec (`get_applied_k8s_manifest`), addon health (`list_cluster_addons`), agent connectivity (`get_cluster_status`) and, on Azure/GCP, autoscaler logs.
 
-| Tool | Returns | Typical use |
-|---|---|---|
-| `list_k8s_pods` | Compact: phase, restarts, `reason`, node | **First call** for any runtime question. Optional `labelSelector` |
-| `list_k8s_events` | Compact events | Scheduling / pull / mount. Use `fieldSelector` |
-| `list_k8s_nodes` | Capacity, taints, readiness | GPU/CPU shortage, taints. Optional `labelSelector` e.g. `nvidia.com/gpu.present=true` |
-| `list_k8s_objects` | Compact CRD/builtin list | Karpenter `NodeClaim`/`NodePool`, PVC, Rollout, ScaledObject. Needs `apiVersion` + plural `resource` |
-| `describe_k8s_object` | Full object (scheduling fields included) | One pod/node/NodeClaim by name — affinity, tolerations, conditions |
-| `get_k8s_pod_logs` | Container logs | See above |
-
-TrueFoundry app pods are labeled `truefoundry.com/application-id=<applicationId>`. Prefer that label selector over guessing names.
-
-**Common `list_k8s_objects` shapes:**
-
-| Kind | `apiVersion` | `resource` | Namespace? |
-|---|---|---|---|
-| Karpenter NodeClaim | `karpenter.sh/v1` (or `v1beta1`) | `nodeclaims` | cluster-scoped — omit namespace |
-| Karpenter NodePool | `karpenter.sh/v1` | `nodepools` | cluster-scoped |
-| PVC | `v1` | `persistentvolumeclaims` | namespaced |
-| Argo Rollout | `argoproj.io/v1alpha1` | `rollouts` | namespaced |
-| KEDA ScaledObject | `keda.sh/v1alpha1` | `scaledobjects` | namespaced |
-
-If the apiVersion is wrong, the call errors — try the version from `list_cluster_addons` / docs rather than inventing.
-
-Platform namespaces (`kube-system`, `argocd`, `istio-system`, `tfy-agent`) are generally **not** readable via these tools (namespace must map to a workspace). Cluster-scoped objects like NodeClaims still work. For Karpenter **controller logs** in `kube-system`, use `get_cluster_autoscaler_logs` on Azure/GCP; on AWS that tool is unimplemented (501) — read NodeClaim/NodePool status instead (`failure-modes/pending-scheduling.md`). For **stuck `WAITING` / status not publishing** — including the tfy-agent restart, which the user has to run — follow `failure-modes/rollout-argocd.md`. For **tfy-agent** logs, ask the user; do not pretend you fetched that namespace.
+When the answer is behind that line, say what you checked, say what you could not see, and give the user the exact `kubectl` command to run (e.g. `kubectl get nodeclaims`, `kubectl describe pvc <name> -n <workspace>`). Never present a guess as something you read. For **stuck `WAITING` / status not publishing**, follow `failure-modes/rollout-argocd.md`.
 
 ## Cluster and workspace
 
@@ -149,4 +124,4 @@ Never run `tfy apply` in the terminal — it is `apply_manifest` without the app
 - Empty ≠ healthy. See `troubleshooting.md` → Interpreting an empty result.
 - `direction` on logs is `asc` or `desc` only.
 
-For more info: `search_docs` with "monitor your service", "application logs", "Kubernetes events".
+For more info: `search_docs` with "monitor your service", "application logs".

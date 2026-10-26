@@ -7,8 +7,8 @@ If the image cannot be pulled, the container never runs. There are **no applicat
 
 ## Triage
 
-1. Confirm `reason: ImagePullBackOff` or `ErrImagePull` on `list_k8s_pods`.
-2. `list_application_events` / `list_k8s_events` — message usually includes registry host, tag, and auth error text.
+1. Confirm container `reason: ImagePullBackOff` or `ErrImagePull` in `get_application_state`.
+2. `list_application_events` — message usually includes registry host, tag, and auth error text.
 3. From `get_application` / `get_deployment`, read the image URI the deploy is trying to use (active manifest or build `imageUri`).
 4. `get_cluster` — default docker registry integration for the cluster when the image is private.
 

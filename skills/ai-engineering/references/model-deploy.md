@@ -175,7 +175,7 @@ Recipes and GitHub issues often assume a **newer** vLLM/SGLang image than the ca
 3. Apply hard-case tweaks (GPU util, sticky label, auto-shutdown) **before** first apply when the user asked for them.
 4. `get_manifest_json_schema` for `service` if you edited heavily; always `validate_manifest`.
 5. `apply_manifest` (approval flow). Never `tfy apply` in the terminal for this path.
-6. `get_deployment` → `list_k8s_pods`. Startup is long (download + load) — do not declare failure in the first few minutes if probes are still progressing.
+6. `get_deployment` → `get_application_state`. Startup is long (download + load) — do not declare failure in the first few minutes if probes are still progressing.
 7. Hand off deep failures to `model-debug.md`.
 8. Print the links per `deployment-links.md` — the console link and the endpoint from the deployed manifest's `ports`.
 

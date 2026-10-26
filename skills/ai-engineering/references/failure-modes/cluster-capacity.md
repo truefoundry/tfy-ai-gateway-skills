@@ -9,8 +9,8 @@ When **multiple unrelated applications** misbehave the same way, stop debugging 
 
 1. `get_cluster` / `get_cluster_status` — is the cluster connected? Is tfy-agent reporting?
 2. `list_cluster_addons` — Karpenter, GPU operator, metrics/Prometheus, CSI, ingress.
-3. `list_k8s_nodes` — Ready vs NotReady, pressure conditions, absent GPU labels.
-4. `get_cluster_autoscaler_logs` — provisioning failures (Azure/GCP). On AWS expect 501 and use Karpenter NodeClaims instead (`failure-modes/pending-scheduling.md`).
+3. Nodes — no tool lists them. `get_application_state` shows the node each pod landed on with its Ready / pressure conditions; for the full picture ask the user for `kubectl get nodes`.
+4. `get_cluster_autoscaler_logs` — provisioning failures (Azure/GCP). On AWS expect 501; ask for NodeClaim status instead (`failure-modes/pending-scheduling.md`).
 5. Only then return to a single application's playbook.
 
 ## Patterns
@@ -25,7 +25,7 @@ When **multiple unrelated applications** misbehave the same way, stop debugging 
 
 ## What you cannot see
 
-System namespaces are usually outside workspace RBAC. You may diagnose "addon unhealthy" from `list_cluster_addons` without being able to `get_k8s_pod_logs` for the addon itself. State that limit and escalate with evidence you do have.
+System namespaces are not visible to any tool (`tools.md` → What no tool can see). You may diagnose "addon unhealthy" from `list_cluster_addons` without being able to read the addon's logs. State that limit, give the user the `kubectl` command, and escalate with the evidence you do have.
 
 ## Checklist
 

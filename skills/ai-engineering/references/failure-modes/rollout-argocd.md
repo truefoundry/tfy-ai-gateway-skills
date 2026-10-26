@@ -22,7 +22,7 @@ A common unblock (seen in the field): **restart only the main `tfy-agent` Deploy
 1. `get_deployment` — read `currentStatus` carefully:
    - Wait until `state.isTerminalState` before celebrating.
    - Non-terminal: `INITIALIZED`, `BUILDING`, `BUILD_SUCCESS`, `ROLLOUT_STARTED`, `WAITING`, `REDEPLOY_STARTED`, etc.
-2. `list_k8s_pods` — are pods on the new version? Use `get_pod_template_hash_map` if you need to map hash → deployment version.
+2. `get_application_state` — are pods on the new version (pod `version` vs `activeVersion`)? Use `get_pod_template_hash_map` if you need to map `podTemplateHash` → deployment version.
    - If pods are **Pending** with FailedScheduling → `failure-modes/pending-scheduling.md` (not agent restart first).
    - If pods are **missing / never appear** but status is `WAITING` for a long time, still continue here — agent/publish/sync issues often present as “stuck waiting / no progress” in the UI.
 3. `get_applied_k8s_manifest` — what is actually applied.
@@ -60,10 +60,10 @@ tfy-agent is what turns "Argo Synced / pods Running" into control-plane `DEPLOY_
 
 1. `get_cluster_status` — is the cluster agent connected?
 2. `list_cluster_addons` — find **tfy-agent**; note sync/health. Missing/unhealthy agent explains widespread status lag.
-3. `get_application_state` — empty/stale while `list_k8s_pods` shows a live version → publishing broken even if workload runs.
+3. `get_application_state` — `null`, or an old `eventGenerationTimestamp`, while the user sees pods running (UI or `kubectl get pods -n <workspace>`) → publishing broken even if the workload runs.
 4. Wall-clock: deploy started long ago, pods Ready (or nothing progressing) for minutes, status still `WAITING` → agent/publish path, not “wait a bit more for the image”.
 
-Workspace-scoped `*_k8s_*` tools usually **cannot** read the `tfy-agent` namespace. Do not pretend you listed those pods via tools if the call failed or is disallowed.
+No tool can read the `tfy-agent` namespace. Do not pretend you listed those pods; ask the user for `kubectl get pods -n tfy-agent` when you need them.
 
 ## Restart tfy-agent (exact Deployment only)
 
@@ -142,7 +142,7 @@ Ask the user for logs from the **main** `tfy-agent` pods only. Do not claim you 
 | UI / resources show compare or credentials scheme errors | Argo CD repo/credential misconfig | `list_cluster_addons`, `get_cluster_status` |
 | Paused application | Sync/deploy blocked | `resume_application` then retry |
 | Manual change in cluster drifted | OutOfSync | `sync_application` or redeploy |
-| Canary / progressive rollout stuck | Analysis/metrics failing or steps waiting | Rollout CR status via `describe_k8s_object` / list objects |
+| Canary / progressive rollout stuck | Analysis/metrics failing or steps waiting | Rollout status: `get_application_argocd_resources` for Helm apps; otherwise pod versions in `get_application_state` + events, or ask the user for `kubectl describe rollout <name> -n <workspace>` |
 
 ## Helm-specific
 

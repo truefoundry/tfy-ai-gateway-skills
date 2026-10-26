@@ -74,7 +74,7 @@ env:
 
 ## Diagnosing a workload that will not start
 
-Start with `list_k8s_pods` and read the pod's `phase` and `reason`, then follow `troubleshooting.md`. Do not start from logs: whether logs exist at all is what the pod state tells you, and the three failure modes here are distinguished by that field rather than by what the logs contain.
+Start with `get_application_state` and read the pod `status` and container `reason`, then follow `troubleshooting.md`. Do not start from logs: whether logs exist at all is what the pod state tells you, and the three failure modes here are distinguished by that field rather than by what the logs contain.
 
 The ones specific to deploying an image: `ImagePullBackOff` means the registry refused or the tag is wrong, so the container never ran and there is nothing to read. `CrashLoopBackOff` on a first deploy is usually a missing environment variable or a command the image does not expect. `Pending` means the resource requests cannot be satisfied by any node.
 

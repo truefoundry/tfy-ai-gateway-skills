@@ -4,12 +4,12 @@
     {
       "id": 1,
       "prompt": "My service `checkout-api` in workspace `payments-prod` just went CrashLoopBackOff. Tell me what's wrong and how to fix it.",
-      "expected_output": "Reads troubleshooting.md, resolves clusterId/namespace, lists pods, pulls previous container logs + events, classifies OOM vs probe vs app error, proposes a concrete manifest edit and asks approval before apply_manifest.",
+      "expected_output": "Reads troubleshooting.md, reads get_application_state, pulls the previous attempt's logs + events, classifies OOM vs probe vs app error, proposes a concrete manifest edit and asks approval before apply_manifest.",
       "files": [],
       "expectations": [
         "Does not conclude health from DEPLOY_SUCCESS or get_application alone",
-        "Calls list_k8s_pods (or equivalent) and inspects reason / container states before proposing a fix",
-        "Uses get_k8s_pod_logs with previous:true on CrashLoopBackOff",
+        "Calls get_application_state and inspects container reason / lastState before proposing a fix",
+        "On CrashLoopBackOff, calls get_logs with applicationId, podName and a window ending after lastState.finishedAt",
         "Corroborates exit 137 with events/metrics before calling it OOM",
         "Edits from the live activeDeployment.manifest (full replace) and validates before apply",
         "Asks for approval before apply_manifest"
@@ -25,7 +25,7 @@
         "Resolves workspace via list_workspaces and uses workspace.id as workspaceId",
         "Uses a secret FQN for HF token if the model is gated — never asks the user to paste the raw token",
         "Prefers deployments with isAvailableInWorkspace: true",
-        "validate_manifest then apply_manifest; verifies with list_k8s_pods after apply",
+        "validate_manifest then apply_manifest; verifies with get_application_state after apply",
         "Mentions post-deploy smoke test and optional Gateway self-hosted registration",
         "Prints the console link ({controlPlaneUrl}/deployments/{applicationId}) and the endpoint from the deployed manifest's ports[].host / path, not a constructed host"
       ]
@@ -95,11 +95,11 @@
     {
       "id": 8,
       "prompt": "list_application_events returned nothing for my model StatefulSet but the pod is CrashLooping. Is it healthy?",
-      "expected_output": "Does not treat empty application events as healthy; falls back to list_k8s_events / pod logs; notes StatefulSet event visibility caveat.",
+      "expected_output": "Does not treat empty application events as healthy; falls back to get_application_state and pod logs; notes StatefulSet event visibility caveat.",
       "files": [],
       "expectations": [
         "Does not conclude healthy from empty list_application_events",
-        "Falls back to list_k8s_events and get_k8s_pod_logs",
+        "Falls back to get_application_state container state and get_logs for the pod",
         "Mentions that application-scoped events can miss StatefulSet-backed workloads"
       ]
     },
@@ -159,7 +159,7 @@
       "expected_output": "Treats OOMKilled as the container hitting its memory limit: pulls memory metrics and the applied memory limit, distinguishes limit-too-low from a leak, and proposes raising memory resources from the live manifest — not lowering --gpu-memory-utilization.",
       "files": [],
       "expectations": [
-        "Confirms reason OOMKilled from list_k8s_pods rather than inferring from exit code 137",
+        "Confirms OOMKilled from get_application_state (reason or lastState.reason) rather than inferring from exit code 137",
         "Pulls memory usage via list_app_metric_charts → get_application_chart_data and compares it with the applied memory limit",
         "Proposes raising memory_limit / memory_request (or flags a leak if usage climbs steadily) rather than changing --gpu-memory-utilization",
         "Edits from activeDeployment.manifest, validates, and asks approval before apply_manifest"
@@ -173,7 +173,7 @@
       "expectations": [
         "Calls list_applications filtered by the name",
         "If more than one workspace has an application with that name, lists them with their workspaces and asks which one — does not diagnose the first match",
-        "Only after the application is settled, resolves clusterId/namespace and reads pod state with list_k8s_pods"
+        "Only after the application is settled, reads pod state with get_application_state"
       ]
     },
     {

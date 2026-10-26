@@ -3,7 +3,7 @@ name: builds
 description: Read build logs and work out why a build failed or produced an unexpected image. Read this when a deploy from source did not come up, when the user asks what happened during a build, or when a running workload is not the code the user expects.
 ---
 
-A build runs before any workload exists, so there is no pod, no container and no runtime log. Every `*_k8s_*` tool returns empty for a build problem, and empty reads as a healthy quiet service. Start here instead.
+A build runs before any workload exists, so there is no pod, no container and no runtime log. Every runtime tool (`get_application_state`, `get_logs`, events) returns empty for a build problem, and empty reads as a healthy quiet service. Start here instead.
 
 ## Contents
 - Getting from an application to its build

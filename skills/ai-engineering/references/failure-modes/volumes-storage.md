@@ -7,9 +7,9 @@ Volume failures often look like Pending or CrashLoop depending on timing: the po
 
 ## Triage
 
-1. `list_k8s_events` / `list_application_events` — filter or scan for `FailedMount`, `FailedAttachVolume`, `ProvisioningFailed`.
-2. `list_k8s_objects` for PVCs in the workspace namespace: `apiVersion=v1`, `resource=persistentvolumeclaims`.
-3. `describe_k8s_object` on the stuck PVC and on the Pod (volume mounts section).
+1. `list_application_events` — scan for `FailedMount`, `FailedAttachVolume`, `ProvisioningFailed`; the message usually names the PVC, volume and error.
+2. `get_applied_k8s_manifest` — the pod's volumes and mount paths as applied.
+3. PVC objects are not visible to any tool. When the event is not enough, ask the user for `kubectl get pvc -n <workspace>` and `kubectl describe pvc <name> -n <workspace>`.
 4. Confirm the TrueFoundry Volume application (if used) via `list_applications` / `get_application` — volumes are separate applications that services mount.
 
 ## Message → cause

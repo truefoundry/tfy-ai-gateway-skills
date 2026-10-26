@@ -57,7 +57,7 @@ Recommended reading for users: https://www.truefoundry.com/docs/rollout-strategy
    - Keep **minReplicas ≥ 2** in prod before risky applies, so unavailable % does not remove all capacity.
    - Use **canary** when they need traffic-controlled promotion (`search_docs` + schema).
    - Ensure **model cache PVC** works so replacement pods do not re-download weights (`model-serving-faq.md`, volumes playbook).
-5. Verify with `list_k8s_pods`, Rollout/ReplicaSet objects, and events — not from `DEPLOY_SUCCESS` alone.
+5. Verify with `get_application_state` (pod `version` vs `activeVersion`) and events — not from `DEPLOY_SUCCESS` alone.
 
 Do **not** tell the user “replica changes never recreate pods.” Do **not** skip reading their actual `rollout_strategy`.
 
