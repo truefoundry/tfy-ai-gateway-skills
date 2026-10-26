@@ -257,14 +257,13 @@
     {
       "id": 21,
       "prompt": "Register the Linear MCP server (https://mcp.linear.app/mcp) on our gateway with OAuth.",
-      "expected_output": "Checks list_mcp_servers and list_mcp_catalogue together, calls get_mcp_server_oauth_config with mcpUrl, builds an mcp-server/remote manifest whose oauth2 auth_data has provider and grant_type and copies formContent, validates then applies, and shows the endpoint built from proxyUrl and the default gateway installation.",
+      "expected_output": "Checks list_mcp_servers and list_mcp_catalogue together. Linear is in the catalogue's tfyManaged list, so it copies that entry's tfyManagedMcpManifest (type mcp-server/tfy-managed, keeping server_identifier), adds name, description and collaborators, asks for no URL or credentials, then validates and applies.",
       "files": [],
       "expectations": [
-        "Calls get_mcp_server_oauth_config with mcpUrl set to an https URL",
-        "auth_data includes provider (e.g. custom) and grant_type: authorization_code",
-        "Uses registration_url only if formContent has it, and never writes registration_endpoint",
-        "Calls validate_manifest before apply_manifest",
-        "The endpoint shown has the form <gateway url>/<tenant>/mcp/<name>/server with no {{mcpProxyBaseURL}} placeholder"
+        "Calls list_mcp_servers and list_mcp_catalogue in one batch",
+        "Uses type mcp-server/tfy-managed with the catalogue's server_identifier, not mcp-server/remote",
+        "Does not ask for a URL, client_id or client_secret",
+        "Calls validate_manifest before apply_manifest"
       ]
     },
     {

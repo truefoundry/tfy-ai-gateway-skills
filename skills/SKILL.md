@@ -13,7 +13,7 @@ TrueFoundry has two independent products; a customer may use either alone.
 ## How to use this skill
 
 1. Decide which product the question is about.
-2. Find the user's intent in that product's table below and read the file it names. Read every file you need in **one batch**, together with your first other calls: one `cat` per file, because a single result over 24,000 characters is saved to a file instead of shown. Keep a batch of file reads under ~35,000 characters.
+2. Find the user's intent in that product's table below and read the file it names. Read every file you need in **one batch**, together with your first other calls: one `cat` per file, in full (never `head` or a grep: the rules are spread through it), because a single result over 24,000 characters is saved to a file instead of shown. Keep a batch of file reads under ~35,000 characters.
 3. Follow that file. It says what to fetch, what to ask, and what to build.
 
 Read an entity's file before any write or data query for it — the files hold the rules that tool errors never explain. A conceptual or "where is the doc" question needs only `search_docs`.
@@ -25,6 +25,7 @@ Read an entity's file before any write or data query for it — the files hold t
 - **Session context** (identity, tenant, `controlPlaneUrl`, `tracesTable`) is in your instructions under "Session context". Only if it is missing, call `get_session_context`; reuse its result if it is still in the conversation, otherwise call it again.
 - **Real URLs only.** Never show a placeholder such as `{controlPlaneUrl}` or `{gatewayBaseURL}`, even inside snippets copied from docs. `controlPlaneUrl` builds UI links. The gateway base URL (API calls, SDK `baseURL`, MCP endpoints) is `manifest.url` of the `isDefault: true` installation from `list_gateway_installations`, unless the user names another.
 - **Tool arguments.** Send only parameters in the tool's input schema; filters differ between list tools. `list_provider_accounts` has no name filter (`nameSearchQuery` is rejected): list, then match `name` yourself.
+- **Tool errors.** If a platform tool fails, tell the user the error and what it blocks. Never work around it through environment variables, process files, the MCP client, raw HTTP calls or other credentials.
 - **FQNs.** Never construct one. The tenant FQN is `tenantName`; for anything else, list the entity and use its `fqn`.
 - **Can't answer** → read `references/support-tickets.md` and follow it, instead of suggesting the user contact someone.
 

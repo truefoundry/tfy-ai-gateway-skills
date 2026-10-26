@@ -77,7 +77,7 @@ Each override period must also be in the base `limits`, and an entity may appear
 Gotchas:
 - `applies_to.type` is hyphenated (`per-user`, `per-model`, `per-virtual-account`, `per-agent`) except `aggregate` and `metadata`, and it cannot be changed after the rule is created — to re-partition a budget, create a new rule with a new `name`, then remove the old one with `delete_manifest` `{type, name}` (or set its `mode: audit` to keep tracking). `type`/`team_name` (scope) can't change either. Recreate the budget instead.
 - `type: metadata` needs a `metadata: <key>` field.
-- `cost_per_lifetime` can't be combined with other periods, and an existing budget can't switch between lifetime and periodic limits. To make that change, create a new budget.
+- `cost_per_lifetime` can't be combined with other periods, whatever the docs say (apply returns 400): a lifetime cap plus a daily cap are two budgets with distinct names, and an existing budget can't switch between lifetime and periodic limits. To make that change, create a new budget.
 - `per-user` can't be combined with `when.subjects.virtual_accounts`/`agents`; `per-virtual-account` allows only `virtual_accounts`, and `per-agent` only `agents`, in `when.subjects`.
 - `per-model` can't target virtual models (neither `virtual_models` nor a virtual-model id in `models.in`).
 - `{{user.email}}` in `to_emails`/`users` is allowed only for `per-user` budgets. If `alerts` is set, it needs at least one `notification_target`. There is no `send_to` field on alerts.
