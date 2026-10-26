@@ -258,13 +258,13 @@
     {
       "id": 21,
       "prompt": "Register the Linear MCP server (https://mcp.linear.app/mcp) on our gateway with OAuth.",
-      "expected_output": "Checks list_mcp_servers and list_mcp_catalogue together. Linear is in the catalogue's tfyManaged list, so it copies that entry's tfyManagedMcpManifest (type mcp-server/tfy-managed, keeping server_identifier), adds name, description and collaborators, asks for no URL or credentials, then validates and applies.",
+      "expected_output": "Checks list_mcp_servers and list_mcp_catalogue together. If a Linear server is already registered, reports it instead of creating a duplicate. Otherwise, since Linear is in the catalogue's tfyManaged list, it copies that entry's tfyManagedMcpManifest (type mcp-server/tfy-managed, keeping server_identifier), adds name, description and collaborators, asks for no URL or credentials, then validates and applies.",
       "files": [],
       "expectations": [
         "Calls list_mcp_servers and list_mcp_catalogue in one batch",
-        "Uses type mcp-server/tfy-managed with the catalogue's server_identifier, not mcp-server/remote",
-        "Does not ask for a URL, client_id or client_secret",
-        "Calls validate_manifest before apply_manifest"
+        "If a Linear server is already registered, reports it and does not register a duplicate",
+        "Any new registration uses type mcp-server/tfy-managed with the catalogue's server_identifier, not mcp-server/remote, and calls validate_manifest before apply_manifest",
+        "Does not ask for a URL, client_id or client_secret"
       ]
     },
     {
@@ -280,14 +280,14 @@
     },
     {
       "id": 23,
-      "prompt": "Add a tfy-prompt-injection guardrail on every MCP tool call to our existing 'security' guardrail group and turn it on for all MCP servers.",
+      "prompt": "Add a tfy-prompt-injection guardrail on every MCP tool call to our existing 'bank-guardrails' guardrail group and turn it on for all MCP servers.",
       "expected_output": "Reads the existing group with list_provider_accounts, keeps every existing integration and appends the new one, then applies a new named gateway-guardrails-config policy targeting MCP with a non-empty mcp_tool_pre_invoke_guardrails list.",
       "files": [],
       "expectations": [
         "The group manifest keeps every existing integration",
         "The policy is a single manifest with a new name and has no rules: array",
         "Calls list_gateway_config_instances with type gateway-guardrails-config and picks a policy name not already listed; does not use get_gateway_config for this",
-        "The policy targets mcpServers or mcpTools and sets mcp_tool_pre_invoke_guardrails to [security/<integration-name>]",
+        "The policy targets mcpServers or mcpTools and sets mcp_tool_pre_invoke_guardrails to [bank-guardrails/<integration-name>]",
         "All four hook arrays are present"
       ]
     },
