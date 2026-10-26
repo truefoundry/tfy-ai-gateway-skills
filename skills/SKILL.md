@@ -60,7 +60,7 @@ Files are under `ai-gateway/references/`. **For any create, update or delete, al
 | Guardrails — PII, content safety, prompt injection; guardrail groups or policies | `guardrails.md` |
 | Rate limits — any new limit, MCP tool-call limits, "what rate limits exist" | `rate-limiting-v2.md` (`rate-limiting.md` for legacy V1 rules and migration) |
 | Budgets, spend limits | `budget-limiting-v2.md` (`budget-limiting.md` for legacy V1 rules) |
-| Who can access what, roles, role bindings, identity providers, API keys | `access-management.md` |
+| Who can access what, give or remove access, roles, role bindings, identity providers, API keys | `access-management.md` |
 | Create or change a team | `teams.md` |
 | Create or change a virtual account | `virtual-accounts.md` |
 | Create a personal access token | `personal-access-tokens.md` |

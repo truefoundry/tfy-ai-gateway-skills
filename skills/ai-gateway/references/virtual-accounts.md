@@ -31,7 +31,7 @@ Ask in one question, because the first two cannot be changed after creation:
 
 **Omit `permissions` on every update**; current access stays. A `permissions` list replaces all of the VA's grants, including those added on its Access Control page, and `get_virtual_account` returns the list last applied, not current access, so re-sending it can revoke grants.
 
-- To add or remove a permission, send the user to the VA's **Access Control** in `{controlPlaneUrl}/access-management?tab=service-accounts`; tenant admins can also add one with a `role-binding` (`access-management.md`).
+- To add or remove a permission, use the grant tools with `subjectType: virtualaccount` and the VA's `id` as `subjectId` (`access-management.md` → Access to one resource). `list_grants` with `subjectType: virtualaccount` and `subjectId` shows what it holds now.
 - Keep `ownedBy` and `expiration_date` exactly as returned.
 - If the user wants to remove the VA's last permission, suggest deleting the VA instead (`delete_virtual_account`), because an empty list is rejected.
 

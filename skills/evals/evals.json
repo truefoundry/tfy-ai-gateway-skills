@@ -338,11 +338,11 @@
     {
       "id": 28,
       "prompt": "Give the virtual account checkout-bot access to the anthropic-main provider account too.",
-      "expected_output": "Finds the VA with list_virtual_accounts nameSearchQuery; does not apply a VA manifest with a permissions list (the stored list can be stale and would revoke grants added in the UI). Sends the user to the VA's Access Control page, or for a tenant admin applies a role-binding granting provider-account-access on anthropic-main to the VA.",
+      "expected_output": "Gets the VA id with list_virtual_accounts nameSearchQuery and the account fqn with list_provider_accounts, then calls create_grants with subjectType virtualaccount, the VA id and roleId provider-account-access on anthropic-main. Does not apply a VA manifest with permissions.",
       "files": [],
       "expectations": [
+        "Calls create_grants with subjectType virtualaccount and the VA id",
         "Does not call apply_manifest on the virtual account with permissions",
-        "Routes to Access Control or a role-binding",
         "Uses provider-account-access on anthropic-main"
       ]
     },
@@ -542,12 +542,35 @@
     {
       "id": 45,
       "prompt": "Give team:data-science access to the openai-main provider account.",
-      "expected_output": "Sends the user to the account's Access Control page (or offers a role-binding if they are a tenant admin); does not apply the provider account manifest with an edited collaborators list, and explains no tool can list current grants.",
+      "expected_output": "Finds the account's id/fqn with list_provider_accounts and the team's id with list_teams_for_user, then calls create_grants with resourceType provider-account, the account fqn, subjectType team, the team id and roleId provider-account-access. Does not apply the provider account manifest with collaborators.",
       "files": [],
       "expectations": [
-        "Points to Access Control → Grant Access or a role-binding",
-        "Does not call apply_manifest on the provider account with collaborators",
-        "Uses provider-account-access as the role"
+        "Calls create_grants (not apply_manifest with collaborators)",
+        "subjectId is the team's internal id, not its name",
+        "roleId is provider-account-access"
+      ]
+    },
+    {
+      "id": 46,
+      "prompt": "Who has access to the openai-main provider account? Remove bob@acme.com from it.",
+      "expected_output": "Calls list_grants with resourceType provider-account and the account id, lists subjects and roles, then revokes bob's grant with revoke_grant using the values from his list_grants row; if his row has source ROLE_BINDING, explains it comes from role binding <roleBindingName> and must be changed there.",
+      "files": [],
+      "expectations": [
+        "Uses list_grants to show current access",
+        "Calls revoke_grant with the row's subjectId and roleId",
+        "Does not edit collaborators",
+        "Handles a ROLE_BINDING grant by pointing to the binding"
+      ]
+    },
+    {
+      "id": 47,
+      "prompt": "Give me a role-binding manifest so we can keep workspace access for team ml-eng in Git.",
+      "expected_output": "Reads access-management.md role bindings, gets the role-binding schema, and returns a role-binding YAML with subjects [{type: team, name: ml-eng}] and permissions on the workspace fqn with workspace-editor; applies only if the user asks and is a tenant admin.",
+      "files": [],
+      "expectations": [
+        "Uses a role-binding (access as code), not create_grants",
+        "Gives the YAML",
+        "Does not apply without the user asking"
       ]
     }
   ]

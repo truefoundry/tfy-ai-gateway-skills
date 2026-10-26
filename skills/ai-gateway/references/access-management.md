@@ -39,27 +39,44 @@ Recommend virtual accounts for production, CI/CD and shared apps: a PAT becomes 
 | Need | Use |
 |---|---|
 | Broad platform capability for a person or group (e.g. "can create provider accounts") | A tenant role or custom role, assigned in the UI (see "Assign a tenant role") |
-| Access to one specific resource (a provider account, MCP server, workspace) | The resource's **Access Control** page, or a `role-binding` if you are a tenant admin |
+| Access to one specific resource (a provider account, MCP server, workspace) | The grant tools (see "Access to one resource"); a `role-binding` only if the user asks for access as code |
 | Several people need the same access | Grant it to a team; future members inherit it |
-| An application needs access | A virtual account's `permissions` (see `virtual-accounts.md`) |
+| An application needs access | A virtual account: `permissions` at creation, the grant tools afterwards (see `virtual-accounts.md`) |
 
 Roles can be assigned to users, teams (every member inherits them), virtual accounts, and agents. Tenant admins can use every model without being a collaborator.
 
 ## Access to one resource
 
-Default path: send the user to the resource's three-dot menu → **Access Control** → **Grant Access**, pick subjects and a role, and save. Model access is granted at the **provider account** level with these roles:
+Use the grant tools. Each adds or removes one grant and leaves every other grant alone. They apply the same checks as the **Access Control** page: the caller needs manage on the resource (or `ASSIGN_ROLE` on the tenant); otherwise they return 403, so tell the user a manager of the resource must do it. If these tools are not listed, send the user to the resource's three-dot menu → **Access Control** → **Grant Access**.
+
+Never change access by editing `collaborators` or a VA's `permissions` in a manifest: that list replaces every grant made by a manifest or on the Access Control page, and the fetched copy can be stale, so access granted since is silently revoked (`write-rules.md` → Collaborators).
+
+**Ids.** `subjectId` is an internal id, never an email or name:
+- user: `list_users` with `query=<email>` → `id`
+- team: `list_teams_for_user` → the team's `id`
+- virtual account: `list_virtual_accounts` with `nameSearchQuery=<name>` → `id`
+
+Identify the resource by its `fqn` (as `resourceFqn`) or `id` (as `resourceId`) from its list tool (`list_provider_accounts`, `list_mcp_servers`, `list_workspaces`, …); send exactly one of the two.
+
+**Who has access:** `list_grants` with `resourceType` and `resourceId`. Each row has `subjectType`, `subjectSlug` (email or name), `roleId`, `roleName` and `source`: `AUTH_API` (granted in the UI, a tool or a manifest) or `ROLE_BINDING` (from the binding in `roleBindingName`). It returns 100 rows by default; pass `limit` and `offset` for more.
+
+**Grant:** `create_grants` with `{"grants": [{"resourceType", "resourceFqn" or "resourceId", "subjectType", "subjectId", "roleId"}]}` — up to 100 grants, all or nothing. `subjectType` is `user`, `team`, `virtualaccount` or `agent`. Wildcards such as `model-provider-accounts:*` need tenant-admin or `ASSIGN_ROLE` and only accept `virtualaccount` or `agent`.
+
+**Revoke:** `revoke_grant` with one grant's `resourceType`, `resourceId` or `resourceFqn`, `subjectType`, `subjectId` and `roleId`, copied from its `list_grants` row. Only `AUTH_API` grants can be revoked (a `ROLE_BINDING` grant returns 404; change its binding instead). To change a role, create the new grant first, then revoke the old one.
+
+Model access is granted at the **provider account** level:
 
 - **Manager** (`provider-account-manager`) — can change settings, add or remove models, and manage access.
 - **User** (`provider-account-access`) — can use every model in the account; cannot change settings or access.
 
-Do not change access by editing `collaborators` in a manifest: it replaces every grant made by a manifest or on the Access Control page, and the fetched manifest's copy can be stale, so access granted since is silently revoked. No tool lists current grants. See `write-rules.md` → Collaborators.
+Role IDs for other resources are in `write-rules.md` → Collaborators and `virtual-accounts.md` → Common permissions.
 
-### Role bindings (tenant admins)
+### Role bindings (access as code)
 
-Tenant admins can grant a role on a specific resource as code. Non-admins get 403 — send them to the resource's **Access Control** page instead.
+Use a `role-binding` only when the user asks for access as code (to keep in Git, or to apply with their other manifests). Only tenant admins can apply one; others get 403.
 
 1. Call `get_manifest_json_schema` with type `role-binding` (reuse it if it is still in the conversation).
-2. Build the manifest below, then `validate_manifest` → `apply_manifest` per `write-rules.md`. Re-applying the same `name` updates that binding.
+2. Build the manifest below. If the user wants to apply it here, `validate_manifest` → `apply_manifest` per `write-rules.md`; otherwise give them the YAML. Re-applying the same `name` updates that binding.
 
 ```yaml
 type: role-binding

@@ -45,7 +45,7 @@ On an update, these fields replace the entity's entire current value. Anything y
 | Field | Entity | Safer path |
 | --- | --- | --- |
 | `collaborators` | Provider accounts, virtual models, MCP servers, guardrail groups | On updates, remove it from the fetched manifest (see Collaborators) |
-| `permissions` | Virtual account | Omit it on updates; change access on the VA's Access Control page |
+| `permissions` | Virtual account | Omit it on updates; change access with the grant tools |
 | `members`, `managers` | Team | `add_team_members` / `remove_team_members` / `add_team_managers` / `remove_team_managers` |
 | `integrations` | Guardrail group, provider account | Start from `list_provider_accounts`' current manifest; a dropped integration is deleted with its credentials |
 | `rules` | Legacy singleton configs | `get_gateway_config` immediately before writing |
@@ -59,7 +59,7 @@ Access is stored as grants, separately from the manifest; `collaborators` is onl
 
 - **Omitted:** existing grants are left untouched. **`[]`** removes them all.
 - **Present:** replaces every grant on the resource made by a manifest or on its **Access Control** page. Role-binding grants are kept.
-- A fetched manifest's `collaborators` is the list last applied, not current access: grants changed later on the Access Control page are not written back, so re-sending it revokes them. No tool lists a resource's current grants.
+- A fetched manifest's `collaborators` is the list last applied, not current access: grants changed later on the Access Control page are not written back, so re-sending it revokes them. Current access comes from `list_grants`.
 
 **On create**, include collaborators, or other users cannot see the resource (the creator becomes manager automatically):
 
@@ -74,7 +74,7 @@ Access is stored as grants, separately from the manifest; `collaborators` is onl
 
 These role IDs are platform constants — use the table instead of looking them up. MCP servers also have `mcp-server-approver`. MCP server group provider accounts accept only `provider-account-manager`; do not add `team:everyone` there.
 
-**On update**, delete `collaborators` from the fetched manifest before applying, and on provider accounts also each integration's `authorized_subjects` (per-model access, same rules). **To change access** on an existing resource, send the user to its Access Control page (tenant admins can also use a `role-binding`, see `access-management.md`); do not write `collaborators`.
+**On update**, delete `collaborators` from the fetched manifest before applying, and on provider accounts also each integration's `authorized_subjects` (per-model access, same rules). **To change access** on an existing resource, use the grant tools (`list_grants`, `create_grants`, `revoke_grant`) per `access-management.md` → Access to one resource; never write `collaborators`.
 
 ## After applying: UI links
 
