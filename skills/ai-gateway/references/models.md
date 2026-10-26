@@ -34,7 +34,7 @@ Read this file and `write-rules.md` together. Follow the write steps there; the 
 
 These are independent; issue them together:
 
-- `list_provider_accounts` (flags as in "List the tenant's models"; no name filter) to find accounts of this provider or name.
+- `list_provider_accounts` (flags as in "List the tenant's models"; no name filter) to find accounts by provider or name.
 - `get_manifest_json_schema` for the account type, e.g. `provider-account/openai`. Reuse it if it is still in the conversation; otherwise call it again.
 - `list_providers` from the sandbox with `providerType` (the account type), saved to a file. If a saved `list_providers` file from this conversation is still referenced and still exists, reuse it; otherwise call it again.
 
