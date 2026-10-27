@@ -11,9 +11,9 @@ description: Read for any aggregate Gateway question — requests, cost, tokens,
 
 Group-by and timeseries results can run to hundreds of rows, and the tool cannot sort or limit them. Run those queries from the sandbox with one program that calls the tool, sorts, cuts to what the question needs and prints only that. Call the tool directly only for a query with no `groupBy` and `type: distribution` (one row).
 
-- The tool is on the platform MCP server. From code: `result = await call_tool("<server>", "query_llm_gateway_metrics", body={...})`. Independent queries can go in one program with `asyncio.gather`; a sandbox command times out after 60 seconds by default, so keep each program to a few queries.
+- From code: `result = await call_tool("<server>", "query_llm_gateway_metrics", body={...})`, on the Code Mode server hosting the tool. Independent queries can go in one program with `asyncio.gather`; a sandbox command times out after 60 seconds by default, so keep to a few queries.
 - `call_tool` returns the response body as a dict, `{"data": {"dataPoints": [...], "intervalInSeconds": N}}`. The tool has no output schema; this is its shape, so don't run a call just to infer it. A 400 raises an error whose message is the server's.
-- Its input schema is too large to show inline, so `get_tool_info` saves it to a file. Don't print it: this file describes the request, and a wrong field or operator returns a 400 naming it (it merges all datasources' fields, so it can't tell which one accepts a field).
+- Build requests from this file, not the input schema: it merges all datasources' fields, so it can't tell which one accepts a field. A wrong field or operator returns a 400 naming it.
 - Print a compact table (top 10–20 rows unless asked for more), with the total across all rows when shares matter.
 
 ### Datasources
@@ -33,7 +33,7 @@ Group-by and timeseries results can run to hundreds of rows, and the tool cannot
 
 ### Request rules
 
-- **Time.** `startTs` and `endTs` are ISO 8601, both inclusive; without an offset they are UTC, and both must use the same offset. `endTs` defaults to now, and a future `endTs` is clamped to now. Default to the last 7 days when the user gives no window, and state the window in the answer.
+- **Time.** Get `get_current_datetime`'s result before building the window, never alongside the query. `startTs` and `endTs` are ISO 8601, both inclusive; without an offset they are UTC, and both must use the same offset. `endTs` defaults to now, and a future `endTs` is clamped to now. Default to the last 7 days when the user gives no window, and state the window in the answer.
 - **`type`.** `distribution` returns one row per group over the window. `timeseries` adds buckets: set `interval` (`"1 hour"`, `"1 day"`, one unit only) when the user asks for a granularity; otherwise the server picks one from the window (≤1 hour → 2 minutes, ≤3 hours → 10 minutes, ≤12 hours → 30 minutes, ≤1 day → 1 hour, ≤7 days → 12 hours, ≤30 days → 1 day, ≤90 days → 3 days). Buckets start at `startTs`: for daily or hourly trends start at a UTC midnight or hour. Empty buckets come back with `total: 0` and null group values.
 - **Counting requests.** Every row has `total`, the number of rows matched: that is the request count. `count` on a column counts only rows where it is not NULL (`count` of `costInUSD` skips calls without cost).
 - **Conditional counts.** A `filterPredicate` on an aggregation counts a subset in the same query: `{"type":"count","column":"modelName","alias":"failures","filterPredicate":[{"fieldName":"isFailure","operator":"EQUAL","value":true}]}`. Aliases must be unique.
