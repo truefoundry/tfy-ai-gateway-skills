@@ -80,7 +80,7 @@ Call `get_logs` with `applicationId`, `podName` (from `get_application_state`), 
 
 Logs need a pod filter: `get_logs` on a Helm app without `podName`, `podNames` or `podNamesRegex` returns 400.
 
-1. Get real pod names from `get_application_state`. If it lists none, use `get_application_argocd_resources`, which also shows sync/health.
+1. Get real pod names from `get_application_state`. If it lists none, use `get_application_argocd_resources`, which also shows sync/health. If neither lists a pod (paused, scaled to 0), there are no logs: say so and stop. Do not call `get_logs` with a name derived from a StatefulSet or the release, not even to confirm.
 2. `get_logs` with `applicationId`, that `podName` (or `podNamesRegex="^<release>-.*"`), `direction: "desc"`, `limit` ~200.
 
 `list_application_events` keeps live events only for objects named like the release, so subchart pods get lifecycle events only. For their full events give the user `kubectl get events -n <namespace> --field-selector involvedObject.name=<pod>`.
@@ -93,7 +93,7 @@ StatefulSet  my-cache-master
 pod          my-cache-master-0        # <set>-<ordinal>
 ```
 
-`my-cache-0` does not exist, and `get_logs` for it returns an empty list rather than an error. Deployment-backed pods carry a generated ReplicaSet hash (`my-api-7d4b9c8f2a-x4kqp`) and are equally unpredictable. List, then read.
+`my-cache-0` does not exist, and `get_logs` for it returns an empty list rather than an error. Deployment-backed pods carry a generated ReplicaSet hash (`my-api-7d4b9c8f2a-x4kqp`) and are equally unpredictable. Use only names a tool returned as pods; a StatefulSet in `get_application_argocd_resources` is not a pod.
 
 ## Notebooks / SSH / RStudio
 
