@@ -370,7 +370,7 @@
     },
     {
       "id": 33,
-      "prompt": "Enable autoscaling on my service web-api in workspace dev: 1 to 4 replicas at 70% CPU, and scale it to zero after 10 minutes idle.",
+      "prompt": "Enable autoscaling on my service mock-agent in workspace agastya: 1 to 4 replicas at 70% CPU, and scale it to zero after 10 minutes idle.",
       "expected_output": "Fetches the live manifest, sets replicas: {min_replicas: 1, max_replicas: 4, metrics: {...}} and auto_shutdown: {wait_time: 600}; explains auto_shutdown requires an rps metric when autoscaling, so asks whether to switch to rps or drop one of the two; validates and asks approval before apply_manifest.",
       "files": [],
       "expectations": [
@@ -584,7 +584,7 @@
     },
     {
       "id": 51,
-      "prompt": "I want to add an OpenAI account named hello-openai with all models and API key sk-123456.",
+      "prompt": "I want to add an OpenAI account named eval-openai-all with all models and API key sk-123456.",
       "expected_output": "Reads models.md and write-rules.md as separate reads, uses the given key as auth_data.api_key without looking for a way to create a secret, builds every non-retired catalogue model into a file, validates it from the sandbox, reads the minified file in parts in one batch and calls apply_manifest once with the full list.",
       "files": [],
       "expectations": [
