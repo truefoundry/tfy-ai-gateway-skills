@@ -1,6 +1,6 @@
 ---
 name: truefoundry-platform
-description: Answer questions about TrueFoundry, an enterprise AI platform. Covers two products — AI Gateway (LLM proxy, MCP servers, agents, governance) and AI Engineering (deploy services, jobs, notebooks, workflows; deploy HuggingFace/catalogue models with vLLM/SGLang/etc.; ML repos, model registry, fine-tuning). Triggers on TrueFoundry, tfy CLI, Gateway entities/policies, tracing/observability, prompt management, or deploying applications and models — even when the product name isn't stated.
+description: Answer questions about TrueFoundry, an enterprise AI platform. Covers two products — AI Gateway (LLM proxy, MCP servers, agents, governance) and AI Engineering (deploy services, jobs, notebooks, workflows; deploy HuggingFace/catalogue models with vLLM/SGLang/etc.; ML repos, model registry, fine-tuning). Triggers on TrueFoundry, tfy CLI, Gateway entities/policies, tracing/observability, prompt management, or deploying applications and models — even when the product name isn't stated. Read this file whole with one `cat`.
 ---
 
 # TrueFoundry
@@ -33,6 +33,7 @@ Read an entity's file before any write or data query for it — the files hold t
 
 Every create, update and delete goes through a manifest tool, which asks the user for approval before it runs.
 
+- The reference file and `get_manifest_json_schema` are a write's contract: don't `search_docs` during it. Cite a doc page in the reply only.
 - `validate_manifest`, `apply_manifest` and `delete_manifest` take `{"manifest": {...}}`. Reference files show YAML for readability; send JSON.
 - Call `validate_manifest` directly. For a manifest too large to write inline (a provider account with many models), build it with a program into a sandbox file and call `validate_manifest` from the sandbox on that file. Fix and re-validate until `valid: true`, then call `apply_manifest` once, directly, with the validated JSON — never in the same batch as validation.
 - `delete_manifest` needs `type` and `name`, plus `workspace_fqn` for applications and `cluster_fqn` for workspaces. Legacy singletons need only `type`.

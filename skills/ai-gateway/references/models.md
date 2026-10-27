@@ -26,7 +26,7 @@ Read this file and `write-rules.md` together. Follow the write steps there; the 
 
 - Provider (the `provider-account/<provider>` type) and account name.
 - Create a new account or update an existing one.
-- Auth method, if the schema offers more than one, and each key: a `tfy-secret://<owner>:<secret-group>:<secret-key>` reference if the user gives one, otherwise the raw key they gave. You cannot create secrets.
+- Auth method (Step 2) and each key: a `tfy-secret://<owner>:<secret-group>:<secret-key>` reference if the user gives one, otherwise the raw key they gave. You cannot create secrets.
 - Region, if the schema has one (Azure OpenAI and Microsoft Foundry: `deployment_type` instead).
 - Which models: "all", a list of names, or modes (for example "all chat and embedding models"). If the user did not say, ask; never default to all. Never dump the catalogue to the user; ask by name or mode.
 
@@ -34,7 +34,7 @@ Read this file and `write-rules.md` together. Follow the write steps there; the 
 
 These are independent; issue them together:
 
-- `list_provider_accounts` (flags as in "List the tenant's models"; no name filter) to find accounts by provider or name.
+- `list_provider_accounts` (flags as in "List the tenant's models", plus `attributes: ["id","name","provider"]`; no name filter). It is usually saved to a file: match `name` and `provider` with one `jq`. To update, fetch that account with `get_provider_account`.
 - `get_manifest_json_schema` for the account type.
 - `list_providers` from the sandbox with `providerType` (the account type), saved to a file. Reuse a saved file from this conversation if it still exists.
 
@@ -46,14 +46,14 @@ From the schema, extract with one `jq`:
 
 - The integration `type` constant under `integrations` items. Take it from the schema, not from `list_providers` (wrong for `aws-sagemaker`). It differs from the account suffix for `aws-bedrock` → `integration/model/bedrock`, `aws-bedrock-mantle` → `integration/model/bedrock-mantle`, `google-vertex` → `integration/model/vertex`, `google-gemini` → `integration/model/gemini`, `aws-sagemaker` → `integration/model/sagemaker`.
 - The account `name` pattern (it varies by provider).
-- The `auth_data` variants. Some providers require `auth_data` (for example `azure-openai`, `google-gemini`); some offer several shapes (Bedrock has three). If there is more than one, ask which.
+- The `auth_data` variants, and whether it is required. Ask which, unless the user said. If it is optional (Bedrock, SageMaker, Vertex), "none" is a choice too: omit `auth_data` and the gateway uses its own cloud identity, which works only on self-hosted gateways.
 - The `region` enum, if the account has `region`.
 
-**Region.** If the schema has `region`, collect the distinct `costs[].region` values of this provider's models, keep only values that are also in the schema's `region` enum, and ask the user to choose. `*` means "default price for any region"; never offer it as a region. Skip this if the schema has no `region`.
+**Region.** If the schema has `region`, collect the distinct `costs[].region` values of this provider's models, keep only values that are also in the schema's `region` enum; if the user named one of them, use it, else ask. Never offer `*` (the any-region default price). Skip this if the schema has no `region`.
 
 ### Step 3 — resolve the model selection
 
-Before writing the program, turn the user's answer into an exact selection, with one `jq` over the saved `list_providers` file:
+Turn the user's answer into an exact selection with one `jq` over the saved `list_providers` file:
 
 - **"All"** or **modes** ("all chat and embedding models"): nothing to resolve; the program selects them.
 - **Named models:** match each name to a catalogue key (`model_id`): an exact key first, else keys containing the name, ignoring case. One match: use it. Several: ask the user to pick (show at most 10). None: the model is not in the catalogue. Ask for its exact `model_id` and model types, and add it without `cost` (public cost exists only for catalogue models; any other gets a 400).
@@ -62,7 +62,7 @@ Before writing the program, turn the user's answer into an exact selection, with
 
 Write one program that reads the saved `list_providers` file and writes the complete manifest as JSON to a file.
 
-**Inputs:** the provider `type`; the integration `type` from Step 2; the account `name`; the region or `deployment_type`; the selection from Step 3; `auth_data`; when updating, the current manifest from `list_provider_accounts`.
+**Inputs:** the provider `type`; the integration `type` from Step 2; the account `name`; the region or `deployment_type`; the selection from Step 3; `auth_data`; when updating, the current manifest from `get_provider_account`.
 
 **Program**, in this order:
 
@@ -81,7 +81,7 @@ Write one program that reads the saved `list_providers` file and writes the comp
 9. **Write** the manifest (template below) to a file. Print only a summary: count by model type, how many have `cost`, and each skipped model with why.
 ### Step 5 — validate in the sandbox, apply once
 
-Call `validate_manifest` from the sandbox with the file's JSON as `{"manifest": …}`; on errors, fix the program's rule, rebuild the file and validate again. Once it returns `valid: true`, print the minified file in parts of at most 20,000 characters (one `exec` each, one batch), then call `apply_manifest` once, directly (never from the sandbox), with the joined parts unchanged. One call holds the whole manifest, even all of a provider's models: never split it across applies or apply a partial list, since `integrations` replaces the account's list. If the result is saved to a file, check it for errors with one `jq`. `validate_manifest` checks only the schema; pricing, naming and credential checks run at apply, so program steps 5 and 6 must be right first. If apply fails, fix the program's rule (not entries) and rebuild.
+Call `validate_manifest` from the sandbox with the file's JSON as `{"manifest": …}`; on errors, fix the program's rule, rebuild the file and validate again. Once it returns `valid: true`, print the minified file in parts of at most 20,000 characters (one `exec` each, one batch), then call `apply_manifest` once, directly (never from the sandbox), with the joined parts unchanged. One call holds the whole manifest: never split it across applies, since `integrations` replaces the account's list. If the result is saved to a file, take errors and the account `id` with one `jq`. `validate_manifest` checks only the schema; pricing, naming and credential checks run at apply, so program steps 5 and 6 must be right first. If apply fails, fix the program's rule (not entries) and rebuild.
 
 After a create, grant access (`write-rules.md` → Access). Then show the UI link from `write-rules.md`.
 
