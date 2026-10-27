@@ -64,7 +64,7 @@ Access is stored as grants, and only the grant tools write it (`list_grants`, `c
 
 - Grant `team:everyone` the access role, unless the user gives their own list. The everyone team's `id` comes from `list_teams_for_user` with `includeMembership=false`; other subject ids per `access-management.md` → Ids.
 - Identify the new resource by its `fqn` or `id` from its list tool (`list_provider_accounts`, `list_mcp_servers`).
-- If it fails, the resource exists with only the creator as manager: tell the user and retry the grants, never the apply.
+- If it fails, the resource exists with only the creator as manager. Never re-apply; tell the user, fix the grant from the error and retry only `create_grants`.
 
 | Entity | `resourceType` | Manager `roleId` | Access `roleId` |
 | --- | --- | --- | --- |

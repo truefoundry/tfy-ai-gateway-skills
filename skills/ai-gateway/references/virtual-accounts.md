@@ -24,7 +24,7 @@ Ask in one question, because the first two cannot be changed after creation:
 1. In one parallel batch: `list_virtual_accounts` with `nameSearchQuery=<name>` (similar VAs you can access), `check_virtual_account_exists` with `name` (whether the exact name is taken tenant-wide), and `get_manifest_json_schema` with type `virtual-account` (reuse it if still in the conversation).
 2. If the name is taken or similar VAs exist, show them and ask whether to create a VA with a different name or update an existing one. Restate the user's choice (create a new name, or update `<name>`) in your reply before continuing. For an update, go to "Updating a virtual account".
 3. Build the manifest without `permissions`, then `validate_manifest` → `apply_manifest` per `write-rules.md`.
-4. Grant the requested access in one `create_grants` call with `subjectType: virtualaccount` and the new VA's `id` (from `list_virtual_accounts`) as `subjectId` (`access-management.md` → Access to one resource). If it fails, the VA exists with no access: tell the user and retry the grants, never the apply.
+4. Grant the requested access in one `create_grants` call with `subjectType: virtualaccount` and the new VA's `id` (from `list_virtual_accounts`) as `subjectId` (`access-management.md` → Access to one resource). If it fails, the VA exists with no access. Never re-apply; tell the user and retry only `create_grants` once the error is fixed. On 403 the caller cannot manage that resource: a manager of it must grant it, or offer to delete the VA.
 5. Send the user to generate the token (see "Token").
 
 ## Updating a virtual account
@@ -45,7 +45,7 @@ Ask in one question, because the first two cannot be changed after creation:
 | Access a secret group | `secret-group-access` | `secret-group` |
 | View workspace deployments | `workspace-viewer` | `workspace` |
 | Deploy to workspace | `workspace-editor` (shown as "Workspace Member" in the UI) | `workspace` |
-| Tenant-wide role | `member`, `read-only-member`, or a custom role name | `tenant` (FQN = tenant name) |
+| Tenant-wide role | the `id` from `list_roles` with `roleName` (`member`, `read-only-member` or a custom role); never the name | `tenant` (FQN = tenant name) |
 
 - `resourceFqn` for a workspace is `<cluster-name>:<workspace-name>`.
 - For all resources of a kind, use `<category>:*` (e.g. `model-provider-accounts:*`), not `*`.
