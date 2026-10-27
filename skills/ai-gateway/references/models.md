@@ -44,7 +44,7 @@ If matching accounts exist, ask whether to update one or create a new one with a
 
 From the schema, extract with one `jq`:
 
-- The integration `type` constant under `integrations` items. Take it from the schema, not from `list_providers` (it reports some wrongly). It differs from the account suffix for `aws-bedrock` → `integration/model/bedrock`, `aws-bedrock-mantle` → `integration/model/bedrock-mantle`, `google-vertex` → `integration/model/vertex`, `google-gemini` → `integration/model/gemini`, `aws-sagemaker` → `integration/model/sagemaker`.
+- The integration `type` constant under `integrations` items. Take it from the schema, not from `list_providers` (wrong for `aws-sagemaker`). It differs from the account suffix for `aws-bedrock` → `integration/model/bedrock`, `aws-bedrock-mantle` → `integration/model/bedrock-mantle`, `google-vertex` → `integration/model/vertex`, `google-gemini` → `integration/model/gemini`, `aws-sagemaker` → `integration/model/sagemaker`.
 - The account `name` pattern (it varies by provider).
 - The `auth_data` variants. Some providers require `auth_data` (for example `azure-openai`, `google-gemini`); some offer several shapes (Bedrock has three). If there is more than one, ask which.
 - The `region` enum, if the account has `region`.
