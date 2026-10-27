@@ -80,7 +80,7 @@ Call `get_logs` with `applicationId`, `podName` (from `get_application_state`), 
 
 Logs need a pod filter: `get_logs` on a Helm app without `podName`, `podNames` or `podNamesRegex` returns 400.
 
-1. Get real pod names from `get_application_state`. If it lists none, use `get_application_argocd_resources`, which also shows sync/health. If neither lists a pod, there are no logs: say so and stop.
+1. Get real pod names from `get_application_state`. If it lists none, use `get_application_argocd_resources`, which also shows sync/health. If neither lists a pod, there are no logs: say so.
 2. `get_logs` with `applicationId`, that `podName` (or `podNamesRegex="^<release>-.*"`), `direction: "desc"`, `limit` ~200.
 
 `list_application_events` keeps live events only for objects named like the release, so subchart pods get lifecycle events only. For their full events give the user `kubectl get events -n <namespace> --field-selector involvedObject.name=<pod>`.
@@ -93,7 +93,7 @@ StatefulSet  my-cache-master
 pod          my-cache-master-0        # <set>-<ordinal>
 ```
 
-`my-cache-0` does not exist, and `get_logs` for it returns an empty list rather than an error. Deployment-backed pods carry a generated ReplicaSet hash (`my-api-7d4b9c8f2a-x4kqp`) and are equally unpredictable. Use only names a tool listed as pods, never one derived from a StatefulSet.
+`my-cache-0` does not exist, and `get_logs` for it returns an empty list rather than an error. Deployment-backed pods carry a generated ReplicaSet hash (`my-api-7d4b9c8f2a-x4kqp`) and are equally unpredictable. Use only names a tool listed as pods, never one built from a StatefulSet.
 
 ## Notebooks / SSH / RStudio
 
@@ -127,7 +127,7 @@ State what you could not see rather than reporting health. "No events in the win
 - [ ] Did I start from `get_application_state` and open the matching failure-mode file?
 - [ ] Did I read container `reason` and `lastState`, and use `node` to tell an unscheduled `Pending` pod from an unready one?
 - [ ] For a crashlooping container, did I read the previous attempt's logs (window ending at `lastState.finishedAt`), or say why I could not?
-- [ ] If the type is `helm`, did I pass a listed pod name or regex to `get_logs`, never a constructed one?
+- [ ] For `helm`, did I pass `get_logs` a listed pod name or regex, never a constructed one?
 - [ ] For OOM or slowness, did I look at metrics / applied limits, not only logs?
 - [ ] Did I avoid calling exit 137 "OOM" without corroboration?
 - [ ] If a call returned empty, did I check whether that tool could have seen the answer at all?
