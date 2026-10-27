@@ -41,7 +41,7 @@ Ask with `ask_user_question` for anything the user didn't say and that has more 
 | a metadata term (tenant, app, project…) | `metadata: { <key>: { in: [<value>] } }` |
 
 - Each filter takes `in` and/or `not_in`; `*` is a wildcard. Different filters are ANDed. Among subject kinds, an `in` match on any one is enough, and any `not_in` match excludes the caller.
-- A metadata term that isn't a user, team or VA is a metadata key. Don't ask the user for the key name: discover it from live data (see `observability.md`, `gateway_model_metrics`).
+- A metadata term that isn't a user, team or VA is a metadata key. Don't ask the user for the key name: discover it from live data (the metadata keys query in `observability.md`).
 - Model family only: `virtual_models` / `virtual_provider_accounts` filters exist but can't be combined with `models` / `provider_accounts` (400). A virtual-model id can also go in `models.in`.
 
 ### Bucketing (`applies_to`)

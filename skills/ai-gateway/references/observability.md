@@ -1,138 +1,113 @@
 ---
 name: observability
-description: Read for any question about Gateway usage, cost, latency, errors, cache, guardrail outcomes, traces or feedback. Explains which table holds what and how to query it with `gateway_execute_sql`, plus how to link to traces and metrics in the UI.
+description: Read for questions about individual Gateway requests and traces — find requests, see a request's spans, errors, prompt or response, metadata keys, feedback — and for trace links. Explains how to query traces and feedback with `gateway_execute_sql`. For counts, cost, latency or any aggregate, read `metrics.md` instead.
 ---
 
-## Querying Gateway Observability Data
+## Traces and Feedback
 
-Gateway emits traces (OTEL spans) and metrics for each request, stored in several tables.
-A single request may involve multiple model calls, MCP calls, guardrail evaluations, etc. and so can produce multiple spans and metric rows.
-All spans and metrics of a user's request have the same `TraceId`.
+Gateway records every request as a trace of OTEL spans: one head span for the request, with child spans for each model call, MCP call, guardrail check and so on. All spans of a request share a `TraceId`.
+
+Use SQL on traces only for what the metrics API cannot do: listing or finding requests, one request's spans and attributes, request or response contents, metadata key discovery, feedback, and data in a routing destination other than `default`. Every aggregate (requests, cost, tokens, latency, errors, cache, guardrail, MCP, rate-limit, budget, agent numbers) comes from `query_llm_gateway_metrics`: read `metrics.md`. Don't query the `gateway_*_metrics` tables.
 
 ### Tables
 
-Each table has a schema file `ai-gateway/references/tables/<table-name>.md`.
-
-- `traces` - OTEL spans enriched with AI Gateway columns (the physical name varies, see below)
-- `gateway_model_metrics` - model calls: tokens, cost, latency, failures, gateway cache, provider cache tokens
-- `gateway_mcp_metrics` - MCP calls
-- `gateway_guardrail_metrics` - guardrail evaluations
-- `gateway_config_metrics` - applied rate limits, budget limits and load balancing rules
-- `gateway_request_metrics` - every incoming request to the gateway (overall usage)
-- `gateway_feedbacks` - user feedback (ratings, comments) linked to trace spans
-
-No other tables are queryable (e.g. `gateway_agent_metrics` fails).
+- The traces table — its name varies by tenant: take `tracesTable` from the session context (call `get_session_context` only if it is missing); never assume `traces`. In this skill, "the `traces` table" means that table. Schema: `ai-gateway/references/tables/traces.md`.
+- `gateway_feedbacks` — feedback (ratings, comments) on spans. Schema: `ai-gateway/references/tables/gateway_feedbacks.md`.
 
 ### Steps
 
-1. Pick the one or two tables the question needs. In one parallel batch, read their schema files (skip any whose contents are still in the conversation) and, if the query touches `traces` or `gateway_feedbacks`, call `list_data_routing_destinations` (reuse its result if it is still in the conversation).
-2. Write one query following the rules below, and run it with `gateway_execute_sql`. If the result is large and saved to a sandbox file, extract only the fields you need with one `jq`/program.
-3. Answer with the numbers and a UI link (see Linking to Traces and Metrics).
+1. In one parallel batch, read the schema file of each table you need (skip any whose contents are still in the conversation) and call `list_data_routing_destinations` (reuse its result if it is still in the conversation). If there is one destination, use it; if there are several, ask the user which one.
+2. Write one query following the rules below and run it with `gateway_execute_sql`. If the result is saved to a sandbox file, extract only the fields you need with one `jq`/program.
+3. Answer with the result and a trace link (see Linking to traces).
 
-### Writing SQL Queries
+### Writing SQL
 
-- Use the DataFusion SQL dialect. It is not ClickHouse or Postgres: use `array_has`, `map_keys`, `unnest`, `"Map"['key']`, `INTERVAL '7 days'`, `approx_percentile_cont`; there is no `has()`, `quantile()`, `JSONExtract` or `->>`.
-- Quote table and column names; column names are case sensitive.
-- Never guess column names; take them from the table's schema file.
-- Address tables as `"{dataRoutingDestination}"."{tableName}"`.
-- The traces table name varies by tenant: take it from `tracesTable` in the session context (call `get_session_context` only if it is missing). Never assume it is `traces`. In this skill, "the `traces` table" means that table. All other table names are fixed.
-- `*_metrics` tables always live in the `"default"` destination; use `"default"` without looking anything up.
-- For `traces` and `gateway_feedbacks` the destination varies. Use the result of `list_data_routing_destinations`: if there is only one, use it; if there are several, ask the user which one they mean.
-- Always add a time range filter. Larger ranges are fine for metrics aggregations; keep scans small, especially on `traces`. Default to the last 7 days for metrics when no time is given. For `traces` scans also add `"Date" >= 'YYYY-MM-DD'` (UTC date string) so partitions are pruned.
-- The tool has no row limit. Add `LIMIT` to every non-aggregate query (default 50).
-- Select only the columns the task needs; never `SELECT *` on `traces` (it pulls the large, sensitive `TfyGatewayInput`/`TfyGatewayOutput` payloads).
-- Results are filtered by the caller's Gateway data-access rules. An empty or small result can mean the user lacks access, not that there is no traffic. When a query returns nothing, say so and point to `{controlPlaneUrl}/access-management?tab=data-access`.
+- The dialect is DataFusion, not ClickHouse or Postgres: use `array_has`, `map_keys`, `unnest`, `"Map"['key']`, `INTERVAL '7 days'`, `approx_percentile_cont`, `date_trunc`, `COUNT(*) FILTER (WHERE …)`. There is no `has()`, `quantile()`, `JSONExtract` or `->>`. `SHOW TABLES` and `information_schema` are disabled.
+- Quote table and column names; column names are case sensitive. Take them from the schema file, never guess.
+- Address a table as `"<destination>"."<table>"`. An unqualified name fails with `Invalid schema public`.
+- **Time range on every query, twice:** a `"Date"` range for partition pruning and a `"Timestamp"` range for the exact window. `"Date"` is a UTC `'YYYY-MM-DD'` string and `"Hour"` a `'HH'` string: compare them with string literals (`"Date" >= '2026-10-20'`), or `to_char(now() - INTERVAL '7 days', '%Y-%m-%d')`. `CAST(current_date() - 7 AS VARCHAR)` fails. Default to the last 24 hours when the user gives no window; keep scans small.
+- **Head spans** (one per request): `COALESCE(NULLIF("TfyParentSpanId", ''), "ParentSpanId") = ''`. Add it when listing requests, otherwise child spans repeat each request.
+- `LIMIT` every non-aggregate query (default 50): there is no row cap, and the whole result is returned at once.
+- Select only the columns you need. Never `SELECT *` on traces: it pulls the large, sensitive `TfyGatewayInput`/`TfyGatewayOutput` and every attribute map.
+- `Duration` is in nanoseconds: `"Duration" / 1e6` is milliseconds.
+- The query times out after 60 seconds. Narrow the window rather than retrying, and don't reference one CTE more than once (it is re-executed each time).
+- Spans from the last one to two minutes may not be queryable yet.
+- Results are filtered by the caller's data-access rules for traces, which are separate from metrics rules. An empty result can mean no access, not no traffic: say so and link `{controlPlaneUrl}/access-management?tab=data-access`.
 
 #### Examples
 
-- Traces in a time range:
+Replace `"dest"` with the destination and `"traces_v2"` with `tracesTable`.
+
+- Recent requests by a user:
 
 ```sql
-SELECT "TraceId", "SpanId", "Timestamp", "TfyGatewaySpanType", "SpanName", "StatusCode", "TfyCreatedBySubjectSlug"
-FROM "chosen-destination"."{tracesTable}"
-WHERE "Timestamp" > '2026-03-13T10:00:00Z' AND "Timestamp" < '2026-03-13T11:00:00Z'
-  AND "Date" >= '2026-03-13'
+SELECT "TraceId", "Timestamp", "TfyGatewaySpanType", "GenAIRequestModel", "StatusCode", "HttpStatusCode", "Duration" / 1e6 AS "DurationMs"
+FROM "dest"."traces_v2"
+WHERE "Date" >= '2026-10-26' AND "Timestamp" >= TIMESTAMP '2026-10-26T00:00:00Z'
+  AND "TfyCreatedBySubjectSlug" = 'alice@example.com'
+  AND COALESCE(NULLIF("TfyParentSpanId", ''), "ParentSpanId") = ''
 ORDER BY "Timestamp" DESC
 LIMIT 50
 ```
 
-- Map-type columns (e.g. `"Metadata"`). Distinct values for a known key:
+- Failed model calls with their error (errors are on the `Model` span, not the head span):
 
 ```sql
-SELECT DISTINCT "Metadata"['your_key'] AS value
-FROM "default"."gateway_model_metrics"
-WHERE "CreatedAt" > NOW() - INTERVAL '7 days'
-  AND "VirtualModelName" IS NULL
+SELECT "TraceId", "Timestamp", "GenAIRequestModel", "HttpStatusCode",
+  "SpanAttributesString"['tfy.error_type'] AS "ErrorType", "SpanAttributesString"['tfy.error_message'] AS "ErrorMessage"
+FROM "dest"."traces_v2"
+WHERE "Date" >= '2026-10-26' AND "Timestamp" >= TIMESTAMP '2026-10-26T00:00:00Z'
+  AND "TfyGatewaySpanType" = 'Model' AND "StatusCode" = 'Error'
+ORDER BY "Timestamp" DESC
 LIMIT 50
 ```
 
-- Discover all keys present, with `map_keys()` + `unnest()`:
+- Every span of one trace:
 
 ```sql
-SELECT DISTINCT key
+SELECT "SpanId", COALESCE(NULLIF("TfyParentSpanId", ''), "ParentSpanId") AS "ParentId", "TfyGatewaySpanType", "SpanName", "StatusCode",
+  "Duration" / 1e6 AS "DurationMs", "SpanAttributesNumber"['tfy.model.metric.cost_in_usd'] AS "CostUsd"
+FROM "dest"."traces_v2"
+WHERE "TraceId" = '<trace-id>' AND "Date" BETWEEN '2026-10-26' AND '2026-10-27'
+ORDER BY "Timestamp"
+```
+
+- Request metadata keys in use (`x-tfy-metadata`), then the values of one key with `"TfyGatewayMetadata"['<key>']`:
+
+```sql
+SELECT key, COUNT(*) AS "Requests"
 FROM (
-  SELECT unnest(map_keys("Metadata")) AS key
-  FROM "default"."gateway_model_metrics"
-  WHERE "CreatedAt" > NOW() - INTERVAL '7 days'
-    AND "VirtualModelName" IS NULL
+  SELECT unnest(map_keys("TfyGatewayMetadata")) AS key
+  FROM "dest"."traces_v2"
+  WHERE "Date" >= '2026-10-20' AND "Timestamp" >= TIMESTAMP '2026-10-20T00:00:00Z'
+    AND COALESCE(NULLIF("TfyParentSpanId", ''), "ParentSpanId") = ''
 )
+GROUP BY key
+ORDER BY "Requests" DESC
 LIMIT 50
 ```
 
-- Filter by team: on metrics tables `array_has("Teams", '<team>')`; on `traces` `array_has("SpanAttributesStringList"['tfy.request.created_by_subject_teams'], '<team>')`.
+- Filter by team: `array_has("SpanAttributesStringList"['tfy.request.created_by_subject_teams'], '<team>')`.
+- Feedback on traces: see the sample join in `tables/gateway_feedbacks.md`. Deduplicate by `FeedbackId` before filtering `"IsDeleted" = false`.
 
-### Latency Reporting Rules
+### Getting a trace ID
 
-- Never use `AVG()` for latency columns (`LatencyMs`, `TimeToFirstTokenMs`, `InterTokenLatencyMs`, `CacheLookupLatencyMs`): averages hide tail latency.
-- Aggregate latency with `approx_percentile_cont`. Default to P95 unless the user asks for a specific percentile; rank slow/fast models or requests by P95 (P99 for worst case).
-- For latency breakdowns include P50, P75, P90, P95 and P99.
-- Filter `"IsFailure" = false`, because failed calls have NULL latency.
+Find the `TraceId` by querying the traces table with filters (time, user, model, …).
 
-```sql
-SELECT "ModelName",
-  approx_percentile_cont("LatencyMs", 0.5) AS "P50LatencyMs",
-  approx_percentile_cont("LatencyMs", 0.75) AS "P75LatencyMs",
-  approx_percentile_cont("LatencyMs", 0.9) AS "P90LatencyMs",
-  approx_percentile_cont("LatencyMs", 0.95) AS "P95LatencyMs",
-  approx_percentile_cont("LatencyMs", 0.99) AS "P99LatencyMs",
-  COUNT(*) AS "RequestCount"
-FROM "default"."gateway_model_metrics"
-WHERE "CreatedAt" > NOW() - INTERVAL '7 days'
-  AND "VirtualModelName" IS NULL
-  AND "IsFailure" = false
-GROUP BY "ModelName"
-ORDER BY "P95LatencyMs" DESC
-```
+> **WARNING — response `id` ≠ trace ID.** The `id` in a chat completion response (e.g. `chatcmpl-xxx`) is the response ID, not the trace ID. Never use it in trace links.
 
-### Common Query Patterns
+### Linking to traces
 
-- **Provider Cache Token Usage**: `SUM("CacheReadInputTokens")` and `SUM("CacheCreationInputTokens")` from `"default"."gateway_model_metrics"` with `"VirtualModelName" IS NULL`. Cache read ratio = `SUM("CacheReadInputTokens") * 1.0 / SUM("InputTokens")`.
-- **Gateway Cache Hit Rates**: use `CacheLookupStatus` (`hit`/`miss`/`error`) and `CacheType` in `gateway_model_metrics`. Hit rate = `SUM(CASE WHEN "CacheLookupStatus" = 'hit' THEN 1 ELSE 0 END) * 1.0 / COUNT(*)` with `WHERE "CacheLookupStatus" IS NOT NULL`. This is gateway semantic/exact-match caching, not provider prompt caching.
-- **Guardrail counts and failure rates**: filter `("RecordType" = 'guardrail' OR "RecordType" IS NULL)` in `gateway_guardrail_metrics`, otherwise policy copies inflate the numbers (see its schema file).
-- **Feedback on Traces**: feedback is in `gateway_feedbacks`, linked via `TargetTraceId` and `TargetSpanId`; LEFT JOIN it with `traces` in the same destination. Deduplicate by `FeedbackId` first, then filter `"IsDeleted" = false` (see `ai-gateway/references/tables/gateway_feedbacks.md` for the sample join).
+Always link the traces you show: `{controlPlaneUrl}/monitoring/request-traces?filters=<url-encoded JSON>`, where the JSON is `{"rules":[{"field":"<field>","operator":"IN","value":[...]}]}`.
 
-### Getting a Trace Link
+- Fields: `traceId`, `userEmail`, `virtualAccount`, `agentIdentity`, `genAIRequestModel` (real model), `virtualModelName`.
+- A span attribute: `{"field":"<attribute>","operator":"IN","value":[...],"type":"string","apiKey":"spanAttributeKey","apiKeyValue":"<attribute>"}`, e.g. `tfy.mcp_server.name`.
+- Time window: append `&lm_lfsts=<start epoch ms>&lm_lfets=<end epoch ms>`. For one trace, use its start minus 1 second to start plus 1 hour.
 
-Get the `TraceId` by querying the `traces` table with appropriate filters (time range, model, user, etc.), then build the link as in the next section.
+### Checklist
 
-> **WARNING — response `id` ≠ trace ID.** The `id` field in a chat completion response (e.g. `chatcmpl-xxx`) is the **response ID**, NOT the trace ID. Never use it in trace links. Always query the `traces` table to get the actual `TraceId`.
-
-### Linking to Traces and Metrics
-
-Always give a direct link when showing trace or metrics results. Base paths: `{controlPlaneUrl}/monitoring/request-traces` and `{controlPlaneUrl}/monitoring/metrics`.
-
-Pre-filter with `?filters=<url-encoded JSON>`, where the JSON is `{"rules":[{"field":"<field>","operator":"<op>","value":[...]}]}`:
-- Request traces: `traceId`, `userEmail`, `genAIRequestModel`, `virtualAccount`, `spanType` — operator `IN`, value an array. Example: `{"rules":[{"field":"traceId","operator":"IN","value":["<id>"]}]}`.
-- Metrics: `modelName`, `userEmail`, `virtualAccount` with `IN`; `team` with `ARRAY_HAS_ANY`.
-- Other fields: `search_docs` with "request logs filtering".
-
-### Checklist For SQL Queries
-
-- [ ] Did I read the table schema and use the correct column names?
-- [ ] Did I quote the table name and column names?
-- [ ] For traces, did I use `tracesTable` from the session context instead of assuming `traces`?
-- [ ] Did I use `"default"` for metrics tables and the chosen destination for traces/feedback?
-- [ ] Did I add a time range, and `LIMIT` on non-aggregate queries?
-- [ ] Did I only include the columns that are relevant to the task at hand?
-- [ ] Did I use `approx_percentile_cont` instead of `AVG` for any latency columns?
-- [ ] If the result was empty, did I mention data-access rules?
+- [ ] Aggregate question? Then `metrics.md`, not SQL.
+- [ ] Table name from `tracesTable`, destination from `list_data_routing_destinations`, both quoted.
+- [ ] `"Date"` literal range plus `"Timestamp"` range; `LIMIT` on non-aggregate queries.
+- [ ] Head-span filter when listing requests; only the needed columns.
+- [ ] Empty result → data-access rules mentioned.

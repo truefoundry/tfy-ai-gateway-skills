@@ -44,7 +44,7 @@ Every create, update and delete goes through a manifest tool, which asks the use
 
 ## Ambiguous references
 
-- **"My", "I", "mine"** mean the current user, not the tenant. Filter by their subject slug: `CreatedBySubjectSlug` on gateway metrics tables, `TfyCreatedBySubjectSlug` on traces, owner filters for deployments.
+- **"My", "I", "mine"** mean the current user, not the tenant. Filter by their identity: `userEmail` on gateway metrics, `TfyCreatedBySubjectSlug` on traces, owner filters for deployments.
 - **Entity names** are often partial or misspelt. Look the entity up before saying it doesn't exist ("github mcp" → MCP servers containing "github"). An application is identified by workspace and name together; if several match, ask which.
 - **"Application", "app", "use case"** in a Gateway context means a virtual account (occasionally an `x-tfy-metadata` key).
 - **"API key", "token"**: present both — a personal access token (tied to a user, stops working when that user is deleted or deactivated) and a virtual account token (recommended for production). Details in `ai-gateway/references/access-management.md`.
@@ -68,7 +68,8 @@ Files are under `ai-gateway/references/`. **For any create, update or delete, al
 | Create or change a team | `teams.md` |
 | Create or change a virtual account | `virtual-accounts.md` |
 | Create a personal access token | `personal-access-tokens.md` |
-| Usage, cost, latency, errors, traces, feedback, "how many requests" | `observability.md` |
+| Numbers: usage, cost, latency, errors, cache, MCP, guardrails, rate limits, agents | `metrics.md` |
+| Single requests, spans, contents, metadata keys, feedback, trace links | `observability.md` |
 | Call a Gateway model from code or a tool — base URL, SDK, snippet | `using-models-from-code.md` |
 
 Other platform topics: integrations with cloud accounts → https://www.truefoundry.com/docs/integrations-overview · secrets are referenced as `tfy-secret://<tenant>:<secret-group>:<key>` (the `fqn` from `list_secrets` has no scheme; add the prefix) → https://www.truefoundry.com/docs/manage-secrets.

@@ -49,7 +49,7 @@ updatedAt: ...
 | a VA / virtual account | `subjects: [virtualaccount:name]` |
 | a metadata term (tenant, app, feature…) | `metadata: { key: value }` |
 
-A term that isn't a user, team or VA is a metadata key. Don't ask the user for the key name: discover it from live data (see `observability.md`, `gateway_model_metrics`).
+A term that isn't a user, team or VA is a metadata key. Don't ask the user for the key name: discover it from live data (the metadata keys query in `observability.md`).
 
 **2. Bucketing (`budget_applies_per`)** — omitted means all matching requests share one budget pool (two users in `subjects` share one combined budget). Only one value per rule: `user`, `model`, `virtualaccount`, or `metadata.<key>`.
 

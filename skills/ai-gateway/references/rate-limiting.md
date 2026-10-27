@@ -43,7 +43,7 @@ A null or empty result means there are no V1 rules, not that there are no rate l
 | a VA / virtual account | `subjects: [virtualaccount:name]` |
 | a metadata term (tenant, app, feature…) | `metadata: { key: value }` |
 
-A term that isn't a user, team or VA is a metadata key. Don't ask the user for the key name: discover it from live data (see `observability.md`, `gateway_model_metrics`).
+A term that isn't a user, team or VA is a metadata key. Don't ask the user for the key name: discover it from live data (the metadata keys query in `observability.md`).
 
 **Bucketing (`rate_limit_applies_per`)** — omitted means all matching requests share one pool. At most 2 values per rule (e.g. `['user', 'model']`): `user`, `model`, `virtualaccount`, or `metadata.<key>`.
 

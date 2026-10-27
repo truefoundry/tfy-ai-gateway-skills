@@ -84,7 +84,7 @@ Gotchas:
 - `per-model` can't target virtual models (neither `virtual_models` nor a virtual-model id in `models.in`).
 - `{{user.email}}` in `to_emails`/`users` is allowed only for `per-user` budgets. If `alerts` is set, it needs at least one `notification_target`. There is no `send_to` field on alerts.
 - Usage counts from rule creation, not from the start of the current period, so earlier spend is never backfilled.
-- For metadata keys you don't know, discover them from live data (see `observability.md`) — don't ask the user.
+- For metadata keys you don't know, discover them from live data (the metadata keys query in `observability.md`) — don't ask the user.
 
 ## Checklist
 

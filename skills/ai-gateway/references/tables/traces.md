@@ -1,82 +1,126 @@
 ---
 name: traces
-description: Stores OTEL compliant spans with additional columns for gateway specific information.
+description: Stores OTEL spans with additional columns for gateway-specific information. One head span per request, child spans for model calls, MCP calls, guardrails and more.
 ---
 
 ## CRITICAL
 
-- The physical table name varies by tenant. Query `"{dataRoutingDestination}"."{tracesTable}"` with `tracesTable` from the session context (call `get_session_context` only if it is missing). Never assume `traces`.
-- `TfyGatewayInput` and `TfyGatewayOutput` columns store the request and response payloads of the gateway. These are huge json serialized payloads that contain sensitive data. Only fetch these when necessary.
-- To filter by team use `array_has("SpanAttributesStringList"['tfy.request.created_by_subject_teams'], '<team>')`. On metrics tables use `array_has("Teams", '<team>')`.
-- Enum-like columns (`SpanKind`, `StatusCode`, `TfyGatewaySpanType`) are case-sensitive.
-- When working with `SpanAttributes.*` columns, use `get_section_content` on https://www.truefoundry.com/docs/ai-gateway/fetch-request-logs-span-attributes to get the full list of attribute keys and their meanings.
+- The physical table name varies by tenant. Query `"<destination>"."<tracesTable>"` with `tracesTable` from the session context (call `get_session_context` only if it is missing). Never assume `traces`.
+- Partitioned by `Date` and `Hour` (UTC strings from `Timestamp`). Always filter a `"Date"` literal range as well as `"Timestamp"`.
+- `TfyGatewayInput` and `TfyGatewayOutput` hold the full request and response payloads: large, sensitive JSON. Select them only when the user asks for contents, and only for a few rows.
+- Head span (the request itself): `COALESCE(NULLIF("TfyParentSpanId", ''), "ParentSpanId") = ''`. Its `TfyGatewaySpanType` is the request type (`ChatCompletion`, `Responses`, `Messages`, `MCPGateway`, `Embedding`, …). Child spans: `Model` (one per provider call), `MCP`, `Guardrail`, `CacheLookup`, `CacheWrite`, …. Spans with a NULL `TfyGatewaySpanType` are internal HTTP instrumentation; skip them. For other values, `SELECT DISTINCT "TfyGatewaySpanType"` over a short window; values are case sensitive.
+- Errors: `StatusCode = 'Error'`. The error reason is on the `Model` span: `"SpanAttributesString"['tfy.error_type']` (e.g. `tfy-model-not-found`, `tfy-forbidden`, `tfy-rate-limit`, `tfy-budget-limit`, `tfy-input-guardrail`) and `"SpanAttributesString"['tfy.error_message']`.
+- Model cost of a span: `"SpanAttributesNumber"['tfy.model.metric.cost_in_usd']`. Totals across requests come from the metrics API (`metrics.md`).
+- Team filter: `array_has("SpanAttributesStringList"['tfy.request.created_by_subject_teams'], '<team>')`.
+- For other attribute keys, use `get_section_content` on https://www.truefoundry.com/docs/ai-gateway/fetch-request-logs-span-attributes. `gen_ai.*` attributes are written only when the gateway enables them; don't rely on them.
 
 ## Schema
 
 ```
 Timestamp: TIMESTAMPTZ
-    Start time of the span in UTC (microsecond precision).
+    Start time of the span, UTC, microsecond precision.
+Date: TEXT
+    Partition: UTC date 'YYYY-MM-DD' of Timestamp. Compare with string literals.
+Hour: TEXT
+    Partition: UTC hour 'HH' of Timestamp.
 TraceId: TEXT
-    W3C trace identifier linking all spans in one distributed request.
+    Shared by every span of one request.
 SpanId: TEXT
-    Unique identifier for this span within the trace.
+    Identifier of this span within the trace.
 ParentSpanId: TEXT
-    Span ID of the parent span; empty when this is a root span.
+    OTEL parent span ID; empty on a root span.
 TfyParentSpanId: TEXT, nullable
-    Parent span within the gateway's own span tree; use this (not ParentSpanId) to build the gateway span hierarchy.
+    Gateway parent span ID. The effective parent is COALESCE(NULLIF("TfyParentSpanId", ''), "ParentSpanId").
 SpanName: TEXT
-    Operation name for the span (e.g. HTTP route or RPC method).
+    Operation name of the span.
 SpanKind: TEXT
-    OpenTelemetry span kind: 'Server', 'Client', 'Internal', 'Producer', 'Consumer', 'Unspecified' (case-sensitive).
+    'Server', 'Client' or 'Internal'.
 Duration: BIGINT
     Span duration in nanoseconds (divide by 1e6 for milliseconds).
 StatusCode: TEXT, nullable
-    OpenTelemetry span status code (Unset, Ok, Error).
+    'Ok', 'Error' or 'Unset'.
 StatusMessage: TEXT, nullable
-    Optional human-readable message for span status, often on errors.
+    Status message, often set on errors.
 HttpStatusCode: INTEGER, nullable
-    HTTP response status code when the span represents an HTTP operation.
-GenAIRequestModel: TEXT, nullable
-    Model identifier from GenAI-related request telemetry when present.
-TfyGatewayConversationID: TEXT, nullable
-    AI Gateway conversation identifier tying multi-turn or related gateway calls.
-TfyGatewayMetadata: Map(Text, Text), nullable
-    TrueFoundry Gateway Metadata - contains both user supplied and system generated metadata
-TfyGatewayInput: TEXT, nullable
-    JSON serialized gateway input payload. Contains sensitive data
-TfyGatewayOutput: TEXT, nullable
-    JSON serialized gateway output payload. Contains sensitive data.
-    For Model spans (TfyGatewaySpanType = 'Model'), this contains the full LLM response JSON
+    HTTP status of the response.
 TfyGatewaySpanType: TEXT, nullable
-    Gateway span type (case-sensitive). Common values: 'Model' (one per provider call), 'ChatCompletion', 'Responses', 'Messages', 'Embedding', 'Rerank', 'MCPGateway', 'MCP', 'Guardrail', 'Hook', 'Proxy', 'AgentResponse', 'CacheLookup', 'CacheWrite'.
-SpanAttributesString: Map(Text, Text), nullable
-    String-valued OpenTelemetry span attributes as a key–value map.
-SpanAttributesNumber: Map(Text, DOUBLE PRECISION), nullable
-    Numeric span attributes (stored as float64) as a key–value map.
-SpanAttributesBool: Map(Text, BOOLEAN), nullable
-    Boolean span attributes as a key–value map.
-SpanAttributesStringList: Map(Text, Array(Text)), nullable
-    Span attributes whose values are lists of strings.
-SpanAttributesNumberList: Map(Text, Array(DOUBLE PRECISION)), nullable
-    Span attributes whose values are lists of numbers.
-SpanAttributesBoolList: Map(Text, Array(BOOLEAN)), nullable
-    Span attributes whose values are lists of booleans.
+    Gateway span type (see CRITICAL).
+GenAIRequestModel: TEXT, nullable
+    Gateway model ID of the request (e.g. 'openai-main/gpt-4o').
+TfyGatewayConversationID: TEXT, nullable
+    Conversation identifier tying related calls together.
+TfyGatewayMetadata: Map(Text, Text), nullable
+    Request metadata: user-supplied x-tfy-metadata and system-generated keys.
+TfyGatewayInput: TEXT, nullable
+    JSON request payload. Sensitive.
+TfyGatewayOutput: TEXT, nullable
+    JSON response payload. Sensitive. On Model spans, the full LLM response.
 TfyCreatedBySubjectSlug: TEXT, nullable
-    URL-safe slug for the TrueFoundry subject that created the span. User email or virtual account name
+    Caller: user email or virtual account name.
 TfyCreatedBySubjectType: TEXT, nullable
-    Type of the requesting subject. Common values: user, virtualaccount, agent. Do not assume the list is exhaustive.
+    Caller type, e.g. user, virtualaccount, agent. Not exhaustive.
 TfyCreatedBySubjectId: TEXT, nullable
-    Stable identifier of the TrueFoundry subject.
+    Stable identifier of the caller.
 TfyCreatedBySubject: TEXT
-    Identity of the caller or principal attributed to the span (TrueFoundry subject).
+    Caller as one string.
 TfyActorSlug: TEXT, nullable
-    Slug of the acting identity when an agent acts on behalf of the subject.
+    Acting identity when an agent acts on behalf of the caller.
 TfyActorType: TEXT, nullable
-    Type of that acting identity.
-Date: TEXT
-    Partition column, UTC date 'YYYY-MM-DD' of Timestamp. Filter on it in scans so partitions are pruned.
+    Type of the acting identity, e.g. agent.
+SpanAttributesString: Map(Text, Text), nullable
+SpanAttributesNumber: Map(Text, DOUBLE), nullable
+SpanAttributesBool: Map(Text, BOOLEAN), nullable
+SpanAttributesStringList: Map(Text, Array(Text)), nullable
+SpanAttributesNumberList: Map(Text, Array(DOUBLE)), nullable
+SpanAttributesBoolList: Map(Text, Array(BOOLEAN)), nullable
+    Span attributes by value type, keyed by attribute name ('tfy.…').
+ResourceAttributesString: Map(Text, Text), nullable
+ResourceAttributesNumber: Map(Text, DOUBLE), nullable
+ResourceAttributesBool: Map(Text, BOOLEAN), nullable
+ResourceAttributesStringList: Map(Text, Array(Text)), nullable
+ResourceAttributesNumberList: Map(Text, Array(DOUBLE)), nullable
+ResourceAttributesBoolList: Map(Text, Array(BOOLEAN)), nullable
+    OTEL resource attributes of the emitting service.
+EventTimes: Array(TIMESTAMP), nullable
+EventNames: Array(Text), nullable
+EventsAttributesString: Array(Map(Text, Text)), nullable
+EventsAttributesNumber: Array(Map(Text, DOUBLE)), nullable
+EventsAttributesBool: Array(Map(Text, BOOLEAN)), nullable
+EventMetadata: Array(Map(Text, Text)), nullable
+    Span events as parallel arrays: element i of each array is event i.
+ServiceName: TEXT
+    Emitting service, e.g. 'tfy-llm-gateway'.
+ScopeName: TEXT
+ScopeVersion: TEXT
+    OTEL instrumentation scope.
+TraceState: TEXT
+    W3C trace state.
+TfyTenantName: TEXT
+    Tenant name.
+TracingProjectId: TEXT
+TracingProjectName: TEXT
+TracingApplicationId: TEXT
+TracingApplicationName: TEXT
+    Tracing project and application; '' when not set.
+RequestedTracingProjectId: TEXT, nullable
+    Tracing project the sender asked for.
+EnvironmentName: TEXT, nullable
+    Environment name, when the sender sets it.
+Tags: Array(Text), nullable
+    Span tags.
+Metadata: Map(Text, Text), nullable
+    OTEL span metadata. Not the gateway request metadata: that is TfyGatewayMetadata.
+TfyLogLevel: TEXT, nullable
+    Log level of the span, e.g. 'debug'.
+IngestedAt: TIMESTAMP, nullable
+    When the span was stored.
 ```
+
+There are no `Events` or `Links` columns.
 
 ## Checklist
 
-- [ ] Did I use `get_section_content` on the span attributes docs page to look up attribute keys?
+- [ ] `"Date"` literal range and `"Timestamp"` range?
+- [ ] Head-span filter when listing requests; NULL-type spans skipped?
+- [ ] Payload columns only when needed?
+- [ ] Attribute keys looked up on the span attributes docs page?
