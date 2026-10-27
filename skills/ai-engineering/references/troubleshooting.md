@@ -105,7 +105,6 @@ An empty list means either "nothing happened" or "I could not see it". Before re
 
 - Could the tool see it? Without a log backend, logs of crashed and replaced containers are gone; live events last about an hour; system namespaces and cluster objects are never visible (`tools.md` → What no tool can see).
 - Did you ask the right layer? A failed build leaves no pod; an unschedulable pod leaves no logs.
-- Is this a Helm release where you called `get_logs` without a pod filter, or a pod name you constructed?
 - Are Prometheus/log backends missing on the cluster? (`failure-modes/cluster-capacity.md`)
 - StatefulSet-backed apps (common for some model services) can show **empty** `list_application_events` while pods CrashLoop. Read container `reason` / `lastState` from `get_application_state` and the logs (`model-debug.md`).
 
@@ -128,7 +127,7 @@ State what you could not see rather than reporting health. "No events in the win
 - [ ] Did I start from `get_application_state` and open the matching failure-mode file?
 - [ ] Did I read container `reason` and `lastState`, and use `node` to tell an unscheduled `Pending` pod from an unready one?
 - [ ] For a crashlooping container, did I read the previous attempt's logs (window ending at `lastState.finishedAt`), or say why I could not?
-- [ ] If the type is `helm`, did I pass a real pod name or regex to `get_logs`?
+- [ ] If the type is `helm`, did I pass a listed pod name or regex to `get_logs`, never a constructed one?
 - [ ] For OOM or slowness, did I look at metrics / applied limits, not only logs?
 - [ ] Did I avoid calling exit 137 "OOM" without corroboration?
 - [ ] If a call returned empty, did I check whether that tool could have seen the answer at all?
