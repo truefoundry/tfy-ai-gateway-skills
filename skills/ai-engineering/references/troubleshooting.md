@@ -93,7 +93,7 @@ StatefulSet  my-cache-master
 pod          my-cache-master-0        # <set>-<ordinal>
 ```
 
-`my-cache-0` does not exist, and `get_logs` for it returns an empty list rather than an error. Deployment-backed pods carry a generated ReplicaSet hash (`my-api-7d4b9c8f2a-x4kqp`) and are equally unpredictable. Use only names a tool listed as pods, never one built from a StatefulSet.
+`my-cache-0` does not exist, and `get_logs` for it returns an empty list rather than an error. Deployment-backed pods carry a generated ReplicaSet hash (`my-api-7d4b9c8f2a-x4kqp`) and are equally unpredictable. Use only pod names a tool listed, never one built from a StatefulSet.
 
 ## Notebooks / SSH / RStudio
 
