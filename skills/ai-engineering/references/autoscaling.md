@@ -60,7 +60,7 @@ Rules:
 
 - Scale-to-0 is `auto_shutdown: {wait_time: <seconds>}`. The unit is **seconds**, not minutes (900 = 15 min, the default; max 604800). The docs and UI say minutes, so convert before writing — `wait_time: 15` scales to zero after 15 seconds.
 - `auto_shutdown` exists only on `service`; on an async-service it is silently ignored. It needs the Elasti addon on the cluster and is rejected with `canary` / `blue_green` rollout strategies.
-- When `replicas` is an autoscaling object, its `metrics.type` must be `rps`; apply rejects any other metric with `auto_shutdown`.
+- When `replicas` is an autoscaling object, its `metrics.type` must be `rps`; apply rejects any other metric with `auto_shutdown`. If the user asked for another metric plus scale-to-0, say they conflict and ask for an RPS target or which to drop; never pick the value yourself.
 - Elasti handles **0 ↔ 1**; the autoscaler handles **1 → N**. Both can coexist.
 - **Cold start**: the next request waits for schedule + image pull + (for models) weight load. Say this explicitly for LLM services — cold start can be minutes.
 - Best suited for dev / low-traffic workloads. Prefer `min_replicas: 1` without `auto_shutdown` for latency-critical prod.

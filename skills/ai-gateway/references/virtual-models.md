@@ -102,7 +102,7 @@ routing_config:
     - {target: <account-name/model-name>, tier: complex}
 ```
 
-Complexity-based rules: give each of `simple`, `medium` and `complex` at least one target; a model may appear only once. The virtual model's `model_types` may contain only `chat`, `completion` or `responses`. `classification_strategy.type` is `heuristic` (default), `llm-classifier`, `decision-classifier` or `custom`. An `llm-classifier` `model` must be a non-virtual chat model; a `decision-classifier` `model` must be a `decision` model on a `typesafe` account; `custom` needs an https `url`.
+Complexity-based rules: give each of `simple`, `medium` and `complex` at least one target; a model may serve only one tier (apply rejects it in two). With fewer distinct models than tiers, ask the user for the missing ones. The virtual model's `model_types` may contain only `chat`, `completion` or `responses`. `classification_strategy.type` is `heuristic` (default), `llm-classifier`, `decision-classifier` or `custom`. An `llm-classifier` `model` must be a non-virtual chat model; a `decision-classifier` `model` must be a `decision` model on a `typesafe` account; `custom` needs an https `url`.
 
 Optional fields: on the virtual model, `slug` and `alias[]`. On `routing_config`, `sticky_routing` (weight-based only: `ttl_seconds` 1800–86400, `session_identifiers: [{source: headers or metadata, key}]`). Per target: `retry_config` (`attempts` required; `delay` default 100 ms; `on_status_codes` default `["429","500","502","503"]`), `fallback_status_codes` (default `["401","403","404","408","429","500","502","503"]`), `fallback_candidate` (default `true`), `override_params`, `headers_override: {set, remove}`, `metadata_match`, and `sla_cutoff` (priority-based only).
 

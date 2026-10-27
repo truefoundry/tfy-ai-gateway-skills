@@ -20,7 +20,7 @@ Set by `type`: `tenant-budget-config` (tenant-wide, managed by tenant admins) or
 
 Use **`list_gateway_budgets`** to read V2 rules. Each V2 rule is its own manifest, so **`get_gateway_config` does not work for V2** (for budgets it returns only the V1 `gateway-budget-config`). `list_gateway_budgets` takes optional `type` (`tenant-budget-config` | `team-budget-config`) and `team_name`, and returns results sorted by name. Non-admins see only budgets for teams they manage. So an empty or tenant-free result doesn't prove no tenant budgets exist; say so.
 
-Use it to list budgets and check for overlap before creating one. It returns limits only, never spend. You can't read V2 budget usage with tools; don't use `get_budget_usage` for V2 (it reports V1 rules only). For V2 spend, link `{controlPlaneUrl}/llm-gateway/policies/budget-limiting-v2`.
+Use it to list budgets and check for overlap before creating one. It returns limits only, never spend. No tool reads budget usage; never estimate it. For V2 spend, link `{controlPlaneUrl}/llm-gateway/policies/budget-limiting-v2`.
 
 ## Creating/Updating rules (Write Flow)
 

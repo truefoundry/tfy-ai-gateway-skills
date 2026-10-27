@@ -1,6 +1,6 @@
 ---
 name: budget-limiting
-description: Legacy Budget Limiting V1 (`gateway-budget-config`) — reading V1 rules and usage, changing or disabling them, and migrating to V2. New budgets go to `budget-limiting-v2.md`.
+description: Legacy Budget Limiting V1 (`gateway-budget-config`) — reading V1 rules, changing or disabling them, and migrating to V2. New budgets go to `budget-limiting-v2.md`.
 ---
 
 > **V1 is deprecated.** Use **Budget Limiting V2** (`budget-limiting-v2.md`) for all new budget work. This file covers V1 only for reading, disabling, and migrating existing `gateway-budget-config` rules.
@@ -36,7 +36,7 @@ createdBySubject: { ... }
 updatedAt: ...
 ```
 
-**V1 usage:** call `get_budget_usage` (no arguments). It returns, per V1 rule, `data` keyed by rendered rule id (one entry per user/model/VA/metadata value for per-entity rules) with `limit`, `unit`, `usage`, `percentage`, `periodStartTime`, `periodEndTime`. It covers `cost_per_*` rules only and returns 404 when there is no V1 config. It never reports V2 budgets. The two calls are independent: issue them in one batch.
+**Usage:** no tool reads budget usage, V1 or V2. Say so; never estimate it.
 
 ## Resolving budget scope
 
@@ -92,7 +92,7 @@ rules:
           notification_channel: <notification-channel-fqn>
 ```
 
-Token units are enforced, but `get_budget_usage` doesn't report them, and they have no V2 equivalent.
+Token units are enforced but have no V2 equivalent.
 
 ## Disabling V1 rules
 
