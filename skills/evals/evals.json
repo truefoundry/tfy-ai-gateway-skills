@@ -177,13 +177,13 @@
     },
     {
       "id": 17,
-      "prompt": "Add a rate limit of 100 requests per minute for the team ml-team across all models.",
-      "expected_output": "Reads rate-limiting-v2.md and write-rules.md, calls list_gateway_config_instances for both rate-limit families and get_manifest_json_schema for tenant-rate-limit-config/model in one batch, builds one named manifest with when.subjects.teams.in: [ml-team], limits.requests_per_minute: 100 and applies_to.type: aggregate, validates until valid, applies once, and links {controlPlaneUrl}/llm-gateway/policies/rate-limiting-v2.",
+      "prompt": "Add a rate limit of 100 requests per minute for the team tfy-ai-team across all models.",
+      "expected_output": "Reads rate-limiting-v2.md and write-rules.md, calls list_gateway_config_instances for both rate-limit families and get_manifest_json_schema for tenant-rate-limit-config/model in one batch, builds one named manifest with when.subjects.teams.in: [tfy-ai-team], limits.requests_per_minute: 100 and applies_to.type: aggregate, validates until valid, applies once, and links {controlPlaneUrl}/llm-gateway/policies/rate-limiting-v2.",
       "files": [],
       "expectations": [
         "Reads ai-gateway/references/rate-limiting-v2.md before building anything",
         "Calls list_gateway_config_instances with type tenant-rate-limit-config/model and picks a name not already used",
-        "Builds a single tenant-rate-limit-config/model manifest with when.subjects.teams.in containing ml-team (bare, no team: prefix), limits.requests_per_minute: 100 and applies_to.type: aggregate",
+        "Builds a single tenant-rate-limit-config/model manifest with when.subjects.teams.in containing tfy-ai-team (bare, no team: prefix), limits.requests_per_minute: 100 and applies_to.type: aggregate",
         "Calls validate_manifest until valid: true, then apply_manifest once in a separate batch; does not merge into gateway-rate-limiting-config",
         "Links {controlPlaneUrl}/llm-gateway/policies/rate-limiting-v2 with the real controlPlaneUrl"
       ]
@@ -242,12 +242,12 @@
     },
     {
       "id": 22,
-      "prompt": "Make a virtual MCP server called eng-tools that exposes only create_issue from github-mcp and search from notion-mcp.",
+      "prompt": "Make a virtual MCP server called eng-tools that exposes only create_issue from the `github` server and search from `notion-mcp`.",
       "expected_output": "Calls list_mcp_server_tools for both sources, then builds an mcp-server/virtual manifest with a servers list using source names and enabled_tools.",
       "files": [],
       "expectations": [
         "Manifest uses servers: [{name, enabled_tools}] and not mcp_servers or mcp_server_id",
-        "servers[].name holds the source server names (github-mcp, notion-mcp), not ids",
+        "servers[].name holds the source server names (github, notion-mcp), not ids",
         "Includes a description and no collaborators field"
       ]
     },
@@ -549,7 +549,7 @@
     },
     {
       "id": 48,
-      "prompt": "Our MCP server `github-tools` manifest still has a collaborators list from last year. Move it to the new access system.",
+      "prompt": "Our MCP server `docs-proxy` manifest still has a collaborators list from last year. Move it to the new access system.",
       "expected_output": "Fetches the server and calls list_grants for it; explains the grants already exist and access checks use them, so nothing moves; applies the manifest without collaborators (force: false) after approval; does not re-grant entries missing from list_grants unless the user confirms them; mentions role-binding only if the user keeps the manifest in Git.",
       "files": [],
       "expectations": [
