@@ -35,7 +35,7 @@ Read this file and `write-rules.md` together. Follow the write steps there; the 
 These are independent; issue them together:
 
 - `list_provider_accounts` (flags as in "List the tenant's models"; no name filter) to find accounts by provider or name.
-- `get_manifest_json_schema` for the account type (reuse it if still in the conversation).
+- `get_manifest_json_schema` for the account type.
 - `list_providers` from the sandbox with `providerType` (the account type), saved to a file. Reuse a saved file from this conversation if it still exists.
 
 If matching accounts exist, ask whether to update one or create a new one with a different name.
@@ -44,7 +44,7 @@ If matching accounts exist, ask whether to update one or create a new one with a
 
 From the schema, extract with one `jq`:
 
-- The integration `type` constant under `integrations` items. Take it from the schema, not from `list_providers` (it reports some wrongly, e.g. `aws-sagemaker` for `sagemaker`). It differs from the account suffix for `aws-bedrock` → `integration/model/bedrock`, `aws-bedrock-mantle` → `integration/model/bedrock-mantle`, `google-vertex` → `integration/model/vertex`, `google-gemini` → `integration/model/gemini`, `aws-sagemaker` → `integration/model/sagemaker`.
+- The integration `type` constant under `integrations` items. Take it from the schema, not from `list_providers` (it reports some wrongly). It differs from the account suffix for `aws-bedrock` → `integration/model/bedrock`, `aws-bedrock-mantle` → `integration/model/bedrock-mantle`, `google-vertex` → `integration/model/vertex`, `google-gemini` → `integration/model/gemini`, `aws-sagemaker` → `integration/model/sagemaker`.
 - The account `name` pattern (it varies by provider).
 - The `auth_data` variants. Some providers require `auth_data` (for example `azure-openai`, `google-gemini`); some offer several shapes (Bedrock has three). If there is more than one, ask which.
 - The `region` enum, if the account has `region`.
@@ -77,7 +77,7 @@ Write one program that reads the saved `list_providers` file and writes the comp
    - Add `cost: {metric: public_cost}` only if that entry exists and has a key besides `region` (`input_cost_per_token`, `input_cost_per_character`, `input_cost_per_second`, `tiered_pricing`, …). Otherwise omit `cost`.
    - Never copy price values. If the user gives their own pricing, use the matching private metric from the schema instead of `public_cost`.
 7. **Integration:** `{name, type, model_id, model_types}`, plus `cost` from step 6, plus any field the schema requires (Azure OpenAI: `api_version`). For Azure OpenAI and Microsoft Foundry, `model_id` is the user's deployment name, so ask for the deployments rather than taking "all"; set `deployment_type`, and `foundation_model` to the catalogue key (pricing is looked up by `foundation_model`, else `model_id`).
-8. **Update:** start from the current manifest; delete `collaborators` and each integration's `authorized_subjects` (`write-rules.md` → Collaborators); append only names not already there. **`integrations` replaces the whole list: a dropped integration is deleted.**
+8. **Update:** start from the current manifest, keeping its masked `auth_data` as is (apply keeps the stored key); delete `collaborators` and each integration's `authorized_subjects` (`write-rules.md` → Collaborators); append only names not already there. **`integrations` replaces the whole list: a dropped integration is deleted.**
 9. **Write** the manifest (template below) to a file. Print only a summary: count by model type, how many have `cost`, and each skipped model with why.
 ### Step 5 — validate in the sandbox, apply once
 

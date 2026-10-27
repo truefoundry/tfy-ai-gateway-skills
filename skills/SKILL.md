@@ -12,7 +12,7 @@ TrueFoundry has two independent products; a customer may use either alone.
 
 ## How to use this skill
 
-1. Decide which product the question is about.
+1. Read this whole file first (`cat`, never `head`): the intent tables run to its end. Decide which product the question is about.
 2. Find the user's intent in that product's table below and read the file it names. Read every file you need in **one batch**, together with your first other calls: one `cat` per file, in full (never `head` or a grep: the rules are spread through it), because a single result over 24,000 characters is saved to a file instead of shown. Keep a batch of file reads under ~35,000 characters.
 3. Follow that file. It says what to fetch, what to ask, and what to build.
 

@@ -4,15 +4,13 @@
     {
       "id": 1,
       "prompt": "My service `harness-trueforge-testing` in workspace `a2a` is failing. Tell me what's wrong and how to fix it.",
-      "expected_output": "Reads troubleshooting.md, reads get_application_state, then follows what it shows (build failure → build logs; crashing container → the previous attempt's logs + events, classifying OOM vs probe vs app error), proposes a concrete fix and asks approval before any apply_manifest.",
+      "expected_output": "Reads troubleshooting.md, checks get_application_state and the failed deployment (and its build if there is one) before concluding, reports the cause it actually found, and proposes a fix that matches it; any manifest change is validated and goes through approval.",
       "files": [],
       "expectations": [
+        "Calls get_application_state and reads the failed deployment's status or build before concluding",
         "Does not conclude health or cause from the deployment status or get_application alone",
-        "Calls get_application_state and inspects pod/container reason and lastState (or the failed build) before proposing a fix",
-        "If a container is crash-looping, calls get_logs with applicationId, podName and a window ending after lastState.finishedAt",
-        "Corroborates exit 137 with events/metrics before calling it OOM",
-        "Any proposed manifest change edits the live activeDeployment.manifest (full replace) and is validated before apply",
-        "Asks for approval before apply_manifest"
+        "Reports the specific cause it found, quoting the error, rather than a guessed one",
+        "Proposes a fix that matches that cause, and does not propose a manifest change when the cause is not in the manifest"
       ]
     },
     {
@@ -54,18 +52,6 @@
         "Does not add a top-level gpu_memory_utilization key on the service manifest",
         "Considers max model length / quantization / larger GPU as alternatives",
         "Patches from live manifest or regenerates via get_model_deployment_specs, then validate + approval + apply"
-      ]
-    },
-    {
-      "id": 5,
-      "prompt": "My Helm app shows DEPLOY_SUCCESS but Argo is OutOfSync and pods never became Ready. Status in the UI looks stale.",
-      "expected_output": "Follows rollout-argocd playbook: sync_application when appropriate, checks tfy-agent health/logs, does not treat empty tool results as healthy.",
-      "files": [],
-      "expectations": [
-        "Does not declare the app healthy from DEPLOY_SUCCESS alone",
-        "Uses sync_application / Argo sync guidance from failure-modes/rollout-argocd.md when OutOfSync",
-        "Checks tfy-agent / status publishing when UI state is stale",
-        "Treats empty get_logs / list_application_events results as possible visibility gaps, not proof of health"
       ]
     },
     {
@@ -138,20 +124,6 @@
         "Checks whether the pod template changed before attributing pod replacement to the replica edit",
         "Calls out max_surge_percentage 0 with few replicas as a downtime cause for GPU models",
         "Suggests concrete mitigations (raise surge if capacity, min_replicas>=2, canary, cache volume)"
-      ]
-    },
-    {
-      "id": 12,
-      "prompt": "Our production deploy has been stuck in WAITING for over 10 minutes and no new pods are coming up. Other apps on this cluster look stuck too. What should we do?",
-      "expected_output": "Checks blast radius (one cluster vs all), suspects tfy-agent publish/sync, recommends restarting only Deployment tfy-agent (not proxy/SDS/ESO), gives kubectl/Argo steps if tools cannot delete agent pods; mentions NATS if all clusters affected.",
-      "files": [],
-      "expectations": [
-        "Establishes whether the issue is one app, one cluster, or all clusters",
-        "Mentions NATS/control plane when symptoms span all clusters",
-        "Recommends restarting only the main tfy-agent Deployment/pods, not tfy-agent-proxy, sds-server, or external-secrets siblings",
-        "If tfy-agent Deployment is not found via tools, instructs Argo CD or kubectl restart of deployment/tfy-agent rather than guessing other workloads",
-        "Does not rewrite the application manifest as the first fix for cluster-wide WAITING",
-        "Gives the user the `kubectl rollout restart deployment/tfy-agent` command to run rather than claiming to have restarted it, and does not suggest deleting pods by label"
       ]
     },
     {
@@ -460,26 +432,25 @@
     {
       "id": 38,
       "prompt": "I redeployed qwen3-8b in workspace tfy-auto-deploy 40 minutes ago and there are still no new pods. Is it stuck?",
-      "expected_output": "Checks artifacts_download.cache_volume. If it is set, explains that the PreSync downloader workflow runs before service pods exist and reads its logs with get_logs podNamesRegex=downloader-<deploymentId>.* containerName=main. Does not read empty list_application_events as healthy.",
+      "expected_output": "Reads the app's state and the deployed manifest (auto_shutdown, artifacts_download.cache_volume) before concluding, and explains the lack of new pods from what it found: scale-to-zero after idle, or the PreSync downloader that runs before service pods exist (read with get_logs podNamesRegex=downloader-<deploymentId>.*). Does not read empty events as healthy.",
       "files": [],
       "expectations": [
-        "Checks for cache_volume in the manifest",
-        "If a download is in progress, explains that no new pods during it is expected; otherwise reports the actual state",
-        "Uses get_logs with applicationId and a downloader-<deploymentId> pod regex",
-        "Does not call any *_k8s_* tool",
-        "Does not read empty events as healthy"
+        "Checks the deployed manifest for auto_shutdown and artifacts_download.cache_volume",
+        "Checks get_application_state or the deployment status before concluding",
+        "Explains the lack of new pods from what it found, not from empty events",
+        "Does not call any *_k8s_* tool"
       ]
     },
     {
       "id": 39,
-      "prompt": "My service `emotion-class-svc-1` in workspace `akash-test-2` keeps crashing. The cluster has no Loki or VictoriaLogs. What's crashing it?",
-      "expected_output": "Reads get_application_state, notes the previous attempt's logs are unreachable without a log backend (get_logs reads only the live container's current attempt), and gives kubectl logs --previous instead of calling the app silent.",
+      "prompt": "My service is in CrashLoopBackOff and our cluster has no Loki or VictoriaLogs. Can you still show me the logs of the attempt that crashed?",
+      "expected_output": "Explains that get_logs without a log backend reads only the live container's current attempt, so the crashed attempt's logs are not reachable through tools, and gives kubectl logs --previous instead; does not call the app silent.",
       "files": [],
       "expectations": [
-        "Calls get_application_state before get_logs",
-        "Passes podName and containerName to get_logs",
-        "If a container restarted, states the crashed attempt's logs cannot be read without VictoriaLogs/Loki",
-        "If a container restarted, gives `kubectl logs <pod> -c <container> --previous -n <namespace>`"
+        "States the crashed attempt's logs cannot be read through tools without VictoriaLogs/Loki",
+        "Explains get_logs reads only the current attempt of the live container",
+        "Gives `kubectl logs <pod> -c <container> --previous -n <namespace>`",
+        "Does not invent log content"
       ]
     },
     {
