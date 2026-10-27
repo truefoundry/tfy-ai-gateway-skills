@@ -278,13 +278,13 @@
     {
       "id": 25,
       "prompt": "How much of the caio-emu-starwood-developers team's monthly budget has been spent so far?",
-      "expected_output": "Reads budget-limiting-v2.md, finds the budget with list_gateway_budgets (team_name: caio-emu-starwood-developers), reports its limits, explains V2 spend isn't readable with tools, and links {controlPlaneUrl}/llm-gateway/policies/budget-limiting-v2.",
+      "expected_output": "Reads budget-limiting-v2.md, finds the budget with list_gateway_budgets (team_name: caio-emu-starwood-developers), calls get_budget_usage with its id, and reports the monthly limit, amount used and percentage as returned.",
       "files": [],
       "expectations": [
-        "Calls list_gateway_budgets, optionally filtered by team_name",
-        "Does not use get_budget_usage to report V2 spend",
-        "Does not invent usage numbers",
-        "Links the budget-limiting-v2 policies page with the real controlPlaneUrl"
+        "Calls list_gateway_budgets, optionally filtered by team_name, to get the budget id",
+        "Calls get_budget_usage with that budget's id",
+        "Reports the cost_per_month limit, used amount and percentage from get_budget_usage",
+        "Does not invent or estimate usage numbers"
       ]
     },
     {

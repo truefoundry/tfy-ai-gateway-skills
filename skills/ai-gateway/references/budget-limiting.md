@@ -36,7 +36,7 @@ createdBySubject: { ... }
 updatedAt: ...
 ```
 
-**Usage:** no tool reads budget usage, V1 or V2. Say so; never estimate it.
+**Usage:** no tool reads V1 usage; say so and never estimate it. `get_budget_usage` reads V2 budgets only (`budget-limiting-v2.md`).
 
 ## Resolving budget scope
 
