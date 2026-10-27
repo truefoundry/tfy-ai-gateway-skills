@@ -145,7 +145,7 @@
       "files": [],
       "expectations": [
         "Calls list_applications filtered by the name",
-        "If more than one workspace has an application with that name, lists them with their workspaces and asks which one — does not diagnose the first match",
+        "If more than one workspace has an application with that name, lists them with their workspaces and asks which one before diagnosing; if only one exists, says so",
         "Only after the application is settled, reads pod state with get_application_state"
       ]
     },
@@ -155,10 +155,10 @@
       "expected_output": "Treats this as an update: fetches the deployed manifest, changes only replicas, keeps every env var, secret, resource and probe, validates, and applies with approval — without rebuilding.",
       "files": [],
       "expectations": [
-        "Finds intel-hub-web in intel-hub and calls get_application for activeDeployment.manifest",
+        "Finds intel-hub-web in intel-hub and starts from its activeDeployment.manifest (from the list_applications row or get_application)",
         "Changes only the replica count and carries every other field over — does not build a fresh manifest from the schema",
         "Uses apply_manifest of the edited manifest (no rebuild, no tfy deploy) even if the app was originally built from source",
-        "validate_manifest, then apply_manifest with approval, then confirms pods are running"
+        "validate_manifest, then apply_manifest; if the apply succeeds, confirms pods are running"
       ]
     },
     {
@@ -233,7 +233,7 @@
       "expected_output": "Checks list_mcp_servers and list_mcp_catalogue together. If a Linear server is already registered, reports it instead of creating a duplicate. Otherwise, since Linear is in the catalogue's tfyManaged list, it copies that entry's tfyManagedMcpManifest (type mcp-server/tfy-managed, keeping server_identifier), adds name and description (no collaborators), asks for no URL or credentials, then validates and applies, and grants access with create_grants only after a successful apply.",
       "files": [],
       "expectations": [
-        "Calls list_mcp_servers and list_mcp_catalogue in one batch",
+        "Calls list_mcp_servers and list_mcp_catalogue before deciding",
         "If a Linear server is already registered, reports it and does not register a duplicate",
         "Any new registration uses type mcp-server/tfy-managed with the catalogue's server_identifier, not mcp-server/remote, and calls validate_manifest before apply_manifest",
         "Does not ask for a URL, client_id or client_secret",
@@ -388,9 +388,9 @@
       "files": [],
       "expectations": [
         "Uses oci_chart_url, not chart_url",
-        "Calls validate_oci_chart and reports accessible:false instead of retrying",
+        "Calls validate_oci_chart; if it reports accessible:false, says so instead of retrying",
         "Prefixes the secret fqn with tfy-secret:// and uses the tenant name",
-        "Console link uses applicationId (data.applicationId), not the deployment id"
+        "If the apply succeeds, the console link uses applicationId (data.applicationId), not the deployment id"
       ]
     },
     {
@@ -425,7 +425,7 @@
       "files": [],
       "expectations": [
         "Reads model-deploy-nim-classical.md",
-        "Does not treat empty deployments as a failure or run similar-model recovery",
+        "If the model version is found, does not treat empty deployments as a failure or run similar-model recovery; if it is not found, says so without inventing one",
         "Gives the tfy deploy-init model command with --model-server fastapi or triton",
         "Does not hand-write a vLLM service"
       ]
@@ -436,10 +436,9 @@
       "expected_output": "Reads the app's state and the deployed manifest (auto_shutdown, artifacts_download.cache_volume) before concluding, and explains the lack of new pods from what it found: scale-to-zero after idle, or the PreSync downloader that runs before service pods exist (read with get_logs podNamesRegex=downloader-<deploymentId>.*). Does not read empty events as healthy.",
       "files": [],
       "expectations": [
-        "Checks the deployed manifest for auto_shutdown and artifacts_download.cache_volume",
+        "Checks the deployed manifest for auto_shutdown and, if present, artifacts_download.cache_volume",
         "Checks get_application_state or the deployment status before concluding",
-        "Explains the lack of new pods from what it found, not from empty events",
-        "Does not call any *_k8s_* tool"
+        "Explains the lack of new pods from what it found, not from empty events"
       ]
     },
     {
@@ -472,7 +471,7 @@
       "files": [],
       "expectations": [
         "Calls get_application_state for pod names",
-        "Passes a pod filter to get_logs",
+        "If a pod exists, passes a pod filter to get_logs; if there are no pods (for example the release is paused), says so instead of calling get_logs",
         "Does not invent a pod name"
       ]
     },
@@ -508,8 +507,8 @@
       "expected_output": "Fetches the account with list_provider_accounts, deletes collaborators and every integration's authorized_subjects from the fetched manifest, keeps every existing integration, appends the new model, validates and applies once; does not re-send the stored collaborators list.",
       "files": [],
       "expectations": [
-        "The applied manifest has no collaborators field",
-        "No integration carries authorized_subjects",
+        "The manifest sent to apply_manifest has no collaborators field",
+        "No integration in the manifest sent to apply_manifest carries authorized_subjects",
         "Every existing integration is still present",
         "Does not write collaborators to change access"
       ]
