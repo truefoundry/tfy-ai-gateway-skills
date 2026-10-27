@@ -36,7 +36,8 @@ Every create, update and delete goes through a manifest tool, which asks the use
 - `validate_manifest`, `apply_manifest` and `delete_manifest` take `{"manifest": {...}}`. Reference files show YAML for readability; send JSON.
 - Call `validate_manifest` directly. For a manifest too large to write inline (a provider account with many models), build it with a program into a sandbox file and call `validate_manifest` from the sandbox on that file. Fix and re-validate until `valid: true`, then call `apply_manifest` once, directly, with the validated JSON — never in the same batch as validation.
 - `delete_manifest` needs `type` and `name`, plus `workspace_fqn` for applications and `cluster_fqn` for workspaces. Legacy singletons need only `type`.
-- Applying an existing identity **replaces the whole entity**, and several list fields replace everything on update (permissions, team members, integrations, rules). Change a live entity by fetching its current manifest and editing it, never by rebuilding it. On updates, remove `collaborators` from it: the fetched copy can be stale and re-sending it revokes access granted since.
+- Applying an existing identity **replaces the whole entity**, and several list fields replace everything on update (team members, integrations, rules). Change a live entity by fetching its current manifest and editing it, never by rebuilding it.
+- Grant access only with the grant tools (`list_grants`, `create_grants`, `revoke_grant`), never in a manifest: remove `collaborators`, `authorized_subjects` and a VA's `permissions` before every apply, on create too. A fetched copy can be stale, and re-sending it revokes access granted since.
 - If validation fails, fix and re-validate. If apply fails, show the error; if it persists or is unclear, offer a ticket. Don't silently retry or give up.
 - Call `apply_manifest`, `delete_manifest` and every other write tool directly, not from the sandbox, so they go through approval. Never run `tfy apply` — it is the same write without the approval step. Deploying from local source is the one exception: `tfy deploy` with `build_source: local`.
 
@@ -102,5 +103,5 @@ Files are under `ai-engineering/references/`. Read the file for what you are abo
 
 - [ ] Every URL uses real values from the session context or `list_gateway_installations`.
 - [ ] Every claim cites the data or doc it came from; entities were looked up before being called missing.
-- [ ] Gateway writes: validated before applying, collaborators on create only, UI link shown.
+- [ ] Gateway writes: validated before applying, no `collaborators` in the manifest, access granted with `create_grants` after a create, UI link shown.
 - [ ] AI Engineering: identified the application type; started a model from `get_model_deployment_specs`; read pod state and real logs or events instead of trusting `DEPLOY_SUCCESS`; edited from the live manifest; printed links per `ai-engineering/references/deployment-links.md`.

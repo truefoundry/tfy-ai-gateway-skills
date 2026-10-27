@@ -5,7 +5,7 @@ description: Read when the user wants to see, add or change guardrails — guard
 
 **Guardrail integrations** (TrueFoundry-managed or third-party) check or rewrite model and MCP tool inputs and outputs. They live in **guardrail groups** (provider accounts of type `provider-account/guardrail-config-group`). **Guardrail policies** (type `gateway-guardrails-config`) decide when integrations run. A policy refers to an integration as `{groupName}/{integrationName}`: `pii-guardrail-group/pii-redaction` is the `pii-redaction` integration in the `pii-guardrail-group` group.
 
-Every write also follows `write-rules.md` (steps, collaborators, UI link); read it in the same batch.
+Every write also follows `write-rules.md` (steps, granting access, UI link); read it in the same batch.
 
 ## Contents
 - Reading existing guardrails
@@ -46,7 +46,7 @@ data:
 ### Steps
 
 1. In one batch: `get_manifest_json_schema` with type `provider-account/guardrail-config-group` (large; see `write-rules.md` → Steps on batching), and `list_provider_accounts` as above.
-2. If the group name already exists, start from that group's current `manifest` and append the new integration. **Applying a group replaces its whole `integrations` list: any integration you leave out is permanently deleted with its stored credentials, and policies that reference it silently lose it.**
+2. If the group name already exists, start from that group's current `manifest`, delete `collaborators`, and append the new integration. **Applying a group replaces its whole `integrations` list: any integration you leave out is permanently deleted with its stored credentials, and policies that reference it silently lose it.**
 3. Ask the user which guardrail type to add (options from the schema), and which auth method if the type has several. Collect the credentials.
 4. Read that type's `config`, `auth_data` and allowed `operation` values from the schema. Fields differ per type and some types have no `auth_data`.
 5. Validate, then apply (`write-rules.md` → Steps).
@@ -66,7 +66,6 @@ The list field is `integrations`, not `guardrail_configs`.
 ```yaml
 name: <unique-group-name>
 type: provider-account/guardrail-config-group
-collaborators: [...]                      # see write-rules.md → Collaborators
 integrations:
   - <every existing integration, unchanged>
   - name: <integration-name>

@@ -36,7 +36,7 @@ Reuse the Step 1 `list_provider_accounts` response if it is still in the convers
 
 ### Step 3 — build, validate, apply
 
-Build the manifest from the template. Validate with `validate_manifest`; once it returns `valid: true`, apply with `apply_manifest` in a separate call. Updating a group sends its whole `integrations` list: keep every existing virtual model, and delete `collaborators` from the fetched manifest (`write-rules.md` → Collaborators).
+Build the manifest from the template. Validate with `validate_manifest`; once it returns `valid: true`, apply with `apply_manifest` in a separate call. Updating a group sends its whole `integrations` list: keep every existing virtual model, and delete `collaborators` from the fetched manifest. After a create, grant access (`write-rules.md` → Access).
 
 ### Field rules
 
@@ -53,11 +53,6 @@ Build the manifest from the template. Validate with `validate_manifest`; once it
 ```yaml
 type: provider-account/virtual-model
 name: <group-name>
-collaborators:
-  - role_id: provider-account-manager
-    subject: user:<current-user-email>   # from the session context; call get_session_context only if it is missing
-  - role_id: provider-account-access
-    subject: team:everyone
 integrations:
   - name: <virtual-model-name>
     type: integration/model/virtual
@@ -114,6 +109,7 @@ Optional fields: on the virtual model, `slug` and `alias[]`. On `routing_config`
 - [ ] Does every target support every `model_type` set on the virtual model?
 - [ ] For audio `model_types`, are all targets from the same provider?
 - [ ] Complexity-based: does every tier have a target, with no model in two tiers?
-- [ ] When updating, did I keep every existing virtual model and omit `collaborators`?
+- [ ] Is the manifest free of `collaborators`, and when updating, did I keep every existing virtual model?
+- [ ] After a create, did I grant access with `create_grants`?
 
 For more info: `search_docs` with "virtual models", "weight based routing", "latency based routing", "model fallback".

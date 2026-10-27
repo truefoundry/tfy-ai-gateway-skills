@@ -23,21 +23,20 @@ Ask in one question, because the first two cannot be changed after creation:
 
 1. In one parallel batch: `list_virtual_accounts` with `nameSearchQuery=<name>` (similar VAs you can access), `check_virtual_account_exists` with `name` (whether the exact name is taken tenant-wide), and `get_manifest_json_schema` with type `virtual-account` (reuse it if still in the conversation).
 2. If the name is taken or similar VAs exist, show them and ask whether to create a VA with a different name or update an existing one. Restate the user's choice (create a new name, or update `<name>`) in your reply before continuing. For an update, go to "Updating a virtual account".
-3. Put the requested access in `permissions`. Never send `permissions: []`; it is rejected.
-4. Build the manifest, then `validate_manifest` → `apply_manifest` per `write-rules.md`.
+3. Build the manifest without `permissions`, then `validate_manifest` → `apply_manifest` per `write-rules.md`.
+4. Grant the requested access in one `create_grants` call with `subjectType: virtualaccount` and the new VA's `id` (from `list_virtual_accounts`) as `subjectId` (`access-management.md` → Access to one resource). If it fails, the VA exists with no access: tell the user and retry the grants, never the apply.
 5. Send the user to generate the token (see "Token").
 
 ## Updating a virtual account
 
-**Omit `permissions` on every update**; current access stays. A `permissions` list replaces all of the VA's grants, including those added on its Access Control page, and `get_virtual_account` returns the list last applied, not current access, so re-sending it can revoke grants.
+**Never send `permissions`**; delete it from the fetched manifest (`write-rules.md` → Access). `get_virtual_account` returns the list last applied, not current access, so re-sending it can revoke grants.
 
 - To add or remove a permission, use the grant tools with `subjectType: virtualaccount` and the VA's `id` as `subjectId` (`access-management.md` → Access to one resource). `list_grants` with `subjectType: virtualaccount` and `subjectId` shows what it holds now.
 - Keep `ownedBy` and `expiration_date` exactly as returned.
-- If the user wants to remove the VA's last permission, suggest deleting the VA instead (`delete_virtual_account`), because an empty list is rejected.
 
 ## Common permissions
 
-| Use case | `role_id` | `resource_type` |
+| Use case | `roleId` | `resourceType` |
 |---|---|---|
 | Access models in a provider account | `provider-account-access` | `provider-account` |
 | Access all model provider accounts | `provider-account-access` | `provider-account` (FQN `model-provider-accounts:*`) |
@@ -48,10 +47,10 @@ Ask in one question, because the first two cannot be changed after creation:
 | Deploy to workspace | `workspace-editor` (shown as "Workspace Member" in the UI) | `workspace` |
 | Tenant-wide role | `member`, `read-only-member`, or a custom role name | `tenant` (FQN = tenant name) |
 
-- `resource_fqn` for a workspace is `<cluster-name>:<workspace-name>`.
+- `resourceFqn` for a workspace is `<cluster-name>:<workspace-name>`.
 - For all resources of a kind, use `<category>:*` (e.g. `model-provider-accounts:*`), not `*`.
 - A VA can hold only one tenant-level role. Only tenant admins can grant `tenant-admin`.
-- You can only grant roles on resources you can manage; otherwise the apply returns 403.
+- You can only grant roles on resources you can manage; otherwise `create_grants` returns 403.
 
 ## Manifest
 
@@ -61,10 +60,6 @@ name: <va-name>                  # 3-36 chars: lowercase letters, digits, hyphen
 ownedBy:
   team: <team-name>              # cannot be changed after creation; not "everyone"
 expiration_date: <YYYY-MM-DD>    # optional, future date; cannot be added or changed later
-permissions:
-  - role_id: <role-id>
-    resource_fqn: <resource-fqn>
-    resource_type: <resource-type>
 auto_rotate:                     # optional; set at creation
   auto_rotate_interval: 360      # days, min 30
   grace_period: 30               # days, min 1
@@ -92,7 +87,7 @@ Do not set `token_type`. It overrides the tenant default and cannot be changed a
 
 - [ ] Do I have the `virtual-account` schema from `get_manifest_json_schema` in the conversation? If not, call it again.
 - [ ] Did I ask for the owner team and expiration date before creating?
-- [ ] Did I avoid sending an empty `permissions` list, and omit `permissions` on every update?
+- [ ] Did I leave `permissions` out of every manifest and grant access with `create_grants` after creating?
 - [ ] Did I leave out `token_type`?
 - [ ] After creation, did I send the user to the UI to get the token?
 

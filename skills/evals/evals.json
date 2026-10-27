@@ -191,7 +191,7 @@
     {
       "id": 18,
       "prompt": "Create an OpenAI provider account called openai-all with all models. My API key is in tfy-secret://acme:llm-keys:openai.",
-      "expected_output": "The agent reads models.md and write-rules.md, calls list_provider_accounts, get_manifest_json_schema and list_providers (providerType provider-account/openai) in one batch, and builds the manifest with one sandbox program into a file. It validates from the sandbox on that file once and applies once without a 400. Models without a price field have no cost, and audio or realtime models are named after model_id.",
+      "expected_output": "The agent reads models.md and write-rules.md, calls list_provider_accounts, get_manifest_json_schema and list_providers (providerType provider-account/openai) in one batch, and builds the manifest with one sandbox program into a file. It validates from the sandbox on that file once and applies once without a 400. Models without a price field have no cost, and audio or realtime models are named after model_id. The manifest has no collaborators; after a successful apply it grants team:everyone provider-account-access with create_grants.",
       "files": [],
       "expectations": [
         "Reads ai-gateway/references/models.md first, not using-models-from-code.md",
@@ -201,7 +201,7 @@
         "Exactly one validate_manifest and one apply_manifest call",
         "model_types come from mode/supportedModes and are never defaulted to [chat]; no unknown/unsupported",
         "auth_data uses the tfy-secret reference",
-        "Collaborators include the current user as provider-account-manager"
+        "The manifest has no collaborators field; access is granted with create_grants only after a successful apply"
       ]
     },
     {
@@ -230,13 +230,14 @@
     {
       "id": 21,
       "prompt": "Register the Linear MCP server (https://mcp.linear.app/mcp) on our gateway with OAuth.",
-      "expected_output": "Checks list_mcp_servers and list_mcp_catalogue together. If a Linear server is already registered, reports it instead of creating a duplicate. Otherwise, since Linear is in the catalogue's tfyManaged list, it copies that entry's tfyManagedMcpManifest (type mcp-server/tfy-managed, keeping server_identifier), adds name, description and collaborators, asks for no URL or credentials, then validates and applies.",
+      "expected_output": "Checks list_mcp_servers and list_mcp_catalogue together. If a Linear server is already registered, reports it instead of creating a duplicate. Otherwise, since Linear is in the catalogue's tfyManaged list, it copies that entry's tfyManagedMcpManifest (type mcp-server/tfy-managed, keeping server_identifier), adds name and description (no collaborators), asks for no URL or credentials, then validates and applies, and grants access with create_grants only after a successful apply.",
       "files": [],
       "expectations": [
         "Calls list_mcp_servers and list_mcp_catalogue in one batch",
         "If a Linear server is already registered, reports it and does not register a duplicate",
         "Any new registration uses type mcp-server/tfy-managed with the catalogue's server_identifier, not mcp-server/remote, and calls validate_manifest before apply_manifest",
-        "Does not ask for a URL, client_id or client_secret"
+        "Does not ask for a URL, client_id or client_secret",
+        "The manifest has no collaborators field; access is granted with create_grants only after a successful apply"
       ]
     },
     {
@@ -247,7 +248,7 @@
       "expectations": [
         "Manifest uses servers: [{name, enabled_tools}] and not mcp_servers or mcp_server_id",
         "servers[].name holds the source server names (github-mcp, notion-mcp), not ids",
-        "Includes a description and collaborators"
+        "Includes a description and no collaborators field"
       ]
     },
     {

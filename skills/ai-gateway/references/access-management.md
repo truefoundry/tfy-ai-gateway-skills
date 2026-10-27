@@ -41,15 +41,15 @@ Recommend virtual accounts for production, CI/CD and shared apps: a PAT becomes 
 | Broad platform capability for a person or group (e.g. "can create provider accounts") | A tenant role or custom role, assigned in the UI (see "Assign a tenant role") |
 | Access to one specific resource (a provider account, MCP server, workspace) | The grant tools (see "Access to one resource"); a `role-binding` only if the user asks for access as code |
 | Several people need the same access | Grant it to a team; future members inherit it |
-| An application needs access | A virtual account: `permissions` at creation, the grant tools afterwards (see `virtual-accounts.md`) |
+| An application needs access | A virtual account, given access with the grant tools (see `virtual-accounts.md`) |
 
-Roles can be assigned to users, teams (every member inherits them), virtual accounts, and agents. Tenant admins can use every model without being a collaborator.
+Roles can be assigned to users, teams (every member inherits them), virtual accounts, and agents. Tenant admins can use every model without a grant.
 
 ## Access to one resource
 
 Use the grant tools. Each adds or removes one grant and leaves every other grant alone. They apply the same checks as the **Access Control** page: the caller needs manage on the resource (or `ASSIGN_ROLE` on the tenant); otherwise they return 403, so tell the user a manager of the resource must do it. If these tools are not listed, send the user to the resource's three-dot menu → **Access Control** → **Grant Access**.
 
-Never change access by editing `collaborators` or a VA's `permissions` in a manifest: that list replaces every grant made by a manifest or on the Access Control page, and the fetched copy can be stale, so access granted since is silently revoked (`write-rules.md` → Collaborators).
+Never write access through `collaborators`, `authorized_subjects` or a VA's `permissions` in a manifest: that list replaces every grant made by a manifest or on the Access Control page, and the fetched copy can be stale, so access granted since is silently revoked (`write-rules.md` → Access).
 
 **Ids.** `subjectId` is an internal id, never an email or name:
 - user: `list_users` with `query=<email>` → `id`
@@ -69,7 +69,7 @@ Model access is granted at the **provider account** level:
 - **Manager** (`provider-account-manager`) — can change settings, add or remove models, and manage access.
 - **User** (`provider-account-access`) — can use every model in the account; cannot change settings or access.
 
-Role IDs for other resources are in `write-rules.md` → Collaborators and `virtual-accounts.md` → Common permissions.
+Role IDs for other resources are in `write-rules.md` → Access and `virtual-accounts.md` → Common permissions.
 
 ### Role bindings (access as code)
 

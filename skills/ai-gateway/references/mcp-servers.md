@@ -3,7 +3,7 @@ name: mcp-servers
 description: Read when the user wants to find, register, update, delete or connect to an MCP server on the AI Gateway (TrueFoundry-managed, remote, OpenAPI, stdio or virtual), list a server's tools, or get its endpoint URL.
 ---
 
-**MCP servers** registered on the MCP Gateway are one of `mcp-server/tfy-managed`, `mcp-server/remote`, `mcp-server/openapi`, `mcp-server/stdio` or `mcp-server/virtual`. Every write also follows `write-rules.md` (steps, collaborators, `force: false` on updates, UI link); read it in the same batch.
+**MCP servers** registered on the MCP Gateway are one of `mcp-server/tfy-managed`, `mcp-server/remote`, `mcp-server/openapi`, `mcp-server/stdio` or `mcp-server/virtual`. Every write also follows `write-rules.md` (steps, granting access, `force: false` on updates, UI link); read it in the same batch.
 
 ## Contents
 - Finding servers and their tools
@@ -54,18 +54,17 @@ Steps 1 and 2 are independent: call `list_mcp_servers` (filtered as above) and `
 
 ### Step 3: Build the manifest
 
-Call `get_manifest_json_schema` for the chosen type. Templates below are simplified; `collaborators` follow `write-rules.md` → Collaborators. `name` is 3–73 chars, lowercase letters, digits and hyphens, starting with a letter; it cannot change later.
+Call `get_manifest_json_schema` for the chosen type. Templates below are simplified. `name` is 3–73 chars, lowercase letters, digits and hyphens, starting with a letter; it cannot change later.
 
 #### Path A: TFY-managed
 
-Copy `tfyManagedMcpManifest` from the catalogue entry (keep its `server_identifier`) and add `name`, `description` and `collaborators`. The user supplies no URL or credentials; auth comes from the catalogue. If the server uses OAuth, each user is prompted to connect on first use.
+Copy `tfyManagedMcpManifest` from the catalogue entry (keep its `server_identifier`) and add `name` and `description`. The user supplies no URL or credentials; auth comes from the catalogue. If the server uses OAuth, each user is prompted to connect on first use.
 
 ```yaml
 type: mcp-server/tfy-managed
 name: <name>
 description: <description>
 server_identifier: <server_identifier from the catalogue>
-collaborators: [...]
 ```
 
 #### Path B: Catalogue integration (remote)
@@ -78,7 +77,6 @@ name: <unique-name>
 description: <description>
 url: <url from the catalogue>
 auth_data: <one block below, or omit for no auth>
-collaborators: [...]
 ```
 
 - **No `auth_data`:** omit `auth_data`.
@@ -132,7 +130,6 @@ auth_data:                   # only if the server needs credentials
   env:
     <VAR>: <value>
   auth_level: global         # per_user with {{PLACEHOLDER}} values
-collaborators: [...]
 ```
 
 #### Path D: OpenAPI spec
@@ -146,7 +143,6 @@ openapi_spec_source:
   type: remote
   url: <spec URL>
 enable_all_tools: true
-collaborators: [...]
 ```
 
 - If the user pastes the spec instead of a URL, use `openapi_spec_source: {type: inline, openapi_spec: <the spec as a JSON object or JSON/YAML string>}`. TrueFoundry stores it and rewrites it to `upload`.
@@ -165,18 +161,17 @@ servers:
   - name: <source-server-name>
     enabled_tools: [<tool-1>, <tool-2>]
   - name: <another-source-server-name>
-collaborators: [...]
 ```
 
 `servers[].name` is the source server's **name**, not its `id` (the `id` is only for `list_mcp_server_tools`). Omit `enabled_tools` to expose all of a source's tools. A source cannot itself be a virtual server, and the user needs access to every source.
 
 ### Step 4: Validate and apply
 
-Follow `write-rules.md` → Steps: `validate_manifest`, wait for `valid: true`, then `apply_manifest`. Then show the UI link and the endpoint URL (below).
+Follow `write-rules.md` → Steps: `validate_manifest`, wait for `valid: true`, then `apply_manifest`. Then grant access (`write-rules.md` → Access), and show the UI link and the endpoint URL (below).
 
 ## Update and delete
 
-- **Update:** start from the server's current `manifest` (`get_mcp_server`), change only what was asked, keep the same `name`, and call `apply_manifest` with `force: false`. If it fails with "Following auth records … will be deleted", tell the user the change disconnects every user who has connected to this server (their tokens and personal keys are deleted). Retry with `force: true` only after they confirm.
+- **Update:** start from the server's current `manifest` (`get_mcp_server`), delete `collaborators`, change only what was asked, keep the same `name`, and call `apply_manifest` with `force: false`. If it fails with "Following auth records … will be deleted", tell the user the change disconnects every user who has connected to this server (their tokens and personal keys are deleted). Retry with `force: true` only after they confirm.
 - **Delete:** confirm with the user first, then call `delete_mcp_server` with `mcpServerId`. This is irreversible and deletes every user's saved connection for that server.
 
 ## Endpoint URL
@@ -196,7 +191,7 @@ Users need the endpoint to connect clients. Build it like this:
 - [ ] For OpenAPI, did I use `openapi_spec_source` and `enable_all_tools` or `tool_settings`?
 - [ ] For virtual, did I use `servers[].name` (not `id`)?
 - [ ] For an update, did I pass `force: false` and ask before retrying with `force: true`?
-- [ ] Collaborators on create per `write-rules.md`, and omitted on updates?
+- [ ] No `collaborators` in the manifest, and access granted with `create_grants` after a create?
 - [ ] Did I show the endpoint URL with the real gateway URL?
 
 For more info: `search_docs` with "mcp gateway", "mcp server registry", "virtual mcp server".

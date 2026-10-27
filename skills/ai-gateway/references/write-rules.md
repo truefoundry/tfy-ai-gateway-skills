@@ -1,6 +1,6 @@
 ---
 name: gateway-write-rules
-description: Shared rules for every AI Gateway create, update or delete — the write steps, gateway config kinds, lists that replace everything, collaborators, and the UI link to show after applying.
+description: Shared rules for every AI Gateway create, update or delete — the write steps, gateway config kinds, lists that replace everything, granting access, and the UI link to show after applying.
 ---
 
 # AI Gateway write rules
@@ -11,7 +11,7 @@ Read this file in the same batch as the entity's reference file whenever the use
 - Steps
 - Gateway config kinds
 - Lists that replace everything
-- Collaborators
+- Access
 - After applying: UI links
 
 ## Steps
@@ -23,7 +23,8 @@ Read this file in the same batch as the entity's reference file whenever the use
 5. **Fetch existing state** the entity file asks for (see the next two sections). Steps 1, 3 and 5 are independent: issue them together. Call `get_manifest_json_schema` for large types (`service`, `virtual-model`, guardrail groups) in its own batch, because large results batched together get saved to a file instead of shown.
 6. **Build** the manifest as JSON, following the schema.
 7. **Validate, then apply once.** Call `validate_manifest` directly. If the manifest is too large to write inline (a provider account with many models), build it with a program into a sandbox file and call `validate_manifest` from the sandbox on that file instead. Fix and re-validate until `valid: true`. Then call `apply_manifest` once, directly (it needs user approval), with the validated JSON — never in the same batch as validation. `apply_manifest` is an upsert: a manifest with an existing identity (its `name`; `type` alone for legacy singletons) replaces that entity's whole manifest. When the user asks to *create*, use a new unique name.
-8. **Link** — show the UI page from "After applying" with the real `controlPlaneUrl`.
+8. **Grant** — after a create, grant access (see Access).
+9. **Link** — show the UI page from "After applying" with the real `controlPlaneUrl`.
 
 ## Gateway config kinds
 
@@ -43,8 +44,8 @@ On an update, these fields replace the entity's entire current value. Anything y
 
 | Field | Entity | Safer path |
 | --- | --- | --- |
-| `collaborators` | Provider accounts, virtual models, MCP servers, guardrail groups | On updates, remove it from the fetched manifest (see Collaborators) |
-| `permissions` | Virtual account | Omit it on updates; change access with the grant tools |
+| `collaborators`, `authorized_subjects` | Provider accounts, virtual models, MCP servers, guardrail groups | Never send; use the grant tools (see Access) |
+| `permissions` | Virtual account | Never send; use the grant tools (see Access) |
 | `members`, `managers` | Team | `add_team_members` / `remove_team_members` / `add_team_managers` / `remove_team_managers` |
 | `integrations` | Guardrail group, provider account | Start from `list_provider_accounts`' current manifest; a dropped integration is deleted with its credentials |
 | `rules` | Legacy singleton configs | `get_gateway_config` immediately before writing |
@@ -52,35 +53,32 @@ On an update, these fields replace the entity's entire current value. Anything y
 
 Updating an MCP server whose auth changed deletes every user's stored tokens. Pass `force: false` to `apply_manifest`, and if it reports auth records to delete, ask the user before retrying with `force: true`.
 
-## Collaborators
+## Access
 
-Access is stored as grants, separately from the manifest; `collaborators` is only one way to write them.
+Access is stored as grants, and only the grant tools write it (`list_grants`, `create_grants`, `revoke_grant`; `access-management.md` → Access to one resource). **Never send `collaborators`, an integration's `authorized_subjects`, or a VA's `permissions` in a manifest, on create or update.** Delete them from every fetched manifest before applying.
 
-- **Omitted:** existing grants are left untouched. **`[]`** removes them all.
-- **Present:** replaces every grant on the resource made by a manifest or on its **Access Control** page. Role-binding grants are kept.
-- A fetched manifest's `collaborators` is the list last applied, not current access: grants changed later on the Access Control page are not written back, so re-sending it revokes them. Current access comes from `list_grants`.
+- Omitted, they leave existing grants untouched. Present, they replace every grant on the resource made by a manifest or on its **Access Control** page.
+- A fetched copy is the list last applied, not current access, so re-sending it revokes access granted since. Current access comes from `list_grants`.
 
-**On create**, include collaborators, or other users cannot see the resource (the creator becomes manager automatically):
+**After creating**, the creator is already manager. Other users cannot see the resource until granted, so in one `create_grants` call after the apply succeeds:
 
-- The current user as **manager**: `user:<email>` from the session context (if the session has no `email`, use `virtualaccount:<subjectSlug>`).
-- `team:everyone` as **access**, unless the user gives their own list (still include the current user as manager).
-- Subjects are `user:<email>`, `team:<name>` or `virtualaccount:<name>`.
+- Grant `team:everyone` the access role, unless the user gives their own list. The everyone team's `id` comes from `list_teams_for_user` with `includeMembership=false`; other subject ids per `access-management.md` → Ids.
+- Identify the new resource by its `fqn` or `id` from its list tool (`list_provider_accounts`, `list_mcp_servers`).
+- If it fails, the resource exists with only the creator as manager: tell the user and retry the grants, never the apply.
 
-| Entity | Manager `role_id` | Access `role_id` |
-| --- | --- | --- |
-| Provider account (models), virtual model, guardrail group | `provider-account-manager` | `provider-account-access` |
-| MCP server | `mcp-server-manager` | `mcp-server-user` |
+| Entity | `resourceType` | Manager `roleId` | Access `roleId` |
+| --- | --- | --- | --- |
+| Provider account (models), virtual model, guardrail group | `provider-account` | `provider-account-manager` | `provider-account-access` |
+| MCP server | `mcp-server` | `mcp-server-manager` | `mcp-server-user` |
 
-These role IDs are platform constants — use the table instead of looking them up. MCP servers also have `mcp-server-approver`. MCP server group provider accounts accept only `provider-account-manager`; do not add `team:everyone` there.
+These role IDs are platform constants — use the table instead of looking them up. MCP servers also have `mcp-server-approver`. MCP server group provider accounts accept only `provider-account-manager`; do not grant `team:everyone` there.
 
-**On update**, delete `collaborators` from the fetched manifest before applying, and on provider accounts also each integration's `authorized_subjects` (per-model access, same rules). **To change access** on an existing resource, use the grant tools (`list_grants`, `create_grants`, `revoke_grant`) per `access-management.md` → Access to one resource; never write `collaborators`.
+### Entities that still carry these lists
 
-### Migrating an entity that still has `collaborators`
+Every past apply that included them already wrote them as grants, so there is no access to move:
 
-Access checks read only grants, and every past apply that included `collaborators` already wrote them as grants, so there is no access to move. Migrating means dropping the list from the manifest without changing who has access:
-
-1. When a fetched manifest still has `collaborators` (or `authorized_subjects`, or a VA's `permissions`), call `list_grants` for the resource and treat that as current access. Do not reconcile the two: an entry missing from `list_grants` was revoked later, and re-granting it would restore access someone removed.
-2. On the next update, delete the list as in "On update". Tell the user once that access is now managed with grants and is unchanged.
+1. Treat `list_grants` as current access. Do not reconcile it with the old list: an entry missing from `list_grants` was revoked later, and re-granting it would restore access someone removed.
+2. Delete the list on the next update and tell the user once that access is now managed with grants and is unchanged.
 3. If the user asks to restore an entry from the old list, show the difference against `list_grants` and add only the entries they confirm with `create_grants`.
 4. If the user keeps manifests in Git or CI with `collaborators`, every `tfy apply` of that file replaces the resource's inline grants. Have them delete `collaborators` from the files. If they want access kept as code, first apply a `role-binding` per subject and role (`access-management.md` → Role bindings); it takes over the matching inline grants, so nothing is duplicated or lost. Then remove the list.
 

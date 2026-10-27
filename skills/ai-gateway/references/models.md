@@ -62,7 +62,7 @@ Before writing the program, turn the user's answer into an exact selection, with
 
 Write one program that reads the saved `list_providers` file and writes the complete manifest as JSON to a file.
 
-**Inputs:** the provider `type`; the integration `type` from Step 2; the account `name`; the region or `deployment_type`; the selection from Step 3; `auth_data`; collaborators (from `write-rules.md`); when updating, the current manifest from `list_provider_accounts`.
+**Inputs:** the provider `type`; the integration `type` from Step 2; the account `name`; the region or `deployment_type`; the selection from Step 3; `auth_data`; when updating, the current manifest from `list_provider_accounts`.
 
 **Program**, in this order:
 
@@ -77,13 +77,13 @@ Write one program that reads the saved `list_providers` file and writes the comp
    - Add `cost: {metric: public_cost}` only if that entry exists and has a key besides `region` (`input_cost_per_token`, `input_cost_per_character`, `input_cost_per_second`, `tiered_pricing`, …). Otherwise omit `cost`.
    - Never copy price values. If the user gives their own pricing, use the matching private metric from the schema instead of `public_cost`.
 7. **Integration:** `{name, type, model_id, model_types}`, plus `cost` from step 6, plus any field the schema requires (Azure OpenAI: `api_version`). For Azure OpenAI and Microsoft Foundry, `model_id` is the user's deployment name, so ask for the deployments rather than taking "all"; set `deployment_type`, and `foundation_model` to the catalogue key (pricing is looked up by `foundation_model`, else `model_id`).
-8. **Update:** start from the current manifest, keeping its masked `auth_data` as is (apply keeps the stored key); delete `collaborators` and each integration's `authorized_subjects` (`write-rules.md` → Collaborators); append only names not already there. **`integrations` replaces the whole list: a dropped integration is deleted.**
+8. **Update:** start from the current manifest, keeping its masked `auth_data` as is (apply keeps the stored key); delete `collaborators` and each integration's `authorized_subjects` (`write-rules.md` → Access); append only names not already there. **`integrations` replaces the whole list: a dropped integration is deleted.**
 9. **Write** the manifest (template below) to a file. Print only a summary: count by model type, how many have `cost`, and each skipped model with why.
 ### Step 5 — validate in the sandbox, apply once
 
 Call `validate_manifest` from the sandbox with the file's JSON as `{"manifest": …}`; on errors, fix the program's rule, rebuild the file and validate again. Once it returns `valid: true`, print the minified file in parts of at most 20,000 characters (one `exec` each, one batch), then call `apply_manifest` once, directly (never from the sandbox), with the joined parts unchanged. One call holds the whole manifest, even all of a provider's models: never split it across applies or apply a partial list, since `integrations` replaces the account's list. If the result is saved to a file, check it for errors with one `jq`. `validate_manifest` checks only the schema; pricing, naming and credential checks run at apply, so program steps 5 and 6 must be right first. If apply fails, fix the program's rule (not entries) and rebuild.
 
-Then show the UI link from `write-rules.md`.
+After a create, grant access (`write-rules.md` → Access). Then show the UI link from `write-rules.md`.
 
 ### Manifest template
 
@@ -94,11 +94,6 @@ auth_data:                               # shape from the schema, e.g.
   type: api-key
   api_key: <tfy-secret:// reference or the user's key>
 region: <region>                         # only if the schema has region
-collaborators:                           # create only; omit on update
-  - role_id: provider-account-manager
-    subject: user:<current-user-email>   # from the session context; call get_session_context only if it is missing
-  - role_id: provider-account-access
-    subject: team:everyone
 integrations:
   - name: <model_id with / and : replaced by ->
     type: <integration type const from the schema>
@@ -117,5 +112,6 @@ integrations:
 - [ ] Is `cost: {metric: public_cost}` only on models whose picked cost entry has a price field?
 - [ ] If the schema has `region`, did the user choose one from the schema enum (never `*`), and are the models filtered by it?
 - [ ] Are credentials in the schema's `auth_data` shape?
-- [ ] When updating, did I keep every integration and omit `collaborators`?
+- [ ] Is the manifest free of `collaborators` and `authorized_subjects`, and when updating, did I keep every integration?
+- [ ] After a create, did I grant access with `create_grants`?
 - [ ] Was the manifest built by one program into a file, validated once and applied once?
