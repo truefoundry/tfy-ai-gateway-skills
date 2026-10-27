@@ -8,11 +8,12 @@ description: Stores OTEL spans with additional columns for gateway-specific info
 - The physical table name varies by tenant. Query `"<destination>"."<tracesTable>"` with `tracesTable` from the session context (call `get_session_context` only if it is missing). Never assume `traces`.
 - Partitioned by `Date` and `Hour` (UTC strings from `Timestamp`). Always filter a `"Date"` literal range as well as `"Timestamp"`.
 - `TfyGatewayInput` and `TfyGatewayOutput` hold the full request and response payloads: large, sensitive JSON. Select them only when the user asks for contents, and only for a few rows.
-- Head span (the request itself): `COALESCE(NULLIF("TfyParentSpanId", ''), "ParentSpanId") = ''`. Its `TfyGatewaySpanType` is the request type (`ChatCompletion`, `Responses`, `Messages`, `MCPGateway`, `Embedding`, …). Child spans: `Model` (one per provider call), `MCP`, `Guardrail`, `CacheLookup`, `CacheWrite`, …. Spans with a NULL `TfyGatewaySpanType` are internal HTTP instrumentation; skip them. For other values, `SELECT DISTINCT "TfyGatewaySpanType"` over a short window; values are case sensitive.
-- Errors: `StatusCode = 'Error'`. The error reason is on the `Model` span: `"SpanAttributesString"['tfy.error_type']` (e.g. `tfy-model-not-found`, `tfy-forbidden`, `tfy-rate-limit`, `tfy-budget-limit`, `tfy-input-guardrail`) and `"SpanAttributesString"['tfy.error_message']`.
+- Head span (the request itself): `COALESCE(NULLIF("TfyParentSpanId", ''), "ParentSpanId") = ''` (misses requests sent with the caller's own trace context). Its `TfyGatewaySpanType` is the request type (`ChatCompletion`, `Responses`, `Messages`, `MCPGateway`, `Embedding`, …). Child spans: `Model` (one per provider call), `MCP`, `Guardrail`, `CacheLookup`, `CacheWrite`, …. Spans with a NULL `TfyGatewaySpanType` are internal HTTP instrumentation; skip them. For other values, `SELECT DISTINCT "TfyGatewaySpanType"` over a short window; values are case sensitive.
+- Errors: `StatusCode = 'Error'`. The error reason is on the `Model` span, which exists even when the request failed before reaching a model: `"SpanAttributesString"['tfy.error_type']` (e.g. `tfy-model-not-found`, `tfy-forbidden`, `tfy-rate-limit`, `tfy-budget-limit`, `tfy-input-guardrail`) and `"SpanAttributesString"['tfy.error_message']`.
 - Model cost of a span: `"SpanAttributesNumber"['tfy.model.metric.cost_in_usd']`. Totals across requests come from the metrics API (`metrics.md`).
-- Team filter: `array_has("SpanAttributesStringList"['tfy.request.created_by_subject_teams'], '<team>')`.
-- For other attribute keys, use `get_section_content` on https://www.truefoundry.com/docs/ai-gateway/fetch-request-logs-span-attributes. `gen_ai.*` attributes are written only when the gateway enables them; don't rely on them.
+- Team filter: `array_has("SpanAttributesStringList"['tfy.request.created_by_subject_teams'], '<team>')`. A caller with no teams has the string `'[]'` in `SpanAttributesString` instead.
+- Integer attributes are in `SpanAttributesNumber` as DOUBLE. Attributes that have their own column (input, output, span type, metadata, conversation ID, caller) are not in the maps.
+- For other attribute keys, use `get_section_content` on https://www.truefoundry.com/docs/ai-gateway/fetch-request-logs-span-attributes. `gen_ai.*` attributes are written only when [enabled](https://www.truefoundry.com/docs/ai-gateway/fetch-request-logs-span-attributes-genai#enabling-genai-attributes); don't rely on them.
 
 ## Schema
 
@@ -34,7 +35,7 @@ TfyParentSpanId: TEXT, nullable
 SpanName: TEXT
     Operation name of the span.
 SpanKind: TEXT
-    'Server', 'Client' or 'Internal'.
+    Usually 'Server', 'Client' or 'Internal'; also 'Unspecified', 'Producer', 'Consumer'.
 Duration: BIGINT
     Span duration in nanoseconds (divide by 1e6 for milliseconds).
 StatusCode: TEXT, nullable
@@ -46,11 +47,11 @@ HttpStatusCode: INTEGER, nullable
 TfyGatewaySpanType: TEXT, nullable
     Gateway span type (see CRITICAL).
 GenAIRequestModel: TEXT, nullable
-    Gateway model ID of the request (e.g. 'openai-main/gpt-4o').
+    Head span: the model the client requested, real or virtual. Model span: the gateway model called (e.g. 'openai-main/gpt-4o').
 TfyGatewayConversationID: TEXT, nullable
     Conversation identifier tying related calls together.
 TfyGatewayMetadata: Map(Text, Text), nullable
-    Request metadata: user-supplied x-tfy-metadata and system-generated keys.
+    Request metadata: the x-tfy-metadata header merged with metadata overrides from gateway rules (the rule wins).
 TfyGatewayInput: TEXT, nullable
     JSON request payload. Sensitive.
 TfyGatewayOutput: TEXT, nullable
@@ -62,7 +63,7 @@ TfyCreatedBySubjectType: TEXT, nullable
 TfyCreatedBySubjectId: TEXT, nullable
     Stable identifier of the caller.
 TfyCreatedBySubject: TEXT
-    Caller as one string.
+    Caller as a JSON string {subjectId, subjectType, subjectSlug}; use the three columns above instead.
 TfyActorSlug: TEXT, nullable
     Acting identity when an agent acts on behalf of the caller.
 TfyActorType: TEXT, nullable
@@ -107,12 +108,12 @@ RequestedTracingProjectId: TEXT, nullable
 EnvironmentName: TEXT, nullable
     Environment name, when the sender sets it.
 Tags: Array(Text), nullable
-    Span tags.
+    Only 'LLM' (needs gen_ai attributes) and 'exception'.
 Metadata: Map(Text, Text), nullable
-    OTEL span metadata. Not the gateway request metadata: that is TfyGatewayMetadata.
+    Ingestion type markers for attributes; not useful for queries. Request metadata is TfyGatewayMetadata.
 TfyLogLevel: TEXT, nullable
-    Log level of the span, e.g. 'debug'.
-IngestedAt: TIMESTAMP, nullable
+    'info' or 'debug'. The traces UI hides debug spans.
+IngestedAt: TIMESTAMPTZ, nullable
     When the span was stored.
 ```
 

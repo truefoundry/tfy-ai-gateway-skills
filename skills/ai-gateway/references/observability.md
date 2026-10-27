@@ -26,12 +26,12 @@ Use SQL on traces only for what the metrics API cannot do: listing or finding re
 - Quote table and column names; column names are case sensitive. Take them from the schema file, never guess.
 - Address a table as `"<destination>"."<table>"`. An unqualified name fails with `Invalid schema public`.
 - **Time range on every query, twice:** a `"Date"` range for partition pruning and a `"Timestamp"` range for the exact window. `"Date"` is a UTC `'YYYY-MM-DD'` string and `"Hour"` a `'HH'` string: compare them with string literals (`"Date" >= '2026-10-20'`), or `to_char(now() - INTERVAL '7 days', '%Y-%m-%d')`. `CAST(current_date() - 7 AS VARCHAR)` fails. Default to the last 24 hours when the user gives no window; keep scans small.
-- **Head spans** (one per request): `COALESCE(NULLIF("TfyParentSpanId", ''), "ParentSpanId") = ''`. Add it when listing requests, otherwise child spans repeat each request.
+- **Head spans** (one per request): `COALESCE(NULLIF("TfyParentSpanId", ''), "ParentSpanId") = ''`. Add it when listing requests, otherwise child spans repeat each request. It misses the few requests sent with their caller's own trace context, whose parent is outside the gateway; the UI also counts a span whose parent is not in the table as a head.
 - `LIMIT` every non-aggregate query (default 50): there is no row cap, and the whole result is returned at once.
 - Select only the columns you need. Never `SELECT *` on traces: it pulls the large, sensitive `TfyGatewayInput`/`TfyGatewayOutput` and every attribute map.
 - `Duration` is in nanoseconds: `"Duration" / 1e6` is milliseconds.
 - The query times out after 60 seconds. Narrow the window rather than retrying, and don't reference one CTE more than once (it is re-executed each time).
-- Spans from the last one to two minutes may not be queryable yet.
+- Spans from the last few minutes (up to about three) may not be queryable yet.
 - Results are filtered by the caller's data-access rules for traces, which are separate from metrics rules. An empty result can mean no access, not no traffic: say so and link `{controlPlaneUrl}/access-management?tab=data-access`.
 
 #### Examples
@@ -50,7 +50,7 @@ ORDER BY "Timestamp" DESC
 LIMIT 50
 ```
 
-- Failed model calls with their error (errors are on the `Model` span, not the head span):
+- Failed model calls with their error. The head span of a failed request has `StatusCode = 'Error'` and `tfy.error_message`, but `tfy.error_type` is on the `Model` span (only `client-disconnected` is on the head span; MCP and guardrail errors are on their own spans). Error type values: [span attributes](https://www.truefoundry.com/docs/ai-gateway/fetch-request-logs-span-attributes#core-span-attributes).
 
 ```sql
 SELECT "TraceId", "Timestamp", "GenAIRequestModel", "HttpStatusCode",
@@ -69,6 +69,7 @@ SELECT "SpanId", COALESCE(NULLIF("TfyParentSpanId", ''), "ParentSpanId") AS "Par
   "Duration" / 1e6 AS "DurationMs", "SpanAttributesNumber"['tfy.model.metric.cost_in_usd'] AS "CostUsd"
 FROM "dest"."traces_v2"
 WHERE "TraceId" = '<trace-id>' AND "Date" BETWEEN '2026-10-26' AND '2026-10-27'
+  AND "Timestamp" >= TIMESTAMP '2026-10-26T00:00:00Z'
 ORDER BY "Timestamp"
 ```
 
@@ -88,6 +89,7 @@ LIMIT 50
 ```
 
 - Filter by team: `array_has("SpanAttributesStringList"['tfy.request.created_by_subject_teams'], '<team>')`.
+- Guardrail outcome of a request: the head span carries the worst result in `"SpanAttributesString"['tfy.guardrail.result']` only for some request types; see [triggered guardrails](https://www.truefoundry.com/docs/ai-gateway/fetch-request-logs-span-attributes#triggered-guardrails-on-request-spans), or query the `Guardrail` child spans.
 - Feedback on traces: see the sample join in `tables/gateway_feedbacks.md`. Deduplicate by `FeedbackId` before filtering `"IsDeleted" = false`.
 
 ### Getting a trace ID
@@ -100,9 +102,10 @@ Find the `TraceId` by querying the traces table with filters (time, user, model,
 
 Always link the traces you show: `{controlPlaneUrl}/monitoring/request-traces?filters=<url-encoded JSON>`, where the JSON is `{"rules":[{"field":"<field>","operator":"IN","value":[...]}]}`.
 
-- Fields: `traceId`, `userEmail`, `virtualAccount`, `agentIdentity`, `genAIRequestModel` (real model), `virtualModelName`.
-- A span attribute: `{"field":"<attribute>","operator":"IN","value":[...],"type":"string","apiKey":"spanAttributeKey","apiKeyValue":"<attribute>"}`, e.g. `tfy.mcp_server.name`.
+- Fields: `traceId`, `userEmail`, `virtualAccount`, `agentIdentity`, `genAIRequestModel` (the model the client requested, real or virtual), `mcpServerName`.
+- A span attribute: `{"field":"<attribute>","operator":"IN","value":[...],"type":"string","apiKey":"spanAttributeKey","apiKeyValue":"<attribute>"}`, e.g. `tfy.guardrail.fqn`.
 - Time window: append `&lm_lfsts=<start epoch ms>&lm_lfets=<end epoch ms>`. For one trace, use its start minus 1 second to start plus 1 hour.
+- Destination other than the first one listed: append `&dId=<destination>`.
 
 ### Checklist
 

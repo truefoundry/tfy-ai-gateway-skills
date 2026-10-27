@@ -5,7 +5,7 @@ description: Stores user feedback (ratings, comments) linked to trace spans.
 
 ## CRITICAL
 
-- Feedback targets one span: `TargetTraceId` and `TargetSpanId` are always set. Feedback sent through the Gateway feedback API targets the request's head span.
+- Feedback targets one span: `TargetTraceId` and `TargetSpanId` are always set. It is usually the request's head span (sent with the `x-tfy-feedback-target-id` response header), but feedback given with an explicit trace and span ID can target any span. You see feedback on the requests your traces access rules let you see.
 - Partitioned by `Date` and `Hour`, taken from `TargetCreatedAt` (the target span's time, not the feedback's). Always filter a `"Date"` literal range and a `"TargetCreatedAt"` range; the same `"Date"` range prunes the traces table in a join.
 - Feedback rows are versioned: an update or delete writes a new row with the same `FeedbackId`. Always keep only the latest row per `FeedbackId` (`ROW_NUMBER() OVER (PARTITION BY "FeedbackId" ORDER BY "CreatedAt" DESC) = 1`), then filter `"IsDeleted" = false`. Never filter `IsDeleted` before deduplicating — counts and averages are otherwise wrong with no error.
 - `MetricName` is `rating` (1–5) for feedback from the Gateway feedback API. Several feedbacks can exist for one span.

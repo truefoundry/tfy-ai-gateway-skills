@@ -349,12 +349,13 @@
     {
       "id": 31,
       "prompt": "How many guardrail evaluations failed yesterday, by guardrail name?",
-      "expected_output": "Reads metrics.md and calls query_llm_gateway_metrics on guardrailMetrics for yesterday (UTC), grouped by guardrailName and guardrailResult (or guardrailResultCategory). Reports per guardrail the blocked count (flag) separately from checks that errored (error, ignored_error), with a /monitoring/metrics?metricsV2Tab=guardrails link.",
+      "expected_output": "Reads metrics.md and calls query_llm_gateway_metrics on guardrailMetrics for yesterday (UTC), grouped by guardrailName and guardrailResult (not guardrailResultCategory, which folds errors into allowed). Reports per guardrail the blocked count (flag) separately from checks that errored (error, ignored_error), with a /monitoring/metrics?metricsV2Tab=guardrails link.",
       "files": [],
       "expectations": [
         "Uses datasource guardrailMetrics, not guardrailPolicyMetrics or SQL",
         "startTs and endTs cover exactly yesterday",
         "Distinguishes blocked (flag) from the check itself erroring (error, ignored_error)",
+        "Runs the grouped query from the sandbox and prints only the needed rows, not the full result",
         "Gives a link under /monitoring/metrics"
       ]
     },
@@ -600,13 +601,14 @@
     {
       "id": 52,
       "prompt": "Who are the top 5 users by LLM spend in the last 30 days, and how many requests did each make?",
-      "expected_output": "Reads metrics.md and calls query_llm_gateway_metrics once: realModelMetrics, distribution, last 30 days, groupBy userEmail, sum costInUSD. Reads users from createdBySubjectSlug and request counts from total, sorts by spend itself and shows the top 5 with a /monitoring/metrics link.",
+      "expected_output": "Reads metrics.md and runs one sandbox program that calls query_llm_gateway_metrics once: realModelMetrics, distribution, last 30 days, groupBy userEmail, sum costInUSD. The program reads users from createdBySubjectSlug and request counts from total, sorts by spend and prints only the top 5; the answer adds a /monitoring/metrics link.",
       "files": [],
       "expectations": [
         "Uses query_llm_gateway_metrics with datasource realModelMetrics and groupBy userEmail",
         "Request count from total, not a count of costInUSD",
         "Reads the user from createdBySubjectSlug",
-        "Sorts and cuts to 5 itself; does not invent an order or limit field"
+        "Sorts and cuts to 5 itself; does not invent an order or limit field",
+        "Runs the grouped query from the sandbox and prints only the needed rows, not the full result"
       ]
     },
     {
@@ -618,7 +620,8 @@
         "Uses datasource configMetrics with a configType ratelimit filter",
         "Groups by configResultCategory (or filters status blocked), not by status alone",
         "Reads the rule from ruleId",
-        "Does not use gateway_execute_sql"
+        "Does not use gateway_execute_sql",
+        "Runs the grouped query from the sandbox and prints only the needed rows, not the full result"
       ]
     }
   ]
