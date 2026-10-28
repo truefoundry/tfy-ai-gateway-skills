@@ -542,10 +542,11 @@
     {
       "id": 47,
       "prompt": "Give me a role-binding manifest so we can keep workspace access for team ml-eng in Git.",
-      "expected_output": "Reads access-management.md role bindings, gets the role-binding schema, and returns a role-binding YAML with subjects [{type: team, name: ml-eng}] and permissions on the workspace fqn with workspace-editor; applies only if the user asks and is a tenant admin.",
+      "expected_output": "Reads access-management.md role bindings, finds the team id with list_teams_for_user, and calls get_role_binding_manifests with subjectType team and that id to export the team's current access. Gives the role-binding YAML (subjects [{type: team, name: ml-eng}], workspace permissions); applies only if the user asks and is a tenant admin.",
       "files": [],
       "expectations": [
         "Uses a role-binding (access as code), not create_grants",
+        "Exports current access with get_role_binding_manifests instead of guessing roles",
         "Gives the YAML",
         "Does not apply without the user asking"
       ]
@@ -622,6 +623,71 @@
         "Reads the rule from ruleId",
         "Does not use gateway_execute_sql",
         "Runs the grouped query from the sandbox and prints only the needed rows, not the full result"
+      ]
+    },
+    {
+      "id": 54,
+      "prompt": "Invite alice@example.com to our tenant and make her a read-only member.",
+      "expected_output": "Reads users.md and access-management.md. Calls register_user with email alice@example.com (sendInviteEmail true when TrueFoundry manages login), then gets the read-only-member role id from list_roles, the new user's id from list_users, and calls create_grants with resourceType tenant, resourceFqn the tenant name, subjectType user and that roleId. Explains she also keeps the Member baseline.",
+      "files": [],
+      "expectations": [
+        "Uses register_user, not a manifest or a raw API call",
+        "Gives the role with create_grants on resourceType tenant, not by editing the user",
+        "Uses the role id from list_roles, not the name read-only-member, as roleId",
+        "Does not claim a role can be set while inviting"
+      ]
+    },
+    {
+      "id": 55,
+      "prompt": "Who are the tenant admins here?",
+      "expected_output": "Calls list_grants with resourceType tenant and resourceId the tenant name, and lists the subjects whose roleId is tenant-admin, with their subjectType.",
+      "files": [],
+      "expectations": [
+        "Uses list_grants on the tenant",
+        "Lists only tenant-admin holders, including teams or virtual accounts if any"
+      ]
+    },
+    {
+      "id": 56,
+      "prompt": "Bob (bob@example.com) left the company. Remove him from TrueFoundry.",
+      "expected_output": "Reads users.md. Recommends deactivate_user (reversible; keeps roles and grants; his tokens stop working) and calls it with his email, or offers delete_user by id if the user wants permanent deletion, explaining it fails while he holds grants or team memberships unless forceDelete is confirmed.",
+      "files": [],
+      "expectations": [
+        "Prefers deactivate_user, or asks deactivate vs delete before deleting",
+        "Calls delete_user with the id, not the email, if deleting",
+        "Does not use forceDelete without the user's confirmation"
+      ]
+    },
+    {
+      "id": 57,
+      "prompt": "Which users haven't accepted their invite yet?",
+      "expected_output": "Reads users.md and calls list_users, then lists users whose metadata.inviteAccepted is false (invite pending). Mentions that resending an invite is done from the Users page row menu.",
+      "files": [],
+      "expectations": [
+        "Uses list_users and reads metadata.inviteAccepted",
+        "Does not treat registeredInIdp false as invite pending",
+        "Points to the UI for resending, without claiming a resend tool"
+      ]
+    },
+    {
+      "id": 58,
+      "prompt": "Change carol@example.com from read-only member to the custom role gateway-config-creator.",
+      "expected_output": "Gets both role ids from list_roles and carol's id from list_users, creates the gateway-config-creator grant on the tenant with create_grants first, then revokes her read-only-member grant with revoke_grant using its list_grants row.",
+      "files": [],
+      "expectations": [
+        "Grants the new role before revoking the old one",
+        "Uses role ids from list_roles",
+        "Does not try to revoke the member role"
+      ]
+    },
+    {
+      "id": 59,
+      "prompt": "Add dave@example.com to TrueFoundry.",
+      "expected_output": "Reads users.md and calls register_user once with the email. If it returns 403 about manual provisioning, explains users then arrive through SSO or SCIM and that an admin can enable Manual provisioning; if 402, explains the plan user limit; if 409, checks his status with list_users (showInvalidUsers true) and suggests resending the invite or reactivating.",
+      "files": [],
+      "expectations": [
+        "Uses register_user",
+        "Explains a 403, 402 or 409 per users.md instead of retrying"
       ]
     }
   ]
