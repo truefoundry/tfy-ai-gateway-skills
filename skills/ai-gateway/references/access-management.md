@@ -48,11 +48,11 @@ Never write access through `collaborators`, `authorized_subjects` or a VA's `per
 - team: `list_teams_for_user` with `includeMembership=false` → `id` of the row whose `teamName` matches
 - virtual account: `list_virtual_accounts` with `nameSearchQuery=<name>` → `id`
 
-Identify the resource by its `fqn` (as `resourceFqn`) or `id` (as `resourceId`) from its list tool (`list_provider_accounts`, `list_mcp_servers`, `list_workspaces`, …); send exactly one of the two.
+Identify the resource by its `fqn` (as `resourceFqn`) or `id` (as `resourceId`) from its list tool (`list_provider_accounts`, `list_mcp_servers`, `list_workspaces`, …); send exactly one of the two. All model provider accounts is the fixed `resourceFqn` `model-provider-accounts:*`, not one `fqn` per account (see Grant).
 
 **Who has access:** `list_grants` with `resourceType` and `resourceId`. Each row has `subjectType`, `subjectSlug` (email or name), `roleId`, `roleName` and `source`. What one subject holds: `list_grants` with `subjectType` and `subjectId` (a user's rows include grants inherited from their teams). It returns 100 rows by default; pass `limit` and `offset` for more.
 
-**Grant:** `create_grants` with `{"grants": [{"resourceType", "resourceFqn" or "resourceId", "subjectType", "subjectId", "roleId"}]}` — up to 100 grants, all or nothing; an existing grant is left as is. `subjectType` is `user`, `team`, `virtualaccount` or `agent`. Wildcards such as `model-provider-accounts:*` need tenant-admin or the Assign Role permission and only accept `virtualaccount` or `agent`.
+**Grant:** `create_grants` with `{"grants": [{"resourceType", "resourceFqn" or "resourceId", "subjectType", "subjectId", "roleId"}]}` — up to 100 grants, all or nothing; an existing grant is left as is. `subjectType` is `user`, `team`, `virtualaccount` or `agent`. All model provider accounts is one grant: `resourceType` `provider-account`, `resourceFqn` `model-provider-accounts:*`, `roleId` `provider-account-access` (`provider-account-manager` only when they ask to manage every account). Do not list accounts or grant them one by one. That wildcard needs tenant-admin or Assign Role, accepts only `virtualaccount` or `agent`, and bare `*` is rejected. On 403, tell the user; do not fall back to per-account grants. Revoke that same `resourceFqn`.
 
 **Revoke:** `revoke_grant` with one grant's `resourceType`, `resourceId` or `resourceFqn`, `subjectType`, `subjectId` and `roleId`, copied from its `list_grants` row. Only `AUTH_API` grants can be revoked: a `ROLE_BINDING` grant returns 404, so change or delete its binding instead. A grant a user inherits from a team is revoked on the team. To change a role, create the new grant first, then revoke the old one.
 
