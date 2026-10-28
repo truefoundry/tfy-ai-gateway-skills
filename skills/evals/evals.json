@@ -731,6 +731,17 @@
         "Uses metric count instead of listing entries",
         "Uses the action name from get_audit_log_actions"
       ]
+    },
+    {
+      "id": 64,
+      "prompt": "How much did each virtual model cost last week, and what were the total cost and failures?",
+      "expected_output": "Gets the current date, then in one sandbox program queries virtualModelMetrics grouped by virtualModel for the per-model table and the same aggregations with groupBy [] for the totals, and quotes the total cost and failures exactly as the program printed them.",
+      "files": [],
+      "expectations": [
+        "Takes the total cost and failures from an ungrouped query, not from adding grouped rows",
+        "Every number in the reply appears in the program output",
+        "Does not add realModelMetrics rows into virtual model totals"
+      ]
     }
   ]
 }
