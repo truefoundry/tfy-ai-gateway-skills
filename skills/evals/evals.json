@@ -742,6 +742,18 @@
         "Every number in the reply appears in the program output",
         "Does not add realModelMetrics rows into virtual model totals"
       ]
+    },
+    {
+      "id": 65,
+      "prompt": "Why did this trace fail - 01a182ae7a8473b780111169426c377b",
+      "expected_output": "Queries every span of the trace on the default destination over the last 7 days without asking which destination first, and reports that Anthropic rejected the request with a 400 because top_k is deprecated for claude-haiku-5-5 (tfy.error_type request-failure-400 on the Model span), who sent it and when, that the caller should stop sending top_k, and a trace link.",
+      "files": [],
+      "expectations": [
+        "Queries the default destination without asking the user to pick one",
+        "Does not query every destination",
+        "Reports the error message from the Model span and what the caller should change",
+        "On a 5xx from gateway_execute_sql, retries the same query once and then stops and reports instead of changing the query, destination or searching docs"
+      ]
     }
   ]
 }

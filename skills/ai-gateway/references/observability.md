@@ -16,9 +16,13 @@ Use SQL on traces only for what the metrics API cannot do: listing or finding re
 
 ### Steps
 
-1. In one parallel batch, read the schema file of each table you need (skip any whose contents are still in the conversation) and call `list_data_routing_destinations` (reuse its result if it is still in the conversation). If there is one destination, use it; if there are several, ask the user which one.
+1. In one parallel batch, read the schema file of each table you need (skip any whose contents are still in the conversation) and call `list_data_routing_destinations` (reuse its result if it is still in the conversation). Query `default` unless the user names another destination. Never query every destination; if the data is not in `default`, ask the user which one.
 2. Write one query following the rules below and run it with `gateway_execute_sql`. If the result is saved to a sandbox file, extract only the fields you need with one `jq`/program.
 3. Answer with the result and a trace link (see Linking to traces).
+
+**Why did a trace fail.** Run the every-span query (Examples) for the trace ID over the last 7 days. Report the failing span's `tfy.error_type` and `tfy.error_message` (the `Model` span for model errors), `HttpStatusCode`, model, caller and time, what the message means for the caller, and the trace link. If no rows come back, ask the user roughly when the request was made and which destination it went to.
+
+**Errors from `gateway_execute_sql`.** A 400 or 404 names the problem: fix the query. `Delta table not found` means that destination has no traces table. A 504 means the query timed out: narrow the window. Any other 5xx means the query service failed, not the SQL: retry the same query once, and if it fails again, stop. Tell the user trace queries are failing right now, give the trace link (no time window), and offer a support ticket. Never change the query or destination, or search the docs, to work around a 5xx.
 
 ### Writing SQL
 
@@ -30,7 +34,7 @@ Use SQL on traces only for what the metrics API cannot do: listing or finding re
 - `LIMIT` every non-aggregate query (default 50): there is no row cap, and the whole result is returned at once.
 - Select only the columns you need. Never `SELECT *` on traces: it pulls the large, sensitive `TfyGatewayInput`/`TfyGatewayOutput` and every attribute map.
 - `Duration` is in nanoseconds: `"Duration" / 1e6` is milliseconds.
-- The query times out after 60 seconds. Narrow the window rather than retrying, and don't reference one CTE more than once (it is re-executed each time).
+- The query times out after 60 seconds. Don't reference one CTE more than once (it is re-executed each time).
 - Spans from the last few minutes (up to about three) may not be queryable yet.
 - Results are filtered by the caller's data-access rules for traces, which are separate from metrics rules. An empty result can mean no access, not no traffic: say so and link `{controlPlaneUrl}/access-management?tab=data-access`.
 
@@ -65,12 +69,15 @@ LIMIT 50
 - Every span of one trace:
 
 ```sql
-SELECT "SpanId", COALESCE(NULLIF("TfyParentSpanId", ''), "ParentSpanId") AS "ParentId", "TfyGatewaySpanType", "SpanName", "StatusCode",
-  "Duration" / 1e6 AS "DurationMs", "SpanAttributesNumber"['tfy.model.metric.cost_in_usd'] AS "CostUsd"
+SELECT "SpanId", COALESCE(NULLIF("TfyParentSpanId", ''), "ParentSpanId") AS "ParentId", "Timestamp", "TfyGatewaySpanType", "SpanName",
+  "StatusCode", "HttpStatusCode", "GenAIRequestModel", "TfyCreatedBySubjectSlug", "Duration" / 1e6 AS "DurationMs",
+  "SpanAttributesString"['tfy.error_type'] AS "ErrorType", "SpanAttributesString"['tfy.error_message'] AS "ErrorMessage",
+  "SpanAttributesNumber"['tfy.model.metric.cost_in_usd'] AS "CostUsd"
 FROM "dest"."traces_v2"
-WHERE "TraceId" = '<trace-id>' AND "Date" BETWEEN '2026-10-26' AND '2026-10-27'
-  AND "Timestamp" >= TIMESTAMP '2026-10-26T00:00:00Z'
+WHERE "TraceId" = '<trace-id>' AND "Date" >= '2026-10-21' AND "Timestamp" >= TIMESTAMP '2026-10-21T00:00:00Z'
+  AND "TfyGatewaySpanType" IS NOT NULL
 ORDER BY "Timestamp"
+LIMIT 50
 ```
 
 - Request metadata keys in use (`x-tfy-metadata`), then the values of one key with `"TfyGatewayMetadata"['<key>']`:
@@ -114,3 +121,4 @@ Always link the traces you show: `{controlPlaneUrl}/monitoring/request-traces?fi
 - [ ] `"Date"` literal range plus `"Timestamp"` range; `LIMIT` on non-aggregate queries.
 - [ ] Head-span filter when listing requests; only the needed columns.
 - [ ] Empty result → data-access rules mentioned.
+- [ ] 5xx → one retry of the same query, then stop and report.
