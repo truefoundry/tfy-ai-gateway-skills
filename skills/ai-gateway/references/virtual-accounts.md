@@ -14,7 +14,7 @@ description: Read before listing, creating or changing virtual accounts — non-
 
 Ask in one question, because the first two cannot be changed after creation:
 
-- **Owner team** (`ownedBy.team`) — cannot be changed later; not `everyone`.
+- **Owner team** (`ownedBy.team`, optional, not `everyone`) — cannot be added or changed later. Omit `ownedBy` when unset.
 - **Expiration date** (optional, `YYYY-MM-DD`, in the future) — cannot be added or changed later.
 - **Access** — for each grant: role, resource type, resource FQN (see "Common permissions").
 - Optional: auto-rotation, secret store sync, notifications (see "Token features").
@@ -23,7 +23,7 @@ Ask in one question, because the first two cannot be changed after creation:
 
 1. In one parallel batch: `list_virtual_accounts` with `nameSearchQuery=<name>` (similar VAs you can access), `check_virtual_account_exists` with `name` (whether the exact name is taken tenant-wide), and `get_manifest_json_schema` with type `virtual-account` (reuse it if still in the conversation).
 2. If the name is taken or similar VAs exist, show them and ask whether to create a VA with a different name or update an existing one. Restate the user's choice (create a new name, or update `<name>`) in your reply before continuing. For an update, go to "Updating a virtual account".
-3. Build the manifest without `permissions`, then `validate_manifest` → `apply_manifest` per `write-rules.md`.
+3. Build the manifest without `permissions`. Set `ownedBy.team` only when the user names a team; otherwise omit `ownedBy`. Then `validate_manifest` → `apply_manifest` per `write-rules.md`.
 4. Grant the requested access in one `create_grants` call with `subjectType: virtualaccount` and the new VA's `id` (from `list_virtual_accounts`) as `subjectId` (`access-management.md` → Access to one resource). If it fails, the VA exists with no access. Never re-apply; tell the user and retry only `create_grants` once the error is fixed. On 403 the caller cannot manage that resource: a manager of it must grant it, or offer to delete the VA.
 5. Send the user to generate the token (see "Token").
 
@@ -57,8 +57,8 @@ Ask in one question, because the first two cannot be changed after creation:
 ```yaml
 type: virtual-account
 name: <va-name>                  # 3-36 chars: lowercase letters, digits, hyphens; starts with a letter
-ownedBy:
-  team: <team-name>              # cannot be changed after creation; not "everyone"
+ownedBy:                         # optional; not "everyone"; cannot be added or changed later
+  team: <team-name>
 expiration_date: <YYYY-MM-DD>    # optional, future date; cannot be added or changed later
 auto_rotate:                     # optional; set at creation
   auto_rotate_interval: 360      # days, min 30
@@ -86,7 +86,7 @@ Do not set `token_type`. It overrides the tenant default and cannot be changed a
 ## Checklist
 
 - [ ] Do I have the `virtual-account` schema from `get_manifest_json_schema` in the conversation? If not, call it again.
-- [ ] Did I ask for the owner team and expiration date before creating?
+- [ ] Did I ask for the optional owner team and expiration date before creating, and omit `ownedBy` when no team was chosen?
 - [ ] Did I leave `permissions` out of every manifest and grant access with `create_grants` after creating?
 - [ ] Did I leave out `token_type`?
 - [ ] After creation, did I send the user to the UI to get the token?
