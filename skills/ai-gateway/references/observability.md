@@ -16,7 +16,7 @@ Use SQL on traces only for what the metrics API cannot do: listing or finding re
 
 ### Steps
 
-1. In one parallel batch, read the schema file of each table you need (skip any whose contents are still in the conversation) and call `list_data_routing_destinations` (reuse its result if it is still in the conversation). Query `default` unless the user names another destination. Never query every destination; if the data is not in `default`, ask the user which one.
+1. In one parallel batch, read the schema file of each table you need (skip any whose contents are still in the conversation) and call `list_data_routing_destinations` (reuse its result if it is still in the conversation). Query only `default` unless the user names another destination; never try other destinations on your own. If the data is not in `default`, ask the user which one.
 2. Write one query following the rules below and run it with `gateway_execute_sql`. If the result is saved to a sandbox file, extract only the fields you need with one `jq`/program.
 3. Answer with the result and a trace link (see Linking to traces).
 
