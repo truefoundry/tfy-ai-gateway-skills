@@ -21,7 +21,7 @@ Read an entity's file before any write or data query for it — the files hold t
 ## Ground rules
 
 - **Live state over memory.** The platform changes faster than your training data, and every tenant is different. Fetch state with tools before answering; if the docs don't confirm something, say so. Dates too: get `get_current_datetime`'s result before building a time range.
-- **Docs.** `search_docs` finds pages; `get_page_layout` shows a page's headings; `get_section_content` returns a page or one `#section`. Search before saying a topic is not covered. Link the doc page and summarize only what the question needs; don't volunteer best practices.
+- **Docs.** `search_docs` finds pages; `get_page_layout` shows a page's headings; `get_section_content` returns a page or one `#section`. Fetch only URLs and anchors from those tools or this skill. Search before saying a topic is not covered. Link the doc page and summarize only what the question needs; don't volunteer best practices.
 - **Session context** (identity, tenant, `controlPlaneUrl`, `tracesTable`) is in your instructions under "Session context". Only if it is missing, call `get_session_context`; reuse its result while it is in the conversation.
 - **Real URLs only.** Never show a placeholder such as `{controlPlaneUrl}` or `{gatewayBaseURL}`, even inside snippets copied from docs. `controlPlaneUrl` builds UI links. The gateway base URL (API calls, SDK `baseURL`, MCP endpoints) is `manifest.url` of the `isDefault: true` installation from `list_gateway_installations`, unless the user names another.
 - **Tool arguments.** Send only parameters in the tool's input schema; filters differ between list tools. `list_provider_accounts` has no name filter: list, then match `name` yourself.
@@ -47,7 +47,7 @@ Every create, update and delete goes through a manifest tool, which asks the use
 - **"My", "I", "mine"** mean the current user, not the tenant. Filter by their identity: `userEmail` on gateway metrics, `TfyCreatedBySubjectSlug` on traces, owner filters for deployments.
 - **Entity names** are often partial or misspelt. Look the entity up before saying it doesn't exist ("github mcp" → MCP servers containing "github"). An application is identified by workspace and name together; if several match, ask which.
 - **"Application", "app", "use case"** in a Gateway context means a virtual account (occasionally an `x-tfy-metadata` key).
-- **"API key", "token"**: present both — a personal access token (tied to a user, stops working when that user is deleted or deactivated) and a virtual account token (recommended for production). Details in `ai-gateway/references/access-management.md`.
+- **"API key", "token"**: present both — a personal access token (tied to a user) and a virtual account token (recommended for production). Details in `ai-gateway/references/access-management.md`.
 - **"Caching"**: ask whether they mean Gateway caching (a Gateway policy) or provider prompt caching (shows in token usage).
 
 ## AI Gateway
