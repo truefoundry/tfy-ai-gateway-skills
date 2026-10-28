@@ -69,7 +69,7 @@ Time units differ: logs (incl. autoscaler) take nanosecond-epoch strings, metric
 
 ## What no tool can see
 
-There are no raw Kubernetes read tools. These are out of reach: node lists and taints, Karpenter NodeClaims / NodePools, PVC objects, Argo Rollout and KEDA objects of non-Helm apps, live events of pods outside the app's naming pattern, and anything in system namespaces (`kube-system`, `argocd`, `istio-system`), including controller logs. TrueFoundry addons such as tfy-agent are Helm applications: with read access to their workspace, `get_application_state` and `get_logs` work on their `applicationId` from `list_cluster_addons`.
+There are no raw Kubernetes read tools. Out of reach: node lists and taints, Karpenter NodeClaims / NodePools, PVC objects, Argo Rollout and KEDA objects of non-Helm apps, live events of pods outside the app's naming pattern, and anything in system namespaces (`kube-system`, `argocd`, `istio-system`), including controller logs. TrueFoundry addons such as tfy-agent are Helm applications: with read access to their workspace, `get_application_state` and `get_logs` work on their `applicationId` from `list_cluster_addons`.
 
 When the answer is behind that line, say what you checked, say what you could not see, and give the user the exact `kubectl` command to run (e.g. `kubectl get nodeclaims`, `kubectl describe pvc <name> -n <workspace>`). Never present a guess as something you read.
 
