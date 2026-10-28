@@ -20,7 +20,7 @@ Use SQL on traces only for what the metrics API cannot do: listing or finding re
 2. Write one query following the rules below and run it with `gateway_execute_sql`. If the result is saved to a sandbox file, extract only the fields you need with one `jq`/program.
 3. Answer with the result and a trace link (see Linking to traces).
 
-**Why did a trace fail, or did it succeed.** Run the every-span query (Examples) for the trace ID; it covers the last 7 days with `now()`, so it needs no `get_current_datetime`. The request failed if any span has `StatusCode = 'Error'`, even when the head span is `Ok` with HTTP 200 (MCP and guardrail spans fail this way). Report the failing span's `tfy.error_type` and `tfy.error_message` (the `Model` span for model errors), `HttpStatusCode`, model, caller and time, what the message means for the caller, and the trace link. `tfy-model-not-found` means the model or provider account does not exist in the gateway: tell the caller to check the model name, never to get access. If no rows come back, stop: don't widen the window or try another destination. Ask the user roughly when the request was made and which destination it went to.
+**Why did a trace fail, or did it succeed.** Run the every-span query (Examples) for the trace ID; it covers the last 7 days with `now()`, so it needs no `get_current_datetime`. Never judge by the head span alone. An `MCP` span can fail under a head span that is `Ok` with HTTP 200: report that call as failed. A failed `Model` span under an `Ok` head is a retry or fallback that recovered: the request succeeded. Report the failing span's `tfy.error_type` and `tfy.error_message` (the `Model` span for model errors), `HttpStatusCode`, model, caller and time, what the message means for the caller, and the trace link. `tfy-model-not-found` means the model or provider account does not exist in the gateway: tell the caller to check the model name, never to get access. If no rows come back, stop: don't widen the window or try another destination. Ask the user roughly when the request was made and which destination it went to.
 
 **Errors from `gateway_execute_sql`.** A 400 or 404 names the problem: fix the query. `Delta table not found` means that destination has no traces table. A 504 means the query timed out: narrow the window. Any other 5xx means the query service failed, not the SQL: retry the same query once, and if it fails again, stop. Tell the user trace queries are failing right now, give the trace link (no time window), and offer a support ticket. Never change the query or destination, or search the docs, to work around a 5xx.
 
@@ -119,7 +119,7 @@ Always link the traces you show: `{controlPlaneUrl}/monitoring/request-traces?fi
 
 - [ ] Aggregate question? Then `metrics.md`, not SQL.
 - [ ] Table name from `tracesTable`, destination `default` unless the user named another, both quoted.
-- [ ] Any span with `StatusCode = 'Error'` → the request failed.
+- [ ] Success or failure judged from every span, not the head span.
 - [ ] `"Date"` literal range plus `"Timestamp"` range; `LIMIT` on non-aggregate queries.
 - [ ] Head-span filter when listing requests; only the needed columns.
 - [ ] Empty result → data-access rules mentioned.

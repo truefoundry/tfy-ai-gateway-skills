@@ -831,6 +831,17 @@
         "Asks the user when the request was made and which destination",
         "Does not invent a failure reason"
       ]
+    },
+    {
+      "id": 73,
+      "prompt": "Did trace 01a17b657dbf7152abf02e6759acff8f succeed?",
+      "expected_output": "Reports that it succeeded (Responses head span Ok, HTTP 200) on virtual model caio-emu-v-riot-games-vm/caio-emu-v-riot-games-c-partial: the first target caio-emu-v-riot-games-oa/caio-emu-v-riot-games-partial failed with 503 (request-failure-503, OpenAI overloaded) and the fallback caio-emu-v-riot-games-oa/caio-emu-v-riot-games-okm returned 200. Includes a trace link.",
+      "files": [],
+      "expectations": [
+        "Concludes the request succeeded",
+        "Explains the failed Model span as a fallback or retry that recovered",
+        "Names the 503 target and the target that succeeded"
+      ]
     }
   ]
 }
