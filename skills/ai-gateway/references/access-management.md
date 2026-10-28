@@ -87,7 +87,7 @@ A subject can hold several tenant roles; their permissions add up.
 
 **Who holds which tenant role:** `list_grants` with `resourceType: tenant` and `resourceId: <tenantName>`.
 
-In the UI: `{controlPlaneUrl}/access-management?tab=users` (or `tab=teams`) → the row's menu → **Manage Permissions** → **Grant Access**, resource type **Tenant**.
+In the UI: `{controlPlaneUrl}/access-management?tab=users` (or `tab=teams`, `tab=service-accounts`) → the row's menu → **Manage Permissions** → **Organisation Roles** → **Add Roles**.
 
 ## Role bindings
 
