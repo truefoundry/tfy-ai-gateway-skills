@@ -71,7 +71,7 @@ Files are under `ai-gateway/references/`. **For any create, update or delete, al
 | Create a personal access token | `personal-access-tokens.md` |
 | Who changed or deleted something, what someone did; audit logs | `audit-logs.md` |
 | Numbers: usage, cost, latency, errors, cache, MCP, guardrails, rate limits, agents | `metrics.md` |
-| Single requests, spans, contents, metadata keys, feedback, trace links | `observability.md` and `tables/traces.md`, in one `cat` |
+| Single requests, spans, contents, metadata keys, feedback, trace links | `observability.md` |
 | Call a Gateway model from code or a tool — base URL, SDK, snippet | `using-models-from-code.md` |
 
 Other platform topics: integrations with cloud accounts → https://www.truefoundry.com/docs/integrations-overview · secrets are referenced as `tfy-secret://<tenant>:<secret-group>:<key>` (the `fqn` from `list_secrets` has no scheme; add the prefix) → https://www.truefoundry.com/docs/manage-secrets.

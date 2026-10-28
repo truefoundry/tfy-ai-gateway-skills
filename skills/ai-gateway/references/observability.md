@@ -16,11 +16,11 @@ Use SQL on traces only for what the metrics API cannot do: listing or finding re
 
 ### Steps
 
-1. In one parallel batch, read the schema file of each table you need (skip any whose contents are still in the conversation) and call `list_data_routing_destinations` (reuse its result if it is still in the conversation). Query only `default` unless the user names another destination; never try other destinations on your own. If the data is not in `default`, ask the user which one.
+1. In one parallel batch, read the schema file of each table you need (skip any whose contents are still in the conversation). Query only the `default` destination unless the user names another; never try other destinations on your own. Call `list_data_routing_destinations` only when the user names one or the data is not in `default` (then ask which one).
 2. Write one query following the rules below and run it with `gateway_execute_sql`. If the result is saved to a sandbox file, extract only the fields you need with one `jq`/program.
 3. Answer with the result and a trace link (see Linking to traces).
 
-**Why did a trace fail.** Run the every-span query (Examples) for the trace ID over the last 7 days. Report the failing span's `tfy.error_type` and `tfy.error_message` (the `Model` span for model errors), `HttpStatusCode`, model, caller and time, what the message means for the caller, and the trace link. `tfy-model-not-found` means the model or provider account does not exist in the gateway: tell the caller to check the model name, never to get access. If no rows come back, stop: don't widen the window or try another destination. Ask the user roughly when the request was made and which destination it went to.
+**Why did a trace fail, or did it succeed.** Run the every-span query (Examples) for the trace ID; it covers the last 7 days with `now()`, so it needs no `get_current_datetime`. The request failed if any span has `StatusCode = 'Error'`, even when the head span is `Ok` with HTTP 200 (MCP and guardrail spans fail this way). Report the failing span's `tfy.error_type` and `tfy.error_message` (the `Model` span for model errors), `HttpStatusCode`, model, caller and time, what the message means for the caller, and the trace link. `tfy-model-not-found` means the model or provider account does not exist in the gateway: tell the caller to check the model name, never to get access. If no rows come back, stop: don't widen the window or try another destination. Ask the user roughly when the request was made and which destination it went to.
 
 **Errors from `gateway_execute_sql`.** A 400 or 404 names the problem: fix the query. `Delta table not found` means that destination has no traces table. A 504 means the query timed out: narrow the window. Any other 5xx means the query service failed, not the SQL: retry the same query once, and if it fails again, stop. Tell the user trace queries are failing right now, give the trace link (no time window), and offer a support ticket. Never change the query or destination, or search the docs, to work around a 5xx.
 
@@ -54,7 +54,7 @@ ORDER BY "Timestamp" DESC
 LIMIT 50
 ```
 
-- Failed model calls with their error. The head span of a failed request has `StatusCode = 'Error'` and `tfy.error_message`, but `tfy.error_type` is on the `Model` span (only `client-disconnected` is on the head span; MCP and guardrail errors are on their own spans). Error type values: [span attributes](https://www.truefoundry.com/docs/ai-gateway/fetch-request-logs-span-attributes#core-span-attributes).
+- Failed model calls with their error. The head span of a failed model request has `StatusCode = 'Error'` and `tfy.error_message`, but `tfy.error_type` is on the `Model` span (only `client-disconnected` is on the head span; MCP and guardrail errors are on their own spans). Error type values: [span attributes](https://www.truefoundry.com/docs/ai-gateway/fetch-request-logs-span-attributes#core-span-attributes).
 
 ```sql
 SELECT "TraceId", "Timestamp", "GenAIRequestModel", "HttpStatusCode",
@@ -75,7 +75,7 @@ SELECT "SpanId", COALESCE(NULLIF("TfyParentSpanId", ''), "ParentSpanId") AS "Par
   "SpanAttributesNumber"['tfy.model.metric.cost_in_usd'] AS "CostUsd",
   CAST(to_unixtime("Timestamp") * 1000 AS BIGINT) - 1000 AS "LinkStartMs", CAST(to_unixtime("Timestamp") * 1000 AS BIGINT) + 3600000 AS "LinkEndMs"
 FROM "dest"."traces_v2"
-WHERE "TraceId" = '<trace-id>' AND "Date" >= '2026-10-21' AND "Timestamp" >= TIMESTAMP '2026-10-21T00:00:00Z'
+WHERE "TraceId" = '<trace-id>' AND "Date" >= to_char(now() - INTERVAL '7 days', '%Y-%m-%d') AND "Timestamp" >= now() - INTERVAL '7 days'
   AND "TfyGatewaySpanType" IS NOT NULL
 ORDER BY "Timestamp"
 LIMIT 50
@@ -113,12 +113,13 @@ Always link the traces you show: `{controlPlaneUrl}/monitoring/request-traces?fi
 - Fields: `traceId`, `userEmail`, `virtualAccount`, `agentIdentity`, `genAIRequestModel` (the model the client requested, real or virtual), `mcpServerName`.
 - A span attribute: `{"field":"<attribute>","operator":"IN","value":[...],"type":"string","apiKey":"spanAttributeKey","apiKeyValue":"<attribute>"}`, e.g. `tfy.guardrail.fqn`.
 - Time window: append `&lm_lfsts=<start epoch ms>&lm_lfets=<end epoch ms>`. For one trace, use its start minus 1 second to start plus 1 hour: the head span's `LinkStartMs` and `LinkEndMs` from the every-span query. Never convert a timestamp to epoch milliseconds by hand; select `CAST(to_unixtime("Timestamp") * 1000 AS BIGINT)` or compute it in the sandbox.
-- Destination other than the first one listed: append `&dId=<destination>`.
+- Always append `&dId=<destination>` (`default` too): without it the page opens its first listed destination.
 
 ### Checklist
 
 - [ ] Aggregate question? Then `metrics.md`, not SQL.
-- [ ] Table name from `tracesTable`, destination from `list_data_routing_destinations`, both quoted.
+- [ ] Table name from `tracesTable`, destination `default` unless the user named another, both quoted.
+- [ ] Any span with `StatusCode = 'Error'` → the request failed.
 - [ ] `"Date"` literal range plus `"Timestamp"` range; `LIMIT` on non-aggregate queries.
 - [ ] Head-span filter when listing requests; only the needed columns.
 - [ ] Empty result → data-access rules mentioned.
