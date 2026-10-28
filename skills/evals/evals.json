@@ -689,6 +689,48 @@
         "Uses register_user",
         "Explains a 403, 402 or 409 per users.md instead of retrying"
       ]
+    },
+    {
+      "id": 60,
+      "prompt": "Who changed the openai-main provider account in the last week, and what did they change?",
+      "expected_output": "Reads audit-logs.md, gets the current date, and from the sandbox calls get_audit_logs with start/end for the last 7 days, resourceType provider-account and resourceName openai-main, printing createdAt, action, subject and message per entry. For the change details, diffs previousManifest and manifest of the relevant entry only.",
+      "files": [],
+      "expectations": [
+        "Uses get_audit_logs with a start/end window and resourceType/resourceName filters, not search",
+        "Runs the query from the sandbox and prints only the summary fields",
+        "Names who made each change and when"
+      ]
+    },
+    {
+      "id": 61,
+      "prompt": "What did gowtham.v@truefoundry.com do on the platform yesterday?",
+      "expected_output": "Gets the current date, then calls get_audit_logs from the sandbox with subjectSlug gowtham.v@truefoundry.com and start/end covering yesterday, and summarises the actions by resource. Mentions that only successful changes and token or secret views are recorded.",
+      "files": [],
+      "expectations": [
+        "Filters by subjectSlug and a one-day start/end window",
+        "Does not claim the list includes failed attempts or LLM requests"
+      ]
+    },
+    {
+      "id": 62,
+      "prompt": "Who deleted the MCP server github-mcp?",
+      "expected_output": "Calls get_audit_log_actions to find DELETE_MCP_SERVER, then get_audit_logs with action DELETE_MCP_SERVER, resourceType mcp-server and resourceName github-mcp over a time range (widening it if nothing is found), and reports who deleted it and when.",
+      "files": [],
+      "expectations": [
+        "Takes the action name from get_audit_log_actions instead of guessing",
+        "Sets start and end on every get_audit_logs call",
+        "Reports the subject and time of the delete"
+      ]
+    },
+    {
+      "id": 63,
+      "prompt": "How many access grants were created this month?",
+      "expected_output": "Gets the current date, then calls get_audit_logs with action CREATE_ACCESS_GRANTS, start at the first of the month, end now, and metric count, and reports pagination.total.",
+      "files": [],
+      "expectations": [
+        "Uses metric count instead of listing entries",
+        "Uses the action name from get_audit_log_actions"
+      ]
     }
   ]
 }

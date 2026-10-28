@@ -69,6 +69,7 @@ Files are under `ai-gateway/references/`. **For any create, update or delete, al
 | Create or change a team | `teams.md` |
 | Create or change a virtual account | `virtual-accounts.md` |
 | Create a personal access token | `personal-access-tokens.md` |
+| Who changed or deleted something, what someone did; audit logs | `audit-logs.md` |
 | Numbers: usage, cost, latency, errors, cache, MCP, guardrails, rate limits, agents | `metrics.md` |
 | Single requests, spans, contents, metadata keys, feedback, trace links | `observability.md` |
 | Call a Gateway model from code or a tool — base URL, SDK, snippet | `using-models-from-code.md` |
@@ -100,7 +101,7 @@ Files are under `ai-engineering/references/`. Read the file for what you are abo
 
 - `redis`, `postgres`, `kafka` and similar exist as both an image and a chart; they are not interchangeable (a chart brings persistence and replication). Ask which, never infer from the name.
 - Deploying under an existing name replaces the whole manifest. A fresh manifest silently drops the app's env vars, secrets, limits and replicas, and still reports success — fetch the deployed manifest and edit it.
-- Docs: [applications](https://www.truefoundry.com/docs/introduction-to-a-service) · [repositories](https://www.truefoundry.com/docs/platform/repositories) · [roles and permissions](https://www.truefoundry.com/docs/platform/manage-user-roles-and-permissions) · [monitoring](https://www.truefoundry.com/docs/monitor-your-service)
+- Docs: [applications](https://www.truefoundry.com/docs/introduction-to-a-service) · [repositories](https://www.truefoundry.com/docs/platform/repositories) · [monitoring](https://www.truefoundry.com/docs/monitor-your-service)
 
 ## Before you respond
 
