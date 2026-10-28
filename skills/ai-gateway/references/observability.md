@@ -72,7 +72,8 @@ LIMIT 50
 SELECT "SpanId", COALESCE(NULLIF("TfyParentSpanId", ''), "ParentSpanId") AS "ParentId", "Timestamp", "TfyGatewaySpanType", "SpanName",
   "StatusCode", "HttpStatusCode", "GenAIRequestModel", "TfyCreatedBySubjectSlug", "Duration" / 1e6 AS "DurationMs",
   "SpanAttributesString"['tfy.error_type'] AS "ErrorType", "SpanAttributesString"['tfy.error_message'] AS "ErrorMessage",
-  "SpanAttributesNumber"['tfy.model.metric.cost_in_usd'] AS "CostUsd"
+  "SpanAttributesNumber"['tfy.model.metric.cost_in_usd'] AS "CostUsd",
+  CAST(to_unixtime("Timestamp") * 1000 AS BIGINT) - 1000 AS "LinkStartMs", CAST(to_unixtime("Timestamp") * 1000 AS BIGINT) + 3600000 AS "LinkEndMs"
 FROM "dest"."traces_v2"
 WHERE "TraceId" = '<trace-id>' AND "Date" >= '2026-10-21' AND "Timestamp" >= TIMESTAMP '2026-10-21T00:00:00Z'
   AND "TfyGatewaySpanType" IS NOT NULL
@@ -111,7 +112,7 @@ Always link the traces you show: `{controlPlaneUrl}/monitoring/request-traces?fi
 
 - Fields: `traceId`, `userEmail`, `virtualAccount`, `agentIdentity`, `genAIRequestModel` (the model the client requested, real or virtual), `mcpServerName`.
 - A span attribute: `{"field":"<attribute>","operator":"IN","value":[...],"type":"string","apiKey":"spanAttributeKey","apiKeyValue":"<attribute>"}`, e.g. `tfy.guardrail.fqn`.
-- Time window: append `&lm_lfsts=<start epoch ms>&lm_lfets=<end epoch ms>`. For one trace, use its start minus 1 second to start plus 1 hour.
+- Time window: append `&lm_lfsts=<start epoch ms>&lm_lfets=<end epoch ms>`. For one trace, use its start minus 1 second to start plus 1 hour: the head span's `LinkStartMs` and `LinkEndMs` from the every-span query. Never convert a timestamp to epoch milliseconds by hand; select `CAST(to_unixtime("Timestamp") * 1000 AS BIGINT)` or compute it in the sandbox.
 - Destination other than the first one listed: append `&dId=<destination>`.
 
 ### Checklist

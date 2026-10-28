@@ -752,7 +752,84 @@
         "Queries the default destination without asking the user to pick one",
         "Does not query every destination",
         "Reports the error message from the Model span and what the caller should change",
-        "On a 5xx from gateway_execute_sql, retries the same query once and then stops and reports instead of changing the query, destination or searching docs"
+        "On a 5xx from gateway_execute_sql, retries the same query once and then stops and reports instead of changing the query, destination or searching docs",
+        "The trace link's lm_lfsts/lm_lfets window covers 2026-10-28 13:23 UTC (lm_lfsts about 1793193834000), not another date"
+      ]
+    },
+    {
+      "id": 66,
+      "prompt": "Why did request 01a182c3f76276dc9ae49b83abd4511b fail?",
+      "expected_output": "Queries every span of the trace on default over the last 7 days and reports that the input guardrail tfy-guardrail/pii blocked the request before the model ran: HTTP 400, tfy.error_type tfy-input-guardrail on the Model span, message 'Input Guardrail checks failed for integrations: [tfy-guardrail/pii] - Details: Azure Content Safety violation'. Sent by haris@truefoundry.com to anthropic-gateway/claude-fable-5 on 2026-10-28 at 13:47 UTC. Includes a trace link.",
+      "files": [],
+      "expectations": [
+        "Names the guardrail tfy-guardrail/pii as the cause",
+        "Reports tfy-input-guardrail and the error message from the trace",
+        "Does not claim the model or provider failed"
+      ]
+    },
+    {
+      "id": 67,
+      "prompt": "Why did trace 01a183162234765a88ea8c8085e830cc fail?",
+      "expected_output": "Reports that the request was rejected with HTTP 429 because budgets were exceeded (tfy.error_type tfy-budget-limit on the Model span): 'chinmay-PAT-100' (aggregate, enforce) and 'vinit-test-2' (per-model, soft_enforce), both resetting 2026-11-01T00:00:00Z. Sent by chinmay@truefoundry.com to tfy-ai-bedrock/global.anthropic.claude-opus-5-5 on 2026-10-28 at 15:17 UTC. Includes a trace link.",
+      "files": [],
+      "expectations": [
+        "Identifies a budget limit, not a provider rate limit, as the cause",
+        "Names the budgets and the reset date from the error message",
+        "Includes a trace link"
+      ]
+    },
+    {
+      "id": 68,
+      "prompt": "Why did trace 01a17f20387d701eb40215a473bd6c38 fail?",
+      "expected_output": "Reports a 403 whose message says the user is not authorized or the model does not exist, and uses tfy.error_type tfy-model-not-found on the Model span to say the model bhavesh-test-openai/o4-mini does not exist in the gateway (it is not a permission problem). Sent by bhavesh@truefoundry.com on 2026-10-27 at 20:49 UTC. Includes a trace link.",
+      "files": [],
+      "expectations": [
+        "Says the model does not exist, based on tfy-model-not-found",
+        "Does not tell the user to request access to the model",
+        "Includes a trace link"
+      ]
+    },
+    {
+      "id": 69,
+      "prompt": "Why did trace 01a181c4c3a077809de62d26e0948c40 fail?",
+      "expected_output": "Reports that the gateway rate limit rule test-durgesh blocked the request with HTTP 429 (tfy.error_type tfy-rate-limit on the Model span, message 'Rate limit exceeded for model: bhavesh-test-microsoft-foundry/gpt-5.4-pro for rule: test-durgesh'). Sent by durgesh.tiwari@truefoundry.com on 2026-10-28 at 09:08 UTC. Includes a trace link.",
+      "files": [],
+      "expectations": [
+        "Names the rate limit rule test-durgesh",
+        "Says it is a gateway rate limit, not the provider's",
+        "Includes a trace link"
+      ]
+    },
+    {
+      "id": 70,
+      "prompt": "Did trace 01a18313b41770ebbe0887f03d7981ce succeed?",
+      "expected_output": "Reports that it failed even though the head MCPGateway span is Ok with HTTP 200: the MCP span for salesforce-mcp-oauth-app has StatusCode Error with 'Method not found: server/discover'. Sent by akshat.mishra@truefoundry.com on 2026-10-28 at 15:14 UTC. Includes a trace link.",
+      "files": [],
+      "expectations": [
+        "Does not conclude success from the head span alone",
+        "Reports the MCP span error 'Method not found: server/discover' on salesforce-mcp-oauth-app"
+      ]
+    },
+    {
+      "id": 71,
+      "prompt": "What did the request in trace 01a182ae7a8473b780111169426c377b send?",
+      "expected_output": "Reads TfyGatewayInput of the head span only, and reports the request body: model bhavesh-test-anthropic/claude-haiku-5-5, max_tokens 20, top_k 40 and one user message 'Say hi'.",
+      "files": [],
+      "expectations": [
+        "Selects TfyGatewayInput for this trace only, not SELECT *",
+        "Reports top_k 40, max_tokens 20 and the message 'Say hi'"
+      ]
+    },
+    {
+      "id": 72,
+      "prompt": "Why did trace 4bf92f3577b34da6a3ce929d0e0e4736 fail?",
+      "expected_output": "Queries every span of the trace on default over the last 7 days, finds no rows, says the trace is not in default in that window (possibly also because of data-access rules), and asks the user roughly when the request was made and which destination it went to. Does not query other destinations on its own or invent a cause.",
+      "files": [],
+      "expectations": [
+        "Queries default once over the last 7 days",
+        "Does not query every destination",
+        "Asks the user when the request was made and which destination",
+        "Does not invent a failure reason"
       ]
     }
   ]
