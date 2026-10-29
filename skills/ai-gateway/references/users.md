@@ -1,6 +1,6 @@
 ---
 name: users
-description: Read for adding or inviting users, a user's status (active, invite pending, deactivated), resending an invite, deactivating, reactivating or deleting a user, and why a user can't be added. For giving a user roles or access, read `access-management.md`.
+description: Read for adding or inviting users, a user's status (active, invite pending, deactivated), resending an invite, resetting a password, deactivating, reactivating or deleting a user, and why a user can't be added. For giving a user roles or access, read `access-management.md`.
 ---
 
 Users are people who log in to the tenant. Access is not part of the user: a new user gets only the baseline, and roles and grants are given separately (`access-management.md`).
@@ -33,7 +33,11 @@ It needs the Manage Users permission. It fails when:
 
 ## Resend an invite
 
-There is no tool for it. Send the user to `{controlPlaneUrl}/access-management?tab=users` → the user's row menu → **Resend Invite**. It applies to invite-pending users.
+`resend_user_invite` with `email` and `acceptInviteClientUrl: "{controlPlaneUrl}/invite-accept"`. Use it for an invite-pending user (`inviteAccepted: false`), or an email that is not in the tenant yet (that adds the user and sends the invite). Not for an active user: it marks the invite unaccepted. Needs Manage Users, and only when TrueFoundry manages login (403 otherwise). Manual provisioning must be on — same 403 and 402 as `register_user`.
+
+## Reset a password
+
+`reset_user_password` with `email` and `resetPasswordClientUrl: "{controlPlaneUrl}/reset-password"`. Emails a reset link to a user already in the tenant; it does not set the password. 404 if the email is not in the tenant. An invite-pending user has no password yet — resend the invite instead. Needs tenant-admin, and password login must be enabled.
 
 ## Deactivate or reactivate
 
