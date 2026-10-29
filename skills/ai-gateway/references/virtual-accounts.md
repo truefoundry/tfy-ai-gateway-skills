@@ -1,69 +1,94 @@
 ---
 name: virtual-accounts
-description: Create and manage virtual accounts — non-human identities for applications and services with scoped permissions.
+description: Read before listing, creating or changing virtual accounts — non-human identities for applications and services with scoped permissions — or when a user asks about VA tokens, rotation or secret store sync.
 ---
 
-**Virtual Accounts** are non-human identities for applications, services, and CI/CD pipelines. Each virtual account has its own token (VAT) and can be scoped to minimum required permissions. One virtual account per application is recommended.
+**Virtual accounts (VAs)** are non-human identities for applications, services and CI/CD pipelines. Each has its own token (VAT) and should hold only the permissions it needs. Recommend one VA per application.
 
-## Fetching existing virtual accounts
+## Reading virtual accounts
 
-Use the `list_virtual_accounts` tool to get the list of all virtual accounts. Use `get_virtual_account` to inspect a single VA by name or ID.
+- `list_virtual_accounts` returns the VAs you can access. To find one by name, pass `nameSearchQuery=<name>` (substring match).
+- `get_virtual_account` takes the VA's `id` (from `list_virtual_accounts`); it does not accept a name.
 
-## Creating Virtual Accounts (Write Flow)
+## Inputs to collect
 
-### Phase 1: Check for Existing Virtual Accounts
+Ask in one question, because the first two cannot be changed after creation:
 
-Call `list_virtual_accounts` and check if a virtual account matching what the user asked for already exists.
+- **Owner team** (`ownedBy.team`, optional, not `everyone`) — cannot be added or changed later. Omit `ownedBy` when unset.
+- **Expiration date** (optional, `YYYY-MM-DD`, in the future) — cannot be added or changed later.
+- **Access** — for each grant: role, resource type, resource FQN (see "Common permissions").
+- Optional: auto-rotation, secret store sync, notifications (see "Token features").
 
-- **Matches found:** Present the matching virtual accounts to the user and ask whether they want to create a new virtual account (with a different name) or update an existing one. Carry their choice forward into Phase 2.
-- **No matches:** Proceed to Phase 2.
+## Creating a virtual account
 
-### Phase 2: Get Schema
+1. In one parallel batch: `list_virtual_accounts` with `nameSearchQuery=<name>` (similar VAs you can access), `check_virtual_account_exists` with `name` (whether the exact name is taken tenant-wide), and `get_manifest_json_schema` with type `virtual-account` (reuse it if still in the conversation).
+2. If the name is taken or similar VAs exist, show them and ask whether to create a VA with a different name or update an existing one. Restate the user's choice (create a new name, or update `<name>`) in your reply before continuing. For an update, go to "Updating a virtual account".
+3. Build the manifest without `permissions`. Set `ownedBy.team` only when the user names a team; otherwise omit `ownedBy`. Then `validate_manifest` → `apply_manifest` per `write-rules.md`.
+4. Grant the requested access in one `create_grants` call with `subjectType: virtualaccount` and the new VA's `id` (from `list_virtual_accounts`) as `subjectId` (`access-management.md` → Access to one resource). If it fails, the VA exists with no access. Never re-apply; tell the user and retry only `create_grants` once the error is fixed. On 403 the caller cannot manage that resource: a manager of it must grant it, or offer to delete the VA.
+5. Send the user to generate the token (see "Token").
 
-1. Call `get_manifest_json_schema` with type `virtual-account`.
+## Updating a virtual account
 
-### Phase 3: Determine Permissions
+**Never send `permissions`**; delete it from the fetched manifest (`write-rules.md` → Access). `get_virtual_account` returns the list last applied, not current access, so re-sending it can revoke grants.
 
-1. A virtual account MUST have at least one permission — it cannot exist with zero permissions. Use `ask_user_question` to ask the user what permissions this VA should have (role, resource, resource type).
-2. **When updating/revoking permissions**: if removing a permission would leave the VA with zero permissions, do NOT proceed. Inform the user that a VA cannot have empty permissions — they must either keep at least one permission or delete the VA entirely.
+- To add or remove a permission, use the grant tools with `subjectType: virtualaccount` and the VA's `id` as `subjectId` (`access-management.md` → Access to one resource). `list_grants` with `subjectType: virtualaccount` and `subjectId` shows what it holds now.
+- Keep `ownedBy` and `expiration_date` exactly as returned.
 
-### Phase 4: Validate and Apply
+## Common permissions
 
-Build the manifest as JSON → pass to `validate_manifest` → fix if needed → pass to `apply_manifest`.
+| Use case | `roleId` | `resourceType` |
+|---|---|---|
+| Access models in a provider account | `provider-account-access` | `provider-account` |
+| Access all model provider accounts | `provider-account-access` | `provider-account` (FQN `model-provider-accounts:*`) |
+| Use an MCP server | `mcp-server-user` | `mcp-server` |
+| Invoke an agent | `agent-access` | `agent` |
+| Access a secret group | `secret-group-access` | `secret-group` |
+| View workspace deployments | `workspace-viewer` | `workspace` |
+| Deploy to workspace | `workspace-editor` (shown as "Workspace Member" in the UI) | `workspace` |
+| Tenant-wide role | the `id` from `list_roles` with `roleName` (`member`, `read-only-member` or a custom role); never the name | `tenant` (FQN = tenant name) |
 
-### Manifest Structure
+- `resourceFqn` for a workspace is `<cluster-name>:<workspace-name>`.
+- All resources of a kind is one grant with `<category>:*` (model provider accounts: `model-provider-accounts:*`), not `*` and not one grant per account (`access-management.md` → Grant).
+- A VA can hold only one tenant-level role. Only tenant admins can grant `tenant-admin`.
+- You can only grant roles on resources you can manage; otherwise `create_grants` returns 403.
+
+## Manifest
 
 ```yaml
 type: virtual-account
-name: <unique-va-name>
-permissions:
-  - role_id: <role-id>
-    resource_fqn: <resource-fqn>
-    resource_type: <resource-type>
-tags:
-  purpose: <purpose-tag>
-  created-by: <creator-email>
-token_type: <jwt>
+name: <va-name>                  # 3-36 chars: lowercase letters, digits, hyphens; starts with a letter
+ownedBy:                         # optional; not "everyone"; cannot be added or changed later
+  team: <team-name>
+expiration_date: <YYYY-MM-DD>    # optional, future date; cannot be added or changed later
+auto_rotate:                     # optional; set at creation
+  auto_rotate_interval: 360      # days, min 30
+  grace_period: 30               # days, min 1
+secret_store_config:             # optional; or { type: tfy-secrets, secret_group, key }
+  type: secret-store
+  integration_fqn: <secret-store-integration-fqn>
+  secret_path: <path>
+tags:                            # optional; no spaces, values <= 64 chars
+  purpose: <purpose>
 ```
 
-### Common Permission Patterns
+Do not set `token_type`. It overrides the tenant default and cannot be changed after creation.
 
-| Use Case | role_id | resource_type |
-|---|---|---|
-| Access models in a provider account | `provider-account-access` | `provider-account` |
-| View workspace deployments | `workspace-viewer` | `workspace` |
-| Deploy to workspace | `workspace-member` | `workspace` |
+## Token features
 
-### Token generation
+- **Auto-rotation:** `auto_rotate_interval` (days, default 360, min 30) and `grace_period` (days, default 30, min 1) — the old token stays valid during the grace period. Set it at creation.
+- **Secret store sync:** an integrated secret store (`type: secret-store`: AWS Parameter Store, AWS Secrets Manager, Google Secret Manager, HashiCorp Vault, Azure Vault, etc.) or a TrueFoundry secret group (`type: tfy-secrets`). Tokens re-sync on every rotation.
+- **Notifications:** email or Slack on rotation or upcoming expiry; the email or Slack integration must be set up first.
 
-The agent can create a virtual account but **must never generate its token (VAT)** — not via tools, not via API calls, not via docs API references. Always direct the user to generate the token themselves from the Virtual Accounts page in the UI (use `controlPlaneUrl` from `get_me` to build the link).
+## Token
 
-### Checklist
+**Never generate or fetch a VA's token** — not via tools, API calls or docs API references. Send the user to `{controlPlaneUrl}/access-management?tab=service-accounts`, open **Tokens** on the VA's row, and select **Get Token** (needs the Manage Virtual Account permission). `controlPlaneUrl` is in the session context; call `get_session_context` only if it is missing.
 
-- [ ] Did I call `get_manifest_json_schema` with type `virtual-account`?
-- [ ] Did I ask the user what permissions this VA should have?
-- [ ] Does the VA have at least one permission assigned?
-- [ ] If revoking permissions, did I verify the VA won't end up with zero permissions?
-- [ ] After creation, did I direct the user to the UI to generate the token?
+## Checklist
+
+- [ ] Do I have the `virtual-account` schema from `get_manifest_json_schema` in the conversation? If not, call it again.
+- [ ] Did I ask for the optional owner team and expiration date before creating, and omit `ownedBy` when no team was chosen?
+- [ ] Did I leave `permissions` out of every manifest and grant access with `create_grants` after creating?
+- [ ] Did I leave out `token_type`?
+- [ ] After creation, did I send the user to the UI to get the token?
 
 For more info: `search_docs` with "virtual account creation", "virtual account token", "VAT rotation", "virtual account permissions".

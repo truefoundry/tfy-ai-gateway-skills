@@ -1,16 +1,18 @@
 ---
 name: image-pull
-description: ImagePullBackOff, ErrImagePull, registry auth failures, wrong tag/digest, private registry credentials. Read when pods never start and reason is ImagePullBackOff or ErrImagePull, or events mention Failed / FailedToPullImage.
+description: ImagePullBackOff, ErrImagePull, registry auth failures, wrong tag/digest, private registry credentials. Read when pods never start and reason is ImagePullBackOff or ErrImagePull, or events with reason Failed or BackOff mention pulling the image.
 ---
 
 If the image cannot be pulled, the container never runs. There are **no application logs**. Looking at `get_logs` and reporting silence is a misdiagnosis.
 
 ## Triage
 
-1. Confirm `reason: ImagePullBackOff` or `ErrImagePull` on `list_k8s_pods`.
-2. `list_application_events` / `list_k8s_events` — message usually includes registry host, tag, and auth error text.
-3. From `get_application` / `get_deployment`, read the image URI the deploy is trying to use (active manifest or build `imageUri`).
-4. `get_cluster` — default docker registry integration for the cluster when the image is private.
+1. Confirm container `reason: ImagePullBackOff` or `ErrImagePull` in `get_application_state`.
+2. `list_application_events` — pull failures have reason `Failed` or `BackOff`; the message usually includes registry host, tag, and auth error text.
+3. From `get_application` / `get_deployment`, read the image URI the deploy is trying to use (manifest `image` or build `imageUri`; the container's `image` in `get_application_state` shows it too).
+4. `get_cluster` → `manifest.default_registry_fqn` when the image is private.
+
+Steps 2–4 are independent: issue them in one message.
 
 ## Message → cause
 
