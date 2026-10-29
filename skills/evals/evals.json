@@ -661,12 +661,12 @@
     {
       "id": 57,
       "prompt": "Which users haven't accepted their invite yet?",
-      "expected_output": "Reads users.md and calls list_users, then lists users whose metadata.inviteAccepted is false (invite pending). Mentions that resending an invite is done from the Users page row menu.",
+      "expected_output": "Reads users.md and calls list_users, then lists users whose metadata.inviteAccepted is false (invite pending). Offers resend_user_invite for those emails (acceptInviteClientUrl is the control plane URL plus /invite-accept), and does not use it on active users.",
       "files": [],
       "expectations": [
         "Uses list_users and reads metadata.inviteAccepted",
         "Does not treat registeredInIdp false as invite pending",
-        "Points to the UI for resending, without claiming a resend tool"
+        "Uses resend_user_invite only for invite-pending users, not for active users"
       ]
     },
     {
@@ -693,10 +693,10 @@
     {
       "id": 60,
       "prompt": "Who changed the openai-main provider account in the last week, and what did they change?",
-      "expected_output": "Reads audit-logs.md, gets the current date, and from the sandbox calls get_audit_logs with start/end for the last 7 days, resourceType provider-account and resourceName openai-main, printing createdAt, action, subject and message per entry. For the change details, diffs previousManifest and manifest of the relevant entry only.",
+      "expected_output": "Reads audit-logs.md, gets the current date, looks up openai-main, and from the sandbox calls get_resource_audit_logs with start/end for the last 7 days, resourceType provider-account and that resourceId, printing createdAt, action, subject and message per entry. For the change details, diffs previousManifest and manifest of the relevant entry only.",
       "files": [],
       "expectations": [
-        "Uses get_audit_logs with a start/end window and resourceType/resourceName filters, not search",
+        "Uses get_resource_audit_logs with a start/end window, resourceType provider-account and the resourceId, not search or get_audit_logs",
         "Runs the query from the sandbox and prints only the summary fields",
         "Names who made each change and when"
       ]
