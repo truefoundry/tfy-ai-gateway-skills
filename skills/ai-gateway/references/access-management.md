@@ -29,7 +29,7 @@ Every piece of access is a **grant**: a subject (user, team, virtual account or 
 
 | Need | Use |
 |---|---|
-| Broad platform capability for a person or group (e.g. "can create provider accounts") | A tenant role or custom role, granted on the tenant (see "Tenant roles") |
+| Broad platform capability for a person or group | A tenant role or custom role, granted on the tenant (see "Tenant roles") |
 | Access to one specific resource (a provider account, MCP server, workspace) | The grant tools (see "Access to one resource") |
 | Access kept as code (in Git, applied with other manifests) | A `role-binding` (see "Role bindings") |
 | Several people need the same access | Grant it to a team; future members inherit it |
@@ -52,7 +52,9 @@ Identify the resource by its `fqn` (as `resourceFqn`) or `id` (as `resourceId`) 
 
 **Who has access:** `list_grants` with `resourceType` and `resourceId`. Each row has `subjectType`, `subjectSlug` (email or name), `roleId`, `roleName` and `source`. What one subject holds: `list_grants` with `subjectType` and `subjectId` (a user's rows include grants inherited from their teams). It returns 100 rows by default; pass `limit` and `offset` for more.
 
-**Grant:** `create_grants` with `{"grants": [{"resourceType", "resourceFqn" or "resourceId", "subjectType", "subjectId", "roleId"}]}` — up to 100 grants, all or nothing; an existing grant is left as is. `subjectType` is `user`, `team`, `virtualaccount` or `agent`. Grant every model provider account as one grant. `resourceFqn` is `model-provider-accounts:*` (do not look it up or list accounts). `roleId` is `provider-account-access`, or `provider-account-manager` to manage them. Caller needs tenant-admin or Assign Role. Subject is `virtualaccount` or `agent`. Bare `*` is rejected. On 403, stop. Revoke that `resourceFqn`.
+**Grant:** `create_grants` with `{"grants": [{"resourceType", "resourceFqn" or "resourceId", "subjectType", "subjectId", "roleId"}]}` — up to 100 grants, all or nothing; an existing grant is left as is. `subjectType` is `user`, `team`, `virtualaccount` or `agent`.
+
+All model provider accounts is one wildcard grant: `resourceType` `provider-account`, `resourceFqn` `model-provider-accounts:*` (do not list accounts), `roleId` `provider-account-access` (`provider-account-manager` to manage them). It needs tenant-admin or Assign Role and accepts only `virtualaccount` or `agent`; for a user or team, say so and offer grants on named accounts. Bare `*` is rejected.
 
 **Revoke:** `revoke_grant` with one grant's `resourceType`, `resourceId` or `resourceFqn`, `subjectType`, `subjectId` and `roleId`, copied from its `list_grants` row. Only `AUTH_API` grants can be revoked: a `ROLE_BINDING` grant returns 404, so change or delete its binding instead. A grant a user inherits from a team is revoked on the team. To change a role, create the new grant first, then revoke the old one.
 
