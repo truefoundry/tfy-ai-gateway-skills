@@ -11,7 +11,7 @@ Use SQL on traces only for what the metrics API cannot do: listing or finding re
 
 ### Tables
 
-- The traces table — its name varies by tenant: take `tracesTable` from the session context (call `get_session_context` only if it is missing); never assume `traces`. In this skill, "the `traces` table" means that table. Schema: `ai-gateway/references/tables/traces.md`.
+- The traces table — its name varies by tenant: take `tracesTable` from the session context; never assume `traces`. In this skill, "the `traces` table" means that table. Schema: `ai-gateway/references/tables/traces.md`.
 - `gateway_feedbacks` — feedback (ratings, comments) on spans. Schema: `ai-gateway/references/tables/gateway_feedbacks.md`.
 
 ### Steps

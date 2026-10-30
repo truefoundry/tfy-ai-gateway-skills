@@ -81,7 +81,7 @@ Do not set `token_type`. It overrides the tenant default and cannot be changed a
 
 ## Token
 
-**Never generate or fetch a VA's token** — not via tools, API calls or docs API references. Send the user to `{controlPlaneUrl}/access-management?tab=service-accounts`, open **Tokens** on the VA's row, and select **Get Token** (needs the Manage Virtual Account permission). `controlPlaneUrl` is in the session context; call `get_session_context` only if it is missing.
+**Never generate or fetch a VA's token** — not via tools, API calls or docs API references. Send the user to `{controlPlaneUrl}/access-management?tab=service-accounts`, open **Tokens** on the VA's row, and select **Get Token** (needs the Manage Virtual Account permission). `controlPlaneUrl` comes from the session context.
 
 ## Checklist
 

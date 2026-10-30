@@ -63,7 +63,7 @@ There is no per-agent partition. These combinations are rejected with 400 at app
 
 ## Steps
 
-1. **Session context** — `controlPlaneUrl` is in your instructions; call `get_session_context` only if it is missing.
+1. **Session context** — `controlPlaneUrl` comes from the session context.
 2. **One batch:** `list_gateway_config_instances` for both families; `get_gateway_config` with `type: gateway-rate-limiting-config` (V1); `get_manifest_json_schema` for the family when writing; any metadata-key discovery query. Each `data[]` row has `type` and the full `manifest` (with `name`). For "what rate limits exist", report V1 rules and V2 limits together.
 3. **Create:** pick a `name` not already used in that family. **Update:** start from that limit's `manifest` in the list and change only what was asked; applying an existing `name` replaces the whole limit. Build from the template below; `mode` and `log_request_body_on_block` have defaults (`enforce`, `false`) but writing them out makes the intent clear.
 4. **Validate, then apply** (`write-rules.md` → Steps). Writes need tenant admin.

@@ -21,7 +21,7 @@ Every application type has a page in the console:
 {controlPlaneUrl}/deployments/{applicationId}
 ```
 
-- `controlPlaneUrl` comes from the session context in your instructions; call `get_session_context` only if it is missing.
+- `controlPlaneUrl` comes from the session context.
 - `applicationId` is `data.applicationId` from the `apply_manifest` response (`data.id` there is the deployment id), or `id` from `get_application` or a `list_applications` row.
 
 ## Service and async-service endpoint

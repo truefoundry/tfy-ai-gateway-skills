@@ -101,4 +101,4 @@ LIMIT 10
 - [ ] Did I deduplicate by `FeedbackId` (latest `CreatedAt`) before filtering `"IsDeleted" = false`?
 - [ ] When joining with traces, did I join on `"TargetTraceId"` and `"TargetSpanId"`?
 - [ ] Did I filter `"Date"` on both tables, and use the same destination for both?
-- [ ] Did I replace `<tracesTable>` with `tracesTable` from the session context (call `get_session_context` only if it is missing)?
+- [ ] Did I replace `<tracesTable>` with `tracesTable` from the session context?

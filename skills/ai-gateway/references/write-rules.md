@@ -17,7 +17,7 @@ Read this file in the same batch as the entity's reference file whenever the use
 ## Steps
 
 1. **Read** the entity's reference file and this file (one batch).
-2. **Session context** — the current user's identity and `controlPlaneUrl` are in your instructions. Call `get_session_context` only if they are missing.
+2. **Session context** — the current user's identity and `controlPlaneUrl` come from the session context.
 3. **Schema** — call `get_manifest_json_schema` for the entity type. The reference templates are simplified; the schema is the contract `validate_manifest` checks. Reuse the schema if it is still in the conversation; otherwise call it again. When editing a live manifest you just fetched, you can skip it and fix from `validate_manifest` errors. If the result is saved to a file, extract only the paths you need with one `jq`.
 4. **Ask** for every decision with more than one valid answer (auth method, region, which models, create vs update) with `ask_user_question`. Guessing produces entities the user then has to find and fix. If you are a sub-agent and the tool is unavailable, stop and return the question.
 5. **Fetch existing state** the entity file asks for (see the next two sections). Steps 1, 3 and 5 are independent: issue them together. Call `get_manifest_json_schema` for large types (`service`, `virtual-model`, guardrail groups) in its own batch, because large results batched together get saved to a file instead of shown.

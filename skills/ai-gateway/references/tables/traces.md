@@ -5,7 +5,7 @@ description: Stores OTEL spans with additional columns for gateway-specific info
 
 ## CRITICAL
 
-- The physical table name varies by tenant. Query `"<destination>"."<tracesTable>"` with `tracesTable` from the session context (call `get_session_context` only if it is missing). Never assume `traces`.
+- The physical table name varies by tenant. Query `"<destination>"."<tracesTable>"` with `tracesTable` from the session context. Never assume `traces`.
 - Partitioned by `Date` and `Hour` (UTC strings from `Timestamp`). Always filter a `"Date"` literal range as well as `"Timestamp"`.
 - `TfyGatewayInput` and `TfyGatewayOutput` hold the full request and response payloads: large, sensitive JSON. Select them only when the user asks for contents, and only for a few rows.
 - Head span (the request itself): `COALESCE(NULLIF("TfyParentSpanId", ''), "ParentSpanId") = ''` (misses requests sent with the caller's own trace context). Its `TfyGatewaySpanType` is the request type (`ChatCompletion`, `Responses`, `Messages`, `MCPGateway`, `Embedding`, …). Child spans: `Model` (one per provider call), `MCP`, `Guardrail`, `CacheLookup`, `CacheWrite`, …. Spans with a NULL `TfyGatewaySpanType` are internal HTTP instrumentation; skip them. For other values, `SELECT DISTINCT "TfyGatewaySpanType"` over a short window; values are case sensitive.
