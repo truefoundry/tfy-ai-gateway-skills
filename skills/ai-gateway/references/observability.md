@@ -96,7 +96,7 @@ ORDER BY "Requests" DESC
 LIMIT 50
 ```
 
-- Span attribute keys in use: the same query on `map_keys("SpanAttributesString")` (or `SpanAttributesNumber`) with `LIMIT 200`; drop the head-span filter to include child spans. Run it before saying an attribute is not recorded: the docs list only some.
+- Span attribute keys in use: the same query on `map_keys("SpanAttributesString")` (or `SpanAttributesNumber`) with `LIMIT 200`; drop the head-span filter to include child spans. Use it to answer whether an attribute is recorded.
 
 - Filter by team: `array_has("SpanAttributesStringList"['tfy.request.created_by_subject_teams'], '<team>')`.
 - Guardrail outcome of a request: the head span carries the worst result in `"SpanAttributesString"['tfy.guardrail.result']` only for some request types; see [triggered guardrails](https://www.truefoundry.com/docs/ai-gateway/fetch-request-logs-span-attributes#triggered-guardrails-on-request-spans), or query the `Guardrail` child spans.
@@ -121,9 +121,7 @@ Always link the traces you show: `{controlPlaneUrl}/monitoring/request-traces?fi
 
 - [ ] Aggregate question? Then `metrics.md`, not SQL.
 - [ ] Table name from `tracesTable`, destination `default` unless the user named another, both quoted.
-- [ ] Success or failure judged from every span, not the head span.
-- [ ] "Is X recorded?" answered from the keys in live data, not from the docs.
-- [ ] `"Date"` literal range plus `"Timestamp"` range; `LIMIT` on non-aggregate queries.
+- [ ] Success or failure judged from every span, not the head span.- [ ] `"Date"` literal range plus `"Timestamp"` range; `LIMIT` on non-aggregate queries.
 - [ ] Head-span filter when listing requests; only the needed columns.
 - [ ] Empty result → data-access rules mentioned.
 - [ ] 5xx → one retry of the same query, then stop and report.

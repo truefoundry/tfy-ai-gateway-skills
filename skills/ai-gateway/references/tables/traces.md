@@ -14,7 +14,7 @@ description: Stores OTEL spans with additional columns for gateway-specific info
 - Team filter: `array_has("SpanAttributesStringList"['tfy.request.created_by_subject_teams'], '<team>')`. A caller with no teams has the string `'[]'` in `SpanAttributesString` instead.
 - Integer attributes are in `SpanAttributesNumber` as DOUBLE. Attributes that have their own column (input, output, span type, metadata, conversation ID, caller) are not in the maps.
 - Calling client: every head span has `"SpanAttributesString"['user_agent.original']` (the caller's User-Agent, e.g. `claude-cli/…`) and `['client.address']` (the first `Forwarded`/`X-Forwarded-For` entry, which the caller can set, else the connection's address). Spans with a NULL `TfyGatewaySpanType` carry the gateway's own outbound user agent (`node`). Show IPs only when asked.
-- Whether an attribute is recorded: list the keys in use with `map_keys` on live data (`observability.md` → Examples) before answering; the [span attributes](https://www.truefoundry.com/docs/ai-gateway/fetch-request-logs-span-attributes) page lists only some and explains what they mean. `gen_ai.*` attributes are written only when [enabled](https://www.truefoundry.com/docs/ai-gateway/fetch-request-logs-span-attributes-genai#enabling-genai-attributes); don't rely on them.
+- Whether an attribute is recorded: list the keys in use with `map_keys` (`observability.md` → Examples). What an attribute means: [span attributes](https://www.truefoundry.com/docs/ai-gateway/fetch-request-logs-span-attributes). `gen_ai.*` attributes are written only when [enabled](https://www.truefoundry.com/docs/ai-gateway/fetch-request-logs-span-attributes-genai#enabling-genai-attributes); don't rely on them.
 
 ## Schema
 
