@@ -121,7 +121,8 @@ Always link the traces you show: `{controlPlaneUrl}/monitoring/request-traces?fi
 
 - [ ] Aggregate question? Then `metrics.md`, not SQL.
 - [ ] Table name from `tracesTable`, destination `default` unless the user named another, both quoted.
-- [ ] Success or failure judged from every span, not the head span.- [ ] `"Date"` literal range plus `"Timestamp"` range; `LIMIT` on non-aggregate queries.
+- [ ] Success or failure judged from every span, not the head span.
+- [ ] `"Date"` literal range plus `"Timestamp"` range; `LIMIT` on non-aggregate queries.
 - [ ] Head-span filter when listing requests; only the needed columns.
 - [ ] Empty result → data-access rules mentioned.
 - [ ] 5xx → one retry of the same query, then stop and report.
