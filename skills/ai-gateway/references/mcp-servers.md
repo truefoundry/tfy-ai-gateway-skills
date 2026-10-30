@@ -1,22 +1,25 @@
 ---
 name: mcp-servers
-description: Deploy and connect MCP Servers to the AI Gateway to provide tools to models and agents
+description: Read when the user wants to find, register, update, delete or connect to an MCP server on the AI Gateway (TrueFoundry-managed, remote, OpenAPI, stdio or virtual), list a server's tools, or get its endpoint URL.
 ---
 
-**MCP Servers** can be registered to MCP Gateway. MCP Servers can be of type `mcp-server/tfy-managed`, `mcp-server/remote`, `mcp-server/openapi`, `mcp-server/stdio`, or `mcp-server/virtual`.
+**MCP servers** registered on the MCP Gateway are one of `mcp-server/tfy-managed`, `mcp-server/remote`, `mcp-server/openapi`, `mcp-server/stdio` or `mcp-server/virtual`. Every write also follows `write-rules.md` (steps, granting access, `force: false` on updates, UI link); read it in the same batch.
 
 ## Contents
-- Fetching existing MCP servers
-- Listing tools for an MCP server
-- Creating MCP Servers (Write Flow)
-  - Step 1: Check the MCP Catalogue
-  - Step 2: Build the manifest based on source (TFY Managed / Integration / Online search / OpenAPI / Virtual)
-  - When to direct the user to the UI
-  - Step 3: Validate and Apply
+- Finding servers and their tools
+- Create: Step 1 Check for existing MCP servers · Step 2 Check the MCP catalogue · Step 3 Build the manifest · Step 4 Validate and apply
+- Update and delete
+- Endpoint URL
+- Checklist
 
-## Fetching existing MCP servers
+## Finding servers and their tools
 
-Use `list_mcp_servers` to list all MCP servers and `get_mcp_server` to get one by `id`. The response looks like:
+- By name: `list_mcp_servers` with `filter={"op":"AND","value":[{"column":"name","op":"eq","value":"<name>"}]}`.
+- By purpose: `list_mcp_servers` with `attributes=id,name,manifest` to keep the response small. If the result is saved to a file, extract only `id`, `manifest.name`, `manifest.type` and `manifest.description` with one `jq`.
+- One server: `get_mcp_server` with its `id`.
+- Tools: `list_mcp_server_tools` with `mcpServerId` (the server's `id`). Reuse the `id` if the `list_mcp_servers` result is still in the conversation; otherwise call `list_mcp_servers` again with a `name` filter. It errors if the server is not connected or misconfigured; the message says why.
+
+Response shape of `list_mcp_servers`:
 
 ```yaml
 data:
@@ -25,233 +28,170 @@ data:
     manifest:
       name: mcp-server-1
       type: mcp-server/remote
-      # Fields specific to mcp-server/remote
+      # type-specific fields
     createdBySubject: { ... }
-    createdAt: ...
-    updatedAt: ...
 pagination:
   total: ...
   offset: 0
-  limit: 100
 ```
 
-## Listing tools for an MCP server
+## Create
 
-Always use `list_mcp_server_tools` (pass `mcpServerId` — the server's `id` from `list_mcp_servers`) whenever you need to know what tools an MCP server exposes. Returns the tool list on success. Throws an error if the server is not connected or misconfigured — the error message indicates the issue.
+### Step 1: Check for existing MCP servers
 
-## Creating MCP Servers (Write Flow)
+Steps 1 and 2 are independent: call `list_mcp_servers` (filtered as above) and `list_mcp_catalogue` in one batch.
 
-### Step 1: Check for Existing MCP Servers
+- **Match found:** show it and ask whether to create a new server (with a different name) or update the existing one. If that choice is no longer in the conversation, ask again before applying.
+- **No match:** continue.
 
-Call `list_mcp_servers` and check if an MCP server matching what the user asked for already exists (by name if they gave one, or by type/purpose if the request is general).
+### Step 2: Check the MCP catalogue
 
-- **Matches found:** Present the matching servers to the user and ask whether they want to create a new server (with a different name) or update an existing one. Carry their choice forward into Step 2.
-- **No matches:** Proceed to Step 2.
+`list_mcp_catalogue` returns `{ "tfyManaged": [...], "integrations": [...] }`. Look for the requested server in this order:
 
-### Step 2: Check the MCP Catalogue
+1. **`tfyManaged`** — hosted by TrueFoundry. Each entry has a `tfyManagedMcpManifest` with `type: mcp-server/tfy-managed` and a `server_identifier`. Use Path A.
+2. **`integrations`** — known remote servers with a `url` and, optionally, an `auth_data` showing the auth type (`oauth2`, `header` or none). Use Path B.
+3. **Not in the catalogue** — search online. Prefer a remote (HTTP/SSE/streamable) endpoint; fall back to stdio only if none exists. Use Path C. If the user has an OpenAPI spec, use Path D. To combine or subset tools of existing servers, use Path E.
 
-Call `list_mcp_catalogue` to get the catalogue of known MCP servers. The response has two sections:
+### Step 3: Build the manifest
 
-```json
-{
-  "tfyManaged": [ ... ],
-  "integrations": [ ... ]
-}
-```
+Call `get_manifest_json_schema` for the chosen type. Templates below are simplified. `name` is 3–73 chars, lowercase letters, digits and hyphens, starting with a letter; it cannot change later.
 
-Search for the user's requested MCP server by name in this order:
+#### Path A: TFY-managed
 
-1. **`tfyManaged`** — TrueFoundry-managed servers. These are fully hosted by TrueFoundry — no URL, auth, or config needed from the user. Each entry has a `tfyManagedMcpManifest` with `type: "mcp-server/tfy-managed"` and a `server_identifier`.
-
-2. **`integrations`** — Known remote MCP servers with pre-filled URLs and auth type info. Each entry has `url`, and optionally `auth_data` with the auth type (`oauth2`, `header`, or none). For OAuth2 integrations, you'll still need to collect `client_id` and `client_secret` from the user (unless the server supports Dynamic Client Registration).
-
-3. **Not found in catalogue** — Search online. Prefer remote (HTTP/SSE) servers first; only fall back to stdio if no remote endpoint exists.
-
-### Step 3: Build the manifest based on source
-
-Call `get_manifest_json_schema` with the appropriate type (`mcp-server/tfy-managed`, `mcp-server/remote`, `mcp-server/stdio`) to get the full schema.
-
-#### Path A: TFY Managed (from `tfyManaged`)
-
-Use the `tfyManagedMcpManifest` directly from the catalogue entry. The manifest is minimal:
+Copy `tfyManagedMcpManifest` from the catalogue entry (keep its `server_identifier`) and add `name` and `description`. The user supplies no URL or credentials; auth comes from the catalogue. If the server uses OAuth, each user is prompted to connect on first use.
 
 ```yaml
+type: mcp-server/tfy-managed
 name: <name>
 description: <description>
-type: mcp-server/tfy-managed
-server_identifier: <server_identifier>
-collaborators:
-  - role_id: mcp-server-manager
-    subject: user:<current-user-email>
-  - role_id: mcp-server-user
-    subject: team:everyone
+server_identifier: <server_identifier from the catalogue>
 ```
 
-No auth config needed — TrueFoundry manages everything.
+#### Path B: Catalogue integration (remote)
 
-#### Path B: Integration (from `integrations`)
-
-Use the `url` from the catalogue. Check the `auth_data` field to determine the auth type:
-
-- **No `auth_data`** → no auth needed. Build a simple remote manifest.
-- **`auth_data.type: "oauth2"`** → Call `get_mcp_server_oauth_config` with the MCP server's URL to get OAuth metadata (authorization_url, token_url, scopes, etc.). Check if the metadata includes `registration_endpoint` — if yes, Dynamic Client Registration (DCR) is supported and `client_id`/`client_secret` are not needed. If no `registration_endpoint`, ask the user for their `client_id` and `client_secret` (they'll need to register an OAuth app with the provider first).
-- **`auth_data.type: "header"`** → The catalogue shows the header keys with placeholder values (e.g. `"Authorization": "Bearer YOUR_API_KEY"`). Ask the user for the actual secret values.
-
-Use exactly ONE `auth_data` block — pick the one that matches the auth type.
-
-**No auth (omit `auth_data` entirely):**
+Take `url` from the catalogue entry and pick the auth from its `auth_data.type`. Use exactly one `auth_data` block.
 
 ```yaml
+type: mcp-server/remote
 name: <unique-name>
 description: <description>
-url: <url-from-catalogue>
-type: mcp-server/remote
-collaborators:
-  - role_id: mcp-server-manager
-    subject: user:<current-user-email>
-  - role_id: mcp-server-user
-    subject: team:everyone
+url: <url from the catalogue>
+auth_data: <one block below, or omit for no auth>
 ```
 
-**OAuth2 (without DCR — client_id and client_secret required):**
+- **No `auth_data`:** omit `auth_data`.
+- **`oauth2`:** call `get_mcp_server_oauth_config` with `mcpUrl: <the server URL>` (only `https://` URLs are accepted). Copy its `formContent` fields (`authorization_url`, `token_url`, `scopes`, `jwt_source`, plus `registration_url` and `code_challenge_methods_supported` when present) into `auth_data`. Dynamic Client Registration (DCR) is supported only if `formContent.registration_url` is present: then keep `registration_url` in `auth_data` and omit `client_id`/`client_secret`. Otherwise ask the user for `client_id` and `client_secret` (they register an OAuth app with the provider first). **The manifest field is `registration_url`; never write `registration_endpoint` — it is ignored and users cannot authenticate.**
+- **`header`:** the catalogue shows header names with placeholder values (e.g. `Authorization: Bearer YOUR_API_KEY`). Ask whether one shared key or each user's own key; for a shared key ask for the value.
 
 ```yaml
+# OAuth2 — provider and grant_type are required
 auth_data:
   type: oauth2
+  provider: custom            # or auth0 / okta / microsoft-entra
   grant_type: authorization_code
-  authorization_url: <from-oauth-metadata>
-  token_url: <from-oauth-metadata>
-  client_id: <from-user>
-  client_secret: <from-user>
-  jwt_source: access_token
-  scopes: [<from-oauth-metadata>]
+  authorization_url: <formContent.authorization_url>
+  token_url: <formContent.token_url>
+  registration_url: <formContent.registration_url>   # only with DCR
+  client_id: <from user>                              # only without DCR
+  client_secret: <from user>                          # only without DCR
+  jwt_source: <formContent.jwt_source>
+  scopes: <formContent.scopes>
 ```
 
-**OAuth2 (with DCR — no client_id/client_secret needed):**
+`grant_type: authorization_code` is per-user login; the other values are `client_credentials`, `token_exchange`, `id_jag` and `jwt_bearer`.
 
 ```yaml
-auth_data:
-  type: oauth2
-  grant_type: authorization_code
-  authorization_url: <from-oauth-metadata>
-  token_url: <from-oauth-metadata>
-  registration_endpoint: <from-oauth-metadata>
-  jwt_source: access_token
-  scopes: [<from-oauth-metadata>]
-```
-
-**Header-based auth:**
-
-```yaml
+# Header — auth_level is required
 auth_data:
   type: header
   headers:
-    <header-key>: <user-provided-secret>
+    <Header-Name>: <value>
+  auth_level: global          # per_user: each user enters their own key
 ```
 
-#### Path C: Not in catalogue (search online)
+With `auth_level: per_user`, write values as placeholders such as `Bearer {{API_KEY}}`; each user fills them in when they connect.
 
-1. Search online for the MCP server — look for a **remote** (HTTP/SSE/streamable) endpoint first.
-2. If no remote endpoint found, search for a **stdio** package (npx, python, etc.).
+Other remote `auth_data` types are `passthrough` (forwards the caller's TrueFoundry token) and `aws-sigv4` (AWS Bedrock AgentCore); read their fields from the schema. Remote servers have no `transport` field.
 
-**If remote:**
-- Ask the user which auth type they want (no auth, OAuth 2.0, API Key/Header).
-- If OAuth 2.0: call `get_mcp_server_oauth_config` with the server URL to get metadata. If no `registration_endpoint` in the response, ask the user for `client_id` and `client_secret`.
-- If header-based: ask user for header key/value.
-- Build the manifest same as Path B.
+#### Path C: Not in the catalogue
 
-**If stdio:**
+**Remote:** ask which auth the server needs (none, OAuth 2.0, or header/API key), then build it as in Path B.
+
+**Stdio** (only when no remote endpoint exists):
 
 ```yaml
 type: mcp-server/stdio
 name: <unique-name>
 description: <description>
-command: <command>
-args:
-  - <arg-1>
-  - <arg-2>
-collaborators:
-  - role_id: mcp-server-manager
-    subject: user:<current-user-email>
-  - role_id: mcp-server-user
-    subject: team:everyone
+command: <command>           # default npx
+args: [<arg-1>, <arg-2>]
+auth_data:                   # only if the server needs credentials
+  type: env
+  env:
+    <VAR>: <value>
+  auth_level: global         # per_user with {{PLACEHOLDER}} values
 ```
 
-#### Path D: OpenAPI Spec
-
-If the user has an OpenAPI spec URL for their service, create an `mcp-server/openapi` type server. Call `get_manifest_json_schema` with type `mcp-server/openapi` for the full schema.
+#### Path D: OpenAPI spec
 
 ```yaml
 type: mcp-server/openapi
 name: <unique-name>
 description: <description>
-openapi_spec_url: <url-to-openapi-spec>
-collaborators:
-  - role_id: mcp-server-manager
-    subject: user:<current-user-email>
-  - role_id: mcp-server-user
-    subject: team:everyone
+url: <API base URL, no path suffix>
+openapi_spec_source:
+  type: remote
+  url: <spec URL>
+enable_all_tools: true
 ```
 
-#### Path E: Virtual MCP Server
+- If the user pastes the spec instead of a URL, use `openapi_spec_source: {type: inline, openapi_spec: <the spec as a JSON object or JSON/YAML string>}`. TrueFoundry stores it and rewrites it to `upload`.
+- Use `enable_all_tools: true` only when the spec has ≤ 200 operations. Otherwise set `enable_all_tools: false` and list the operations in `tool_settings: [{method, path, name, description}]`. With neither, apply fails with "At least 1 tool is required".
+- `auth_data` takes the same blocks as remote servers.
 
-Use when the user wants to combine tools from multiple existing MCP servers into one, or expose only a subset of tools from a server. Call `get_manifest_json_schema` with type `mcp-server/virtual` for the full schema.
+#### Path E: Virtual MCP server
 
-Before building the manifest, call `list_mcp_server_tools` for each backing server to discover available tools, then ask the user which tools to include.
+Combines tools from existing servers, or exposes a subset of one server's tools. Call `list_mcp_server_tools` for each source server (independent calls, one batch), then ask the user which tools to include.
 
 ```yaml
 type: mcp-server/virtual
 name: <unique-name>
 description: <description>
-mcp_servers:
-  - mcp_server_id: <id-of-backing-server-1>
-    tools:
-      - <tool-name-1>
-      - <tool-name-2>
-  - mcp_server_id: <id-of-backing-server-2>
-    tools:
-      - <tool-name-3>
-collaborators:
-  - role_id: mcp-server-manager
-    subject: user:<current-user-email>
-  - role_id: mcp-server-user
-    subject: team:everyone
+servers:
+  - name: <source-server-name>
+    enabled_tools: [<tool-1>, <tool-2>]
+  - name: <another-source-server-name>
 ```
 
-`mcp_server_id` is the server's `id` from `list_mcp_servers`. `tools` is the list of tool names to expose from that server.
+`servers[].name` is the source server's **name**, not its `id` (the `id` is only for `list_mcp_server_tools`). Omit `enabled_tools` to expose all of a source's tools. A source cannot itself be a virtual server, and the user needs access to every source.
 
-### When to direct the user to the UI
+### Step 4: Validate and apply
 
-The agent can create MCP servers from an OpenAPI spec **URL** (Path D above), but cannot create them by pasting raw OpenAPI spec JSON directly — the API doesn't accept inline spec content. If the user wants to create an MCP server by pasting the spec JSON, direct them to the UI:
-```
-{controlPlaneUrl}/llm-gateway/mcp-servers
-```
-Get `controlPlaneUrl` from `get_me`. The UI supports creating MCP servers of all types including pasting OpenAPI specs directly.
+Follow `write-rules.md` → Steps: `validate_manifest`, wait for `valid: true`, then `apply_manifest`. Then grant access (`write-rules.md` → Access), and show the UI link and the endpoint URL (below).
 
-### MCP Server Endpoint URL
+## Update and delete
 
-After creating an MCP server, users need its endpoint URL for integration. Construct it by:
+- **Update:** start from the server's current `manifest` (`get_mcp_server`), delete `collaborators`, change only what was asked, keep the same `name`, and call `apply_manifest` with `force: false`. If it fails with "Following auth records … will be deleted", tell the user the change disconnects every user who has connected to this server (their tokens and personal keys are deleted). Retry with `force: true` only after they confirm.
+- **Delete:** confirm with the user first, then call `delete_mcp_server` with `mcpServerId`. This is irreversible and deletes every user's saved connection for that server.
 
-1. Call `list_gateway_installations` to get the actual gateway base URL.
-2. Append `/mcp/v1/` + the server's `name` + `/mcp` to that URL.
-3. Show the fully constructed URL to the user. Never show templates or placeholders.
+## Endpoint URL
 
-Example: if gateway base URL is `https://llm-gateway.example.com` and server name is `github-mcp`, the endpoint is `https://llm-gateway.example.com/mcp/v1/github-mcp/mcp`.
+Users need the endpoint to connect clients. Build it like this:
 
-### Step 4: Validate and Apply
+1. Take `proxyUrl` from `get_mcp_server` (reuse it if still in the conversation, otherwise call again). It looks like `{{mcpProxyBaseURL}}/<tenant>/mcp/<server-name>/server`.
+2. Replace `{{mcpProxyBaseURL}}` with `manifest.url` of the `list_gateway_installations` entry where `isDefault: true` (else the first entry). Steps 1 and 2 are independent: call both in one batch.
+3. Show the full URL, for example `https://gateway.example.com/acme/mcp/github-mcp/server`. Never show the placeholder.
 
-Build the manifest as JSON → pass to `validate_manifest` → fix if needed → pass to `apply_manifest`.
+## Checklist
 
-### Checklist
-
-- [ ] Did I call `list_mcp_servers` first to check if a matching server already exists?
-- [ ] Did I call `list_mcp_catalogue` to check if the server is TFY-managed or a known integration?
-- [ ] Did I call `get_manifest_json_schema` with the correct type?
-- [ ] Did I use the TFY-managed path if the server was in `tfyManaged`?
-- [ ] For OAuth2, did I call `get_mcp_server_oauth_config` and check if DCR is supported? If not, did I ask for `client_id`/`client_secret`?
-- [ ] For header auth, did I ask the user for the actual secret values?
-- [ ] Did I add collaborators (current user as manager, team:everyone as access)?
-- [ ] Did I call `validate_manifest` before `apply_manifest`?
-- [ ] Did I call `apply_manifest` directly (not from sandbox)?
+- [ ] Did I check `list_mcp_servers` (by name filter) and `list_mcp_catalogue` in one batch?
+- [ ] Did I use the TFY-managed path if the server is in `tfyManaged`?
+- [ ] For OAuth2, did I copy `formContent` from `get_mcp_server_oauth_config`, include `provider` and `grant_type`, and use `registration_url` (never `registration_endpoint`)? Without `registration_url`, did I ask for `client_id`/`client_secret`?
+- [ ] For header auth, did I set `auth_level`? For stdio credentials, did I use `auth_data.type: env`?
+- [ ] For OpenAPI, did I use `openapi_spec_source` and `enable_all_tools` or `tool_settings`?
+- [ ] For virtual, did I use `servers[].name` (not `id`)?
+- [ ] For an update, did I pass `force: false` and ask before retrying with `force: true`?
+- [ ] No `collaborators` in the manifest, and access granted with `create_grants` after a create?
+- [ ] Did I show the endpoint URL with the real gateway URL?
 
 For more info: `search_docs` with "mcp gateway", "mcp server registry", "virtual mcp server".

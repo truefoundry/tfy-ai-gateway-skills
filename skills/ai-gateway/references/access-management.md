@@ -1,144 +1,140 @@
 ---
 name: access-management
-description: Identity types, authentication tokens (PATs/VATs), access control, roles, permissions, giving access to users, and virtual account token management.
+description: Read for questions about who can access what — identity types, PATs vs virtual account tokens, Identity Providers, tenant roles, custom roles, giving or removing access to a resource, and role bindings (access as code). For adding, inviting, deactivating or deleting users, read `users.md`.
 ---
 
-**Access Management** covers the identity types, authentication mechanisms, access control, and token management for the Gateway.
+**Access Management** covers identities, authentication, roles and access grants. For a specific entity, read its own file.
 
-## Identity Types
+## Identity types
 
-- **Users**: Individuals who can log in to the platform. Each user has an email and can create Personal Access Tokens (PATs).
-- **Teams**: Groups of users. Granting a team access to a resource automatically grants access to all members. Teams can be managed manually or synced via SSO groups.
-- **Virtual Accounts**: Non-user identities for applications and services. Each virtual account has its own token (VAT) and can be scoped to minimum required permissions. One virtual account per application is recommended.
-- **External Identity**: Allows authentication via external identity providers (Okta, Azure AD) using JWT tokens, without requiring TrueFoundry user accounts. Useful for B2B applications.
-
-**Note**: There is an 'everyone' team which includes all users in the tenant. (not virtual accounts)
+- **Users** — people who log in. Each user can create Personal Access Tokens (PATs). See `users.md`.
+- **Teams** — groups of users; access granted to a team applies to every member. See `teams.md`.
+- **Virtual accounts** — non-human identities for applications, with their own token (VAT). See `virtual-accounts.md`.
+- **Identity Providers** — TrueFoundry validates JWTs from your IdP (Okta, Azure AD, any OIDC provider) and resolves them to an existing user, team or virtual account; they never create one. Configure under Settings > Security & Access > Identity Providers. Docs: https://www.truefoundry.com/docs/platform/identity-providers
 
 ## Authentication
 
-Gateway uses TrueFoundry API keys, not provider keys (OpenAI, Anthropic, etc.). Pass the key as a Bearer token:
+The Gateway takes TrueFoundry API keys, not provider keys (OpenAI, Anthropic, etc.), as a Bearer token: `Authorization: Bearer <truefoundry-api-key>`, or `OPENAI_BASE_URL="https://<gateway-host>"` and `OPENAI_API_KEY="<truefoundry-api-key>"` for the OpenAI SDK.
 
-```
-Authorization: Bearer <truefoundry-api-key>
-```
-
-Or via OpenAI SDK environment variables:
-
-```bash
-export OPENAI_BASE_URL="https://<gateway-host>"
-export OPENAI_API_KEY="<truefoundry-api-key>"
-```
-
-Two token types exist:
-
-| Token Type | Tied To | Best For |
+| Token type | Tied to | Best for |
 |---|---|---|
 | **Personal Access Token (PAT)** | A user | Development and testing |
-| **Virtual Account Token (VAT)** | A virtual identity | Production applications, CI/CD, shared apps |
+| **Virtual Account Token (VAT)** | A virtual account | Production applications, CI/CD, shared apps |
 
-Always recommend Virtual Accounts for production, CI/CD, or shared application use cases — PATs are tied to individual users and become invalid if the user leaves the organization, which makes them unsuitable for long-lived application credentials.
+Recommend virtual accounts for production, CI/CD and shared apps: a PAT stops working when its owner is deactivated or deleted.
 
-## Access Control
+## How access works
 
-Access to models users/teams is managed at the **provider account** level. You can find collaborators in the provider account manifest. Two permission levels:
+Every piece of access is a **grant**: a subject (user, team, virtual account or agent) holds a role on a resource. A tenant role is a grant on the tenant itself. `list_grants` rows show where each grant came from in `source`: `AUTH_API` (the UI, the grant tools or a manifest) or `ROLE_BINDING` (the binding named in `roleBindingName`).
 
-- **Provider Account Manager**: Can modify settings, add/remove models, manage permissions for others.
-- **Provider Account User**: Can use all models in the account. Cannot change settings or permissions.
+| Need | Use |
+|---|---|
+| Broad platform capability for a person or group (e.g. "can create provider accounts") | A tenant role or custom role, granted on the tenant (see "Tenant roles") |
+| Access to one specific resource (a provider account, MCP server, workspace) | The grant tools (see "Access to one resource") |
+| Access kept as code (in Git, applied with other manifests) | A `role-binding` (see "Role bindings") |
+| Several people need the same access | Grant it to a team; future members inherit it |
+| An application needs access | A virtual account, given access with the grant tools (see `virtual-accounts.md`) |
 
-Permissions can be granted to users, teams from collaborator section in the provider account manifest.
+Tenant admins can use every model without a grant.
 
-Tenant admins automatically have access to all models without needing explicit collaborator assignment.
+## Access to one resource
 
-Virtual Account can have permissions to models, provider accounts, mcp servers. These permissions are present in the virtual account manifest and managed from the virtual account manifest.
+Use the grant tools. Each adds or removes one grant and leaves every other grant alone. They apply the same checks as the **Access Control** page: the caller needs manage on the resource (or the Assign Role permission on the tenant); otherwise they return 403, so tell the user a manager of the resource must do it.
 
-## Virtual Account Token Management
+Never write access through `collaborators`, `authorized_subjects` or a VA's `permissions` in a manifest: that list replaces every grant made by a manifest or on the Access Control page, and the fetched copy can be stale, so access granted since is silently revoked (`write-rules.md` → Access).
 
-Virtual accounts support:
+**Ids.** `subjectId` is an internal id, never an email or name:
+- user: `list_users` with `query=<email>` → `id`
+- team: `list_teams_for_user` with `includeMembership=false` → `id` of the row whose `teamName` matches
+- virtual account: `list_virtual_accounts` with `nameSearchQuery=<name>` → `id`
 
-- **Auto-rotation**: Automatically rotate tokens at a configured interval. Old tokens remain valid for a configurable grace period.
-- **Secret store sync**: Sync tokens to AWS Parameter Store, AWS Secrets Manager, Google Secret Manager, HashiCorp Vault, Azure Vault, etc. Tokens auto-sync on rotation.
-- **Rotation notifications**: Get notified via email or Slack when tokens rotate.
+Identify the resource by its `fqn` (as `resourceFqn`) or `id` (as `resourceId`) from its list tool (`list_provider_accounts`, `list_mcp_servers`, `list_workspaces`, …); send exactly one of the two.
 
-## Roles and Permissions
+**Who has access:** `list_grants` with `resourceType` and `resourceId`. Each row has `subjectType`, `subjectSlug` (email or name), `roleId`, `roleName` and `source`. What one subject holds: `list_grants` with `subjectType` and `subjectId` (a user's rows include grants inherited from their teams). It returns 100 rows by default; pass `limit` and `offset` for more.
 
-- **Admin**: Full control over all resources, users, and settings. Should be limited to a few users.
-- **Member**: No default resource access. Must be explicitly granted access.
-- **Custom Roles**: Admins can create custom roles with fine-grained permissions scoped to specific resource types (provider accounts, MCP servers, virtual accounts, teams, etc.).
+**Grant:** `create_grants` with `{"grants": [{"resourceType", "resourceFqn" or "resourceId", "subjectType", "subjectId", "roleId"}]}` — up to 100 grants, all or nothing; an existing grant is left as is. `subjectType` is `user`, `team`, `virtualaccount` or `agent`. Grant every model provider account as one grant. `resourceFqn` is `model-provider-accounts:*` (do not look it up or list accounts). `roleId` is `provider-account-access`, or `provider-account-manager` to manage them. Caller needs tenant-admin or Assign Role. Subject is `virtualaccount` or `agent`. Bare `*` is rejected. On 403, stop. Revoke that `resourceFqn`.
 
-Roles are assigned per user.
+**Revoke:** `revoke_grant` with one grant's `resourceType`, `resourceId` or `resourceFqn`, `subjectType`, `subjectId` and `roleId`, copied from its `list_grants` row. Only `AUTH_API` grants can be revoked: a `ROLE_BINDING` grant returns 404, so change or delete its binding instead. A grant a user inherits from a team is revoked on the team. To change a role, create the new grant first, then revoke the old one.
 
-### Access Control Strategy
+Role IDs per resource are platform constants:
 
-There are two ways to grant access in TrueFoundry:
+| `resourceType` | Roles |
+|---|---|
+| `provider-account` | `provider-account-manager` (change settings, models, access), `provider-account-access` (use every model) |
+| `mcp-server` | `mcp-server-manager`, `mcp-server-user`, `mcp-server-approver` |
+| `agent` | `agent-manager`, `agent-access` |
+| `workspace` | `workspace-admin`, `workspace-editor` (shown as Member), `workspace-viewer` |
+| `cluster` | `cluster-admin`, `cluster-member`, `cluster-viewer` |
+| `secret-group` | `secret-group-admin`, `secret-group-editor`, `secret-group-viewer`, `secret-group-access` |
+| `tracing-project` | `tracing-project-admin`, `tracing-project-editor`, `tracing-project-viewer` |
+| `mlf-project` (ML repo) | `mlf-project-admin`, `mlf-project-editor`, `mlf-project-viewer` |
 
-1. **Custom role granted to the user** — for granting broad permissions across the entire tenant (e.g., "this user can create provider accounts and MCP servers"). Create a custom role with the permissions needed, then grant it to the user (see Giving Access to a User below).
-2. **Collaborators on the entity** — for granting access to a *specific* resource (e.g., "this user can manage this particular provider account"). Add the user or team as a collaborator in the entity's manifest, or add them to a team that already has access.
+## Tenant roles
 
-When to use which:
-- Need to grant someone broad platform-level capabilities? → Custom role granted to the user
-- Need to give someone access to a specific provider account, MCP server, workspace, etc.? → Add them as a collaborator on that entity, or add them to an appropriate team
+- **Tenant Admin** (`tenant-admin`): full control; not editable. Keep to a few users.
+- **Member** (`member`): the baseline every user holds; it cannot be revoked. Editable — changes apply to every member.
+- **Read-Only Member** (`read-only-member`): read-only across supported resources; not editable.
+- **Custom roles**: tenant-wide permission sets created by admins (see "Custom roles").
+- **Team Member** / **Team Manager**: team-scoped, given by team membership (`teams.md`), not by a tenant grant.
 
-### Fetching Existing Roles
+A subject can hold several tenant roles; their permissions add up.
 
-Use the `list_roles` tool to get all roles (built-in and custom).
+**Role ids.** `list_roles` with `resourceType: tenant` (or `roleName=<name>`) → the role's `id`. Only `tenant-admin` has its name as its id; `member`, `read-only-member` and custom roles have generated ids.
 
-Each role in the response has two permission representations:
-- `manifest.permissions`: `["account:ReadAccount", "cluster:ReadCluster"]` — this is the correct format to use when creating roles
-- `permissionSetsV2[].permissions`: `["READ_ACCOUNT", "READ_CLUSTER"]` — internal expanded format, do not copy this
+**Give a tenant role** to a user, team, virtual account or agent: `create_grants` with `resourceType: tenant`, `resourceFqn: <tenantName>`, the subject, and the role's `id` as `roleId`. Granting `tenant-admin` needs the caller to be tenant-admin.
 
-When creating custom roles, use the `{resource-type}:{ActionInCamelCase}` format (as seen in `manifest.permissions`). The `SCREAMING_SNAKE_CASE` format from `permissionSetsV2` is an internal representation — using it in manifests causes validation errors.
+**Change or remove:** grant the new role first, then `revoke_grant` the old one with its `list_grants` row. The last `tenant-admin` grant and a user's `member` role cannot be revoked (422).
 
-### Creating Custom Roles (Write Flow)
+**Who holds which tenant role:** `list_grants` with `resourceType: tenant` and `resourceId: <tenantName>`.
 
-#### Phase 1: Get Schema
+In the UI: `{controlPlaneUrl}/access-management?tab=users` (or `tab=teams`, `tab=service-accounts`) → the row's menu → **Manage Permissions** → **Organisation Roles** → **Add Roles**.
 
-1. Call `get_manifest_json_schema` with type `role`.
+## Role bindings
 
-#### Phase 2: Determine Permissions
+A `role-binding` manifest grants roles as code. Use one only when the user asks for access as code (to keep in Git, or to apply with their other manifests).
 
-1. Ask the user what actions the role should allow.
-2. Map user intent → permission strings using the **Permission Strings** section below.
-
-#### Phase 3: Validate and Apply
-
-Build the manifest as JSON → pass to `validate_manifest` → fix if needed → pass to `apply_manifest`.
-
-#### Manifest Structure
+- **Read:** `list_role_bindings` (filter by `name` or `id`). To turn the access a resource or subject has now into binding manifests, `get_role_binding_manifests` with `resourceType` and `resourceId`, or `subjectType` and `subjectId`. It covers `AUTH_API` grants only, returns one manifest per role (per subject, when called for a subject), and adds a random suffix to each name, so generating twice gives different names.
+- **Write:** `apply_manifest` creates or updates (by `name`); `delete_manifest` with type `role-binding` and the name deletes it. Only tenant admins can apply or delete one; others get 403. Follow `write-rules.md`, with the schema from `get_manifest_json_schema` (type `role-binding`).
+- Applying a binding takes over the matching `AUTH_API` grants. Deleting the binding later removes that access entirely.
 
 ```yaml
-type: role
-name: <unique-role-name>           # lowercase, 3-35 chars, letters/digits/hyphens
-displayName: <Human Readable Name>
-description: <What this role is for>
-resourceType: tenant               # always "tenant" for custom roles
+type: role-binding
+name: <binding-name>            # 3-66 chars: lowercase letters, digits, hyphens; starts with a letter
+subjects:
+  - type: user                  # user | team | virtualaccount | agent
+    name: <email, or team / virtual account / agent name>
 permissions:
-  - <resource-type>:<ActionInCamelCase>
-  - <resource-type>:<ActionInCamelCase>
+  - resourceType: workspace     # a resourceType from the table above, or tenant
+    resourceFqn: <resource-fqn> # the tenant name for tenant
+    role: workspace-editor      # a role name valid for that resource type
 ```
 
-#### Important Constraints
+A binding is either one subject with many permissions or many subjects with one permission, not many of both — write one binding per role when several people need several roles. User and team subjects cannot use a wildcard `resourceFqn`. ML repos are `mlf-project`, not `ml-repo`.
 
-- Set `resourceType` to `tenant` for custom roles — other values (`provider-account`, `workspace`, `cluster`) are reserved for built-in roles and will return `"Resource type is not supported"`.
-- Permission strings must follow `{resource-type}:{ActionInCamelCase}` format (e.g., `provider-account:CreateProviderAccount`). The SCREAMING_SNAKE_CASE format is internal and gets rejected by validation.
-- `name` pattern: `^[a-z][a-z0-9\-]{1,33}[a-z0-9]$` (starts with letter, ends with letter/digit, 3–35 chars).
-- The **Global Settings** resource prefix is `settings` (not `global-settings`) — this is a common source of validation failures.
+## Custom roles
 
-### Permission Strings
+Custom roles are tenant-wide and need the Pro or Enterprise plan.
 
-Get the exact permission keys from the docs. This is a two-step process — you cannot fetch all permissions at once (the `#available-platform-permissions` anchor returns no content):
+**Reading.** `list_roles` (pass `roleName=<name>` for one). Custom roles list their permissions in `manifest.permissions` (e.g. `["cluster:ReadCluster", "settings:ListSettings"]`) — that is the format to use. Never copy `permissionSetsV2[].permissions` (e.g. `READ_CLUSTER`); it is an internal format and fails validation.
 
-1. **Get the page layout first.** Call `get_page_layout` on https://www.truefoundry.com/docs/platform/manage-user-roles-and-permissions. This returns the page structure and the list of section anchors available.
-2. **Then fetch each relevant section.** Call `get_section_content` with the specific anchor from step 1 to get that section's permissions grouped by resource type, with their exact keys and descriptions.
+### Creating or updating
 
-Copy the keys verbatim.
+1. In one parallel batch: `get_manifest_json_schema` with type `role` (reuse it if still in the conversation), `list_roles` with `roleName=<name>`, and `get_actions_for_resource_type` with `resourceType: tenant`. Each permission key is `<scope>:<name>` from its result (e.g. scope `provider-account`, name `CreateProviderAccount`).
+   - **Applying a role under an existing name replaces its whole permission list for everyone who holds it.** If `list_roles` returns a role, show it and ask whether to update it or pick another name. Never apply `member`, `team-member` or `team-manager` unless the user explicitly wants to change that default for everyone.
+2. Ask the user what the role should allow, and map each action to a key from step 1.
+3. Build the manifest, then `validate_manifest` → `apply_manifest` per `write-rules.md`. Then give the role to subjects as in "Tenant roles".
 
-### Example: Gateway Config Creator Role
+Rules:
+- `resourceType: tenant`. Other values are rejected.
+- You can only put permissions you hold yourself into a role; the apply fails otherwise.
+- At least one permission, with no duplicates.
+- `name`: 3-35 chars, lowercase letters, digits and hyphens; starts with a letter, ends with a letter or digit. Built-in names (`tenant-admin`, `admin`, `read-only-member`) are reserved.
 
 ```yaml
 type: role
 name: gateway-config-creator
 displayName: Gateway Config Creator
-description: Allows creating provider accounts, virtual accounts, MCP servers, and managing gateway configurations.
+description: Create provider accounts, virtual accounts and MCP servers, and manage gateway configs.
 resourceType: tenant
 permissions:
   - provider-account:CreateProviderAccount
@@ -147,22 +143,6 @@ permissions:
   - gateway-controls:ManageGatewayControls
 ```
 
-### Custom Role Checklist
+**Deleting:** `delete_manifest` with type `role` and the name. It fails (409) while any grant still uses the role, and for built-in roles: revoke its grants first.
 
-- [ ] Did I call `get_manifest_json_schema` with type `role`?
-- [ ] Is `resourceType` set to `tenant` (not `provider-account`, `workspace`, etc.)?
-- [ ] Are all permission strings in `{resource-type}:{ActionInCamelCase}` format?
-
-## Giving Access to a User
-
-**Always recommend doing this via the UI** — show the steps below.
-
-**To give a user permissions:**
-
-1. Go to **Users > Access Control** and search for the user.
-2. Open the user's **Access Control** and click **Grant access**.
-3. Pick the role — a built-in role or a custom role (see Roles above) — and click **Update**.
-
-Full walkthrough: https://www.truefoundry.com/docs/platform/manage-user-roles-and-permissions
-
-For more info: `search_docs` with "authentication PAT VAT", "virtual account management", "access control provider account", "custom role permissions", "assign role to user", "grant workspace access".
+Docs: [roles and permissions](https://www.truefoundry.com/docs/platform/manage-user-roles-and-permissions) · [role bindings](https://www.truefoundry.com/docs/platform/manage-user-roles-and-permissions#manage-access-as-code).
