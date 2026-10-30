@@ -96,7 +96,7 @@ ORDER BY "Requests" DESC
 LIMIT 50
 ```
 
-- Span attribute keys in use: the same query on `map_keys("SpanAttributesString")` (or `SpanAttributesNumber`) with `LIMIT 200`; drop the head-span filter to include child spans. Use it to answer whether an attribute is recorded.
+- Span attribute keys in use: the same query on `map_keys("SpanAttributesString")` (or `SpanAttributesNumber`) with `LIMIT 200`; drop the head-span filter to include child spans. Use it for a key that neither `tables/traces.md` nor the span attributes docs name.
 
 - Filter by team: `array_has("SpanAttributesStringList"['tfy.request.created_by_subject_teams'], '<team>')`.
 - Guardrail outcome of a request: the head span carries the worst result in `"SpanAttributesString"['tfy.guardrail.result']` only for some request types; see [triggered guardrails](https://www.truefoundry.com/docs/ai-gateway/fetch-request-logs-span-attributes#triggered-guardrails-on-request-spans), or query the `Guardrail` child spans.
