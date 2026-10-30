@@ -48,9 +48,9 @@ Ask in one question, because the first two cannot be changed after creation:
 | Tenant-wide role | the `id` from `list_roles` with `roleName` (`member`, `read-only-member` or a custom role); never the name | `tenant` (FQN = tenant name) |
 
 - `resourceFqn` for a workspace is `<cluster-name>:<workspace-name>`.
-- All resources of a kind is one grant with `<category>:*` (model provider accounts: `model-provider-accounts:*`), not `*` and not one grant per account (`access-management.md` → Grant).
+- All model provider accounts is one grant on `model-provider-accounts:*`, not `*` and not one grant per account (`access-management.md` → Grant).
 - A VA can hold only one tenant-level role. Only tenant admins can grant `tenant-admin`.
-- You can only grant roles on resources you can manage; otherwise `create_grants` returns 403.
+- You can grant a role on a resource you manage, or, on a VA you manage, a role you already hold on that resource; otherwise `create_grants` returns 403.
 
 ## Manifest
 
