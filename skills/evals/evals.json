@@ -842,6 +842,18 @@
         "Explains the failed Model span as a fallback or retry that recovered",
         "Names the 503 target and the target that succeeded"
       ]
+    },
+    {
+      "id": 74,
+      "prompt": "Does the gateway record which client (user agent) sent each request in traces?",
+      "expected_output": "Checks live data (map_keys on SpanAttributesString, or a query on user_agent.original) instead of concluding from the docs. Answers yes: every head span (SpanKind Server) has SpanAttributesString['user_agent.original'] with the caller's User-Agent (e.g. claude-cli/..., ai-sdk/...), and client.address with the caller's IP. Notes that spans with a NULL TfyGatewaySpanType carry the gateway's own outbound user agent (node). Gives a query or examples from the data.",
+      "files": [],
+      "expectations": [
+        "Checks the live traces data before answering",
+        "Says user_agent.original on head spans holds the calling client's user agent",
+        "Does not say the user agent is not recorded",
+        "Distinguishes the gateway's outbound 'node' user agent from the caller's"
+      ]
     }
   ]
 }
