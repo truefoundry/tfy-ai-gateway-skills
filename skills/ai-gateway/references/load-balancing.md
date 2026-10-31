@@ -1,11 +1,11 @@
 ---
 name: load-balancing
-description: Also known as "Routing Config". Routes traffic to one of the target models by weight, latency, or priority. Deprecated in favor of Virtual Models.
+description: Read only for the deprecated load-balancing policy ("Routing Config", `gateway-load-balancing-config`) — to show existing rules or migrate them. New routing goes in virtual models.
 ---
 
-**Load Balancing Config** defines rules (`WeightBasedLoadBalancingRule`, `LatencyBasedLoadBalancingRule`, or `PriorityBasedLoadBalancingRule`) scoped by `LoadBalancingWhen` (subjects, models, metadata). 
+**Load Balancing Config** defines rules (`WeightBasedLoadBalancingRule`, `LatencyBasedLoadBalancingRule`, or `PriorityBasedLoadBalancingRule`) scoped by `LoadBalancingWhen` (subjects, models, metadata).
 
-This feature has been deprecated in favor of **Virtual Models**. Always suggest using **Virtual Models** instead of this policy. See `ai-gateway/references/virtual-models.md` for more details.
+This feature has been deprecated in favor of **Virtual Models**. Always suggest a virtual model instead of this policy (`ai-gateway/references/virtual-models.md`).
 
 ## Fetching existing load balancing configuration
 
@@ -49,18 +49,8 @@ createdAt: ...
 updatedAt: ...
 ```
 
-## Generating Valid Manifests for Virtual Models
+## Migrating a rule to a virtual model
 
-Always suggest using **Virtual Models** instead of this policy.
+Follow the write flow in `ai-gateway/references/virtual-models.md`. Create one virtual model per rule. Copy the rule's `type` and `load_balance_targets` into the virtual model's `routing_config` (same field names), then have callers use the virtual model name instead of the original model. `when.subjects` and `when.metadata` have no virtual-model equivalent; use per-target `metadata_match` for metadata-based selection.
 
-### Phase 1: Research Virtual Model Schema
-
-1. Use `get_manifest_json_schema` to retrieve the schema for the Virtual Model manifest type.
-
-### Phase 2: Generate Valid Virtual Model Config Manifest
-
-1. Using the schema, construct the manifest following required fields.
-2. Pass the manifest to `validate_manifest` to validate.
-3. Repeat the process until the manifest is valid.
-
-For more info: `search_docs` with "Gateway load balancing", "virtual models", "weight based routing", "model fallback".
+For more info: `search_docs` with "virtual models", "weight based routing", "model fallback".

@@ -21,7 +21,7 @@ Use this for **architecture / how-it-works** questions about model serving on Tr
 - That maps to a dedicated Kubernetes workload with a **single** model-server container (vLLM: `vllm.entrypoints.openai.api_server`, typically port **8000**).
 - TrueFoundry does **not** run a shared multi-model vLLM fleet on this path.
 - Multi-GPU uses **tensor parallelism inside the same pod** (`--tensor-parallel-size`), not one pod per GPU shard.
-- Recommended specs come from `get_model_deployment_specs` / `get_nim_deployment_specs` (catalogue fills a server template such as `vllm.yaml`) and are applied as a normal service via `apply_manifest`.
+- `get_model_deployment_specs` fills a server template (`vllm.yaml`, `sglang.yaml`, …). `get_nim_deployment_specs` builds the spec from the NIM profile; NIM downloads weights inside its own container (no `artifacts_download`); to cache, mount a volume at `/opt/nim/.cache`. Either way the result is applied as a normal service via `apply_manifest`.
 
 ## How are GPUs allocated?
 
@@ -37,7 +37,7 @@ Use this for **architecture / how-it-works** questions about model serving on Tr
 - **HuggingFace** → `huggingface-hub` artifact type (Hub pull).
 - **TrueFoundry model versions** → `truefoundry-artifact` from the artifact store.
 - Artifacts land under `/opt/truefoundry`; the server is pointed at the local path (commonly via `MODEL_ID` / equivalent).
-- If the cluster has a suitable **RWX** storage class, a **cache PVC** is attached so downloads survive restarts; otherwise **emptyDir** + init container (`tfy-model-downloader`).
+- If the cluster has a recommended **RWX** storage class, the catalogue adds `artifacts_download.cache_volume` (size 2× the weights + 10 GB): a PreSync Argo Workflow `downloader-<deploymentId>` fills the PVC `<app>-artifacts-volume` before the server pods start, and downloads survive restarts. Otherwise an init container `download-models` downloads into the pod on every start. How to read either: `model-debug.md`.
 - vLLM’s own cache is typically under `/opt/truefoundry/.cache/vllm`.
 - Without a working cache volume, every rollout re-downloads — large models can take **1–2+ hours** per attempt (`model-debug.md`, `failure-modes/volumes-storage.md`).
 
@@ -73,9 +73,10 @@ Catalogue / recommended deployments commonly add (when compatible):
 - Prefix caching
 - Expert parallelism for MoE on multi-GPU
 - Dtype selection from GPU architecture (float16 vs bfloat16)
-- Lower GPU memory utilization for very large (≥70B) models (via **args/env**, not a top-level manifest field)
+- GPU memory fraction set via env (vLLM `GPU_MEMORY_UTILIZATION` 0.90; SGLang `MEM_FRACTION_STATIC` 0.75–0.85 by GPU memory). CUDA OOM at load → see **GPU memory utilization on small GPUs** in `model-deploy.md`
+- `MAX_MODEL_LENGTH` capped at 8192
 - Chat-template mounting when needed
-- Startup probes sized for download + load time
+- Startup probe sized from model weight size (load + ~5 min warm-up); download happens before the server container starts
 - **Conservative rolling updates** — often **max surge 0% / max unavailable 25%** (important for GPU; see `rollout-strategy.md`)
 - Sticky sessions for prefix-cache affinity
 - Parallel image prefetch alongside model download
