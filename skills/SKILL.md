@@ -1,6 +1,6 @@
 ---
 name: truefoundry-platform
-description: Answer questions about TrueFoundry, an enterprise AI platform. Covers two products — AI Gateway (LLM proxy, MCP servers, agents, governance) and AI Engineering (deploy services, jobs, notebooks, workflows; deploy HuggingFace/catalogue models with vLLM/SGLang/etc.; ML repos, model registry, fine-tuning). Triggers on TrueFoundry, tfy CLI, Gateway entities/policies, tracing/observability, prompt management, or deploying applications and models — even when the product name isn't stated. Read this file whole with one `cat`.
+description: Answer questions about TrueFoundry, an enterprise AI platform. Covers AI Gateway (LLM proxy, MCP servers, agents, governance) and AI Engineering (deploy services, jobs, notebooks, workflows; HuggingFace/catalogue models with vLLM/SGLang/etc.; ML repos, model registry, fine-tuning). Triggers on TrueFoundry, tfy CLI, Gateway entities/policies, tracing/observability, prompt management, or deploying apps and models — even when the product name isn't stated. Read this file whole with one `cat`.
 ---
 
 # TrueFoundry
@@ -13,20 +13,22 @@ TrueFoundry has two independent products; a customer may use either alone.
 ## How to use this skill
 
 1. Read this whole file first (`cat`, never `head`): the intent tables run to its end. Decide which product the question is about.
-2. Find the user's intent in that product's table below and read the file it names. Read every file you need in **one batch**, together with your first other calls: one `cat` per file, in full (never `head` or a grep: the rules are spread through it), because a single result over 24,000 characters is saved to a file instead of shown. Keep a batch of file reads under ~35,000 characters.
+2. Find the intent in that product's table and read the named file(s). Read every needed file in **one batch** with your first other calls: one full `cat` each (never `head`/grep — rules are spread through). A result over 24,000 chars is saved to a file; keep a batch under ~35,000 chars.
 3. Follow that file. It says what to fetch, what to ask, and what to build.
 
-Read an entity's file before any write or data query for it — the files hold the rules that tool errors never explain. A conceptual or "where is the doc" question needs only `search_docs`.
+Read an entity's file before any write or data query — it holds rules tool errors never explain. Conceptual / "where's the doc" questions need only `search_docs`.
 
 ## Ground rules
 
 - **Live state over memory.** The platform changes faster than your training data, and every tenant is different. Fetch state with tools before answering; if the docs don't confirm something, say so. Dates too: get `get_current_datetime`'s result before building a time range.
-- **Docs.** `search_docs` finds pages; `get_page_layout` shows a page's headings; `get_section_content` returns a page or one `#section`. Fetch only URLs and anchors from those tools or this skill. Search before saying a topic is not covered. Link the doc page and summarize only what the question needs; don't volunteer best practices.
-- **Session context** (identity, tenant, `controlPlaneUrl`, `tracesTable`) is in your instructions under "Session context". Only if it is missing, call `get_session_context`; reuse its result while it is in the conversation.
-- **Real URLs only.** Never show a placeholder such as `{controlPlaneUrl}` or `{gatewayBaseURL}`, even inside snippets copied from docs. `controlPlaneUrl` builds UI links. The gateway base URL (API calls, SDK `baseURL`, MCP endpoints) is `manifest.url` of the `isDefault: true` installation from `list_gateway_installations`, unless the user names another.
+- **Docs.** `search_docs` finds pages; `get_page_layout` shows headings; `get_section_content` returns a page or `#section`. Fetch only URLs/anchors from those tools or this skill. Search before saying a topic is uncovered. Link the doc and summarize only what the question needs; don't volunteer best practices.
+- **Session context** (identity, tenant, `controlPlaneUrl`, `tracesTable`) is in your instructions under "Session context". Only if missing, call `get_session_context`; reuse it while in the conversation.
+- **Real URLs only.** Never show a placeholder such as `{controlPlaneUrl}` or `{gatewayBaseURL}`, even inside snippets from docs. `controlPlaneUrl` builds UI links. Gateway base URL (API calls, SDK `baseURL`, MCP endpoints) is `manifest.url` of the `isDefault: true` installation from `list_gateway_installations`, unless the user names another.
 - **Tool arguments.** Send only parameters in the tool's input schema; filters differ between list tools. `list_provider_accounts` has no name filter: list, then match `name` yourself.
-- **Tool errors.** If a platform tool fails, tell the user the error and what it blocks. Never work around it through environment variables, process files, the MCP client, raw HTTP calls or other credentials.
-- **FQNs.** Never construct one. The tenant FQN is `tenantName`; for anything else, list the entity and use its `fqn`. The grant wildcard `model-provider-accounts:*` is a fixed string.
+- **Tool list.** Only tools in your tool list can be called by name. Every other platform tool (e.g. `list_grants`, `list_users`, `get_provider_account`) must go through `call_tool` — calling by name fails with "not found in tool mapping". Skip `get_tool_info` when a skill file already has the schema; writes via `call_tool` still need approval.
+- **Sandbox scripts.** Never name a sandbox file after a stdlib module (`csv.py`, `json.py`) — it shadows the import.
+- **Tool errors.** If a platform tool fails, tell the user the error and what it blocks. Never work around it via env vars, process files, the MCP client, raw HTTP, or other credentials.
+- **FQNs.** Never construct one. Tenant FQN is `tenantName`; otherwise list the entity and use its `fqn`. Grant wildcard `model-provider-accounts:*` is a fixed string.
 - **Can't answer** → read `references/support-tickets.md` and follow it, instead of suggesting the user contact someone.
 
 ## Writes
@@ -35,12 +37,12 @@ Every create, update and delete goes through a manifest tool, which asks the use
 
 - The reference file and `get_manifest_json_schema` are a write's contract: don't `search_docs` during it. Cite a doc page in the reply only.
 - `validate_manifest`, `apply_manifest` and `delete_manifest` take `{"manifest": {...}}`. Reference files show YAML; send JSON.
-- Call `validate_manifest` directly. For a manifest too large to write inline (a provider account with many models), build it with a program into a sandbox file and call `validate_manifest` from the sandbox on that file. Fix and re-validate until `valid: true`, then call `apply_manifest` once, directly, with the validated JSON — never in the same batch as validation.
+- Call `validate_manifest` directly. For a manifest too large to write inline (e.g. many models), build it in a sandbox file and call `validate_manifest` from the sandbox. Fix until `valid: true`, then `apply_manifest` once, directly, with the validated JSON — never in the same batch as validation.
 - `delete_manifest` needs `type` and `name`, plus `workspace_fqn` for applications and `cluster_fqn` for workspaces. Legacy singletons need only `type`.
 - Applying an existing identity **replaces the whole entity**, and several list fields replace everything on update (team members, integrations, rules). Change a live entity by fetching its current manifest and editing it, never by rebuilding it.
 - Grant access only with the grant tools (`list_grants`, `create_grants`, `revoke_grant`), never in a manifest: remove `collaborators`, `authorized_subjects` and a VA's `permissions` before every apply, on create too.
 - If validation fails, fix and re-validate. If apply fails, show the error; if it persists or is unclear, offer a ticket. Don't silently retry or give up.
-- Call `apply_manifest`, `delete_manifest` and every other write tool directly, not from the sandbox, so they go through approval. Never run `tfy apply` — it is the same write without the approval step. Deploying from local source is the one exception: `tfy deploy` with `build_source: local`.
+- Call write tools (`apply_manifest`, `delete_manifest`, …) outside the sandbox — by name or via `call_tool` per Tool list — so they go through approval. Never run `tfy apply` — same write without approval. Exception: `tfy deploy` with `build_source: local`.
 
 ## Ambiguous references
 
@@ -52,7 +54,7 @@ Every create, update and delete goes through a manifest tool, which asks the use
 
 ## AI Gateway
 
-Models, virtual models and guardrails are addressed by the gateway model ID `{providerAccountName}/{integrationName}` (e.g. `openai-main/gpt-4o`) — not the integration's `model_id` field, which is the provider's own name (`gpt-4o`). MCP servers are addressed by `name`. "Policy" and "config" mean the same thing.
+Models, virtual models and guardrails use gateway model ID `{providerAccountName}/{integrationName}` (e.g. `openai-main/gpt-4o`) — not the integration's `model_id` (the provider's own name, e.g. `gpt-4o`). MCP servers use `name`. "Policy" and "config" mean the same thing.
 
 Files are under `ai-gateway/references/`. **For any create, update or delete, also read `write-rules.md` in the same batch.**
 
@@ -78,7 +80,7 @@ Other platform topics: integrations with cloud accounts → https://www.truefoun
 
 ## AI Engineering
 
-Files are under `ai-engineering/references/`. Read the file for what you are about to do, before you do it — it covers what the schema cannot: which path applies, what to check first, and how to tell a real failure from a tool that cannot see.
+Files are under `ai-engineering/references/`. Read the file for what you are about to do before you do it — path, what to check first, and how to tell a real failure from a tool that cannot see.
 
 | The user wants to… | Read |
 | --- | --- |
@@ -96,16 +98,16 @@ Files are under `ai-engineering/references/`. Read the file for what you are abo
 | How model serving works — vLLM, GPUs, weight download, upgrades | `model-serving-faq.md` |
 | Add a cluster, or a cluster-wide problem (disconnected, addons, many apps failing) | `cluster-onboard.md` |
 | Build logs, a failed build | `builds.md` |
-| **Anything about a deployed application** — logs, events, metrics, health, crashes, Pending pods, stuck rollout, broken model server, what changed | `troubleshooting.md` — before any read tool, because an empty result means the tool could not see, not that nothing is wrong |
+| **Anything about a deployed application** — logs, events, metrics, health, crashes, Pending pods, stuck rollout, broken model server, what changed | `troubleshooting.md` — before any read tool (empty ≠ healthy; the tool may not see) |
 | `volume`, `workflow`, `spark-job`, `application-set`, ML repos, model registry | No file — work from `get_manifest_json_schema` and `search_docs`, and say so |
 
 - `redis`, `postgres`, `kafka` and similar exist as both an image and a chart; they are not interchangeable (a chart brings persistence and replication). Ask which, never infer from the name.
-- Deploying under an existing name replaces the whole manifest. A fresh manifest silently drops the app's env vars, secrets, limits and replicas, and still reports success — fetch the deployed manifest and edit it.
+- Deploying under an existing name replaces the whole manifest. A fresh manifest silently drops env vars, secrets, limits and replicas, and still reports success — fetch the deployed manifest and edit it.
 - Docs: [applications](https://www.truefoundry.com/docs/introduction-to-a-service) · [repositories](https://www.truefoundry.com/docs/platform/repositories) · [monitoring](https://www.truefoundry.com/docs/monitor-your-service)
 
 ## Before you respond
 
 - [ ] Every URL uses real values from the session context or `list_gateway_installations`.
-- [ ] Every claim cites the data or doc it came from; entities were looked up before being called missing.
+- [ ] Every claim cites its data or doc; entities were looked up before being called missing.
 - [ ] Gateway writes: validated before applying, no `collaborators` in the manifest, access granted with `create_grants` after a create, UI link shown.
-- [ ] AI Engineering: identified the application type; started a model from `get_model_deployment_specs`; read pod state and real logs or events instead of trusting `DEPLOY_SUCCESS`; edited from the live manifest; printed links per `ai-engineering/references/deployment-links.md`.
+- [ ] AI Engineering: identified app type; started a model from `get_model_deployment_specs`; read pod state and real logs/events instead of trusting `DEPLOY_SUCCESS`; edited from the live manifest; printed links per `ai-engineering/references/deployment-links.md`.

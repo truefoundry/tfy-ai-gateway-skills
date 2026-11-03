@@ -37,6 +37,7 @@ Use SQL on traces only for what the metrics API cannot do: listing or finding re
 - The query times out after 60 seconds. Don't reference one CTE more than once (it is re-executed each time).
 - Spans from the last few minutes (up to about three) may not be queryable yet.
 - Results are filtered by the caller's data-access rules for traces, which are separate from metrics rules. An empty result can mean no access, not no traffic: say so and link `{controlPlaneUrl}/access-management?tab=data-access`.
+- **Metrics and traces disagree.** Compare them on the same filters, broken down by error type or model. Calls in metrics with no spans in `default` are either routed elsewhere or hidden by trace data-access rules: call `list_data_routing_destinations` and ask which one to query. Never report two counts side by side unless they use the same filters.
 
 #### Examples
 
@@ -125,4 +126,5 @@ Always link the traces you show: `{controlPlaneUrl}/monitoring/request-traces?fi
 - [ ] `"Date"` literal range plus `"Timestamp"` range; `LIMIT` on non-aggregate queries.
 - [ ] Head-span filter when listing requests; only the needed columns.
 - [ ] Empty result → data-access rules mentioned.
+- [ ] Metrics vs traces: same filters; missing `default` spans → list destinations and ask.
 - [ ] 5xx → one retry of the same query, then stop and report.
