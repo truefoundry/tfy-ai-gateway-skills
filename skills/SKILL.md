@@ -25,7 +25,6 @@ Read an entity's file before any write or data query — it holds rules tool err
 - **Session context** (identity, tenant, `controlPlaneUrl`, `tracesTable`) is in your instructions under "Session context". Only if missing, call `get_session_context`; reuse it while in the conversation.
 - **Real URLs only.** Never show a placeholder such as `{controlPlaneUrl}` or `{gatewayBaseURL}`, even inside snippets from docs. `controlPlaneUrl` builds UI links. Gateway base URL (API calls, SDK `baseURL`, MCP endpoints) is `manifest.url` of the `isDefault: true` installation from `list_gateway_installations`, unless the user names another.
 - **Tool arguments.** Send only parameters in the tool's input schema; filters differ between list tools. `list_provider_accounts` has no name filter: list, then match `name` yourself.
-- **Tool list.** Only tools in your tool list can be called by name. Every other platform tool (e.g. `list_grants`, `list_users`, `get_provider_account`) must go through `call_tool` — calling by name fails with "not found in tool mapping". Skip `get_tool_info` when a skill file already has the schema; writes via `call_tool` still need approval.
 - **Sandbox scripts.** Never name a sandbox file after a stdlib module (`csv.py`, `json.py`) — it shadows the import.
 - **Tool errors.** If a platform tool fails, tell the user the error and what it blocks. Never work around it via env vars, process files, the MCP client, raw HTTP, or other credentials.
 - **FQNs.** Never construct one. Tenant FQN is `tenantName`; otherwise list the entity and use its `fqn`. Grant wildcard `model-provider-accounts:*` is a fixed string.
@@ -42,7 +41,7 @@ Every create, update and delete goes through a manifest tool, which asks the use
 - Applying an existing identity **replaces the whole entity**, and several list fields replace everything on update (team members, integrations, rules). Change a live entity by fetching its current manifest and editing it, never by rebuilding it.
 - Grant access only with the grant tools (`list_grants`, `create_grants`, `revoke_grant`), never in a manifest: remove `collaborators`, `authorized_subjects` and a VA's `permissions` before every apply, on create too.
 - If validation fails, fix and re-validate. If apply fails, show the error; if it persists or is unclear, offer a ticket. Don't silently retry or give up.
-- Call write tools (`apply_manifest`, `delete_manifest`, …) outside the sandbox — by name or via `call_tool` per Tool list — so they go through approval. Never run `tfy apply` — same write without approval. Exception: `tfy deploy` with `build_source: local`.
+- Call `apply_manifest`, `delete_manifest` and every other write tool directly, not from the sandbox, so they go through approval. Never run `tfy apply` — it is the same write without the approval step. Deploying from local source is the one exception: `tfy deploy` with `build_source: local`.
 
 ## Ambiguous references
 

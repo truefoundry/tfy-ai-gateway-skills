@@ -1,9 +1,9 @@
 ---
 name: access-management
-description: Who can access what — identities, PATs vs VATs, IdPs, tenant roles, custom roles, grants, role bindings. For invite/deactivate/delete users, read `users.md`.
+description: Read for questions about who can access what — identity types, PATs vs virtual account tokens, Identity Providers, tenant roles, custom roles, giving or removing access to a resource, and role bindings (access as code). For adding, inviting, deactivating or deleting users, read `users.md`.
 ---
 
-**Access Management** covers identities, authentication, roles and grants. For a specific entity, read its own file.
+**Access Management** covers identities, authentication, roles and access grants. For a specific entity, read its own file.
 
 ## Identity types
 
@@ -41,7 +41,7 @@ Tenant admins can use every model without a grant.
 
 Use the grant tools. Each adds or removes one grant and leaves every other grant alone. `create_grants` needs manage on the resource or Assign Role on the tenant; on 403, tell the user a manager of the resource or a tenant admin must grant it.
 
-Never write access through `collaborators`, `authorized_subjects` or a VA's `permissions` in a manifest: that list replaces every grant made by a manifest or on the Access Control page, and a stale fetch silently revokes access granted since (`write-rules.md` → Access).
+Never write access through `collaborators`, `authorized_subjects` or a virtual account's `permissions` in a manifest: that list replaces every grant made by a manifest or on the Access Control page, and a stale fetch silently revokes access granted since (`write-rules.md` → Access).
 
 **Ids.** `subjectId` is an internal id, never an email or name:
 - user: `list_users` with `query=<email>` → `id`

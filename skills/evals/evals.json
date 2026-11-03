@@ -869,14 +869,14 @@
     {
       "id": 76,
       "prompt": "I want my llm gateway usage grouped by provider and model in a clean csv",
-      "expected_output": "Reads metrics.md, filters every query (including totals) with userEmail EQUAL the session email, groups realModelMetrics by providerAccountType and modelName, writes CSV with null-safe reads (p.get(k) or \"\"), does not name the script csv.py, and explains any null provider/model rows via a second query grouped by errorType with isFailure EQUAL true — without guessing the cause.",
+      "expected_output": "Reads metrics.md, filters every query (including totals) with userEmail EQUAL the session email, groups realModelMetrics by providerAccountType and modelName, writes CSV with null-safe reads (p.get(k) or \"\"), does not name the script csv.py, and explains any null provider/model rows via a second query grouped by errorDisplayLabel with isFailure EQUAL true — without guessing the cause.",
       "files": [],
       "expectations": [
         "Filters with userEmail EQUAL the session email on every query including totals",
         "Groups by providerAccountType and modelName",
         "Handles null group values without crashing (p.get or equivalent)",
         "Does not name the sandbox script csv.py",
-        "Explains unresolved/null-provider rows via errorType; does not guess"
+        "Explains unresolved/null-provider rows via errorDisplayLabel (not errorType as group-by); does not guess"
       ]
     },
     {
