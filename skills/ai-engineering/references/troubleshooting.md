@@ -80,7 +80,7 @@ Call `get_logs` with `applicationId`, `podName` (from `get_application_state`), 
 
 Logs need a pod filter: `get_logs` on a Helm app without `podName`, `podNames` or `podNamesRegex` returns 400.
 
-1. Get real pod names from `get_application_state`. If it lists none, use `get_application_argocd_resources`, which also shows sync/health. If neither lists a pod, there are no logs: say so.
+1. Get real pod names from `get_application_state`. If it lists none, use `get_application_argocd_resources`, which also shows sync/health. If neither lists a pod, there are no logs: say so, and don't call `get_logs`.
 2. `get_logs` with `applicationId`, that `podName` (or `podNamesRegex="^<release>-.*"`), `direction: "desc"`, `limit` ~200.
 
 `list_application_events` keeps live events only for objects named like the release, so subchart pods get lifecycle events only. For their full events give the user `kubectl get events -n <namespace> --field-selector involvedObject.name=<pod>`.
@@ -127,11 +127,11 @@ State what you could not see rather than reporting health. "No events in the win
 - [ ] Did I start from `get_application_state` and open the matching failure-mode file?
 - [ ] Did I read container `reason` and `lastState`, and use `node` to tell an unscheduled `Pending` pod from an unready one?
 - [ ] For a crashlooping container, did I read the previous attempt's logs (window ending at `lastState.finishedAt`), or say why I could not?
-- [ ] For `helm`, did I pass `get_logs` a listed pod name or regex, never a constructed one?
+- [ ] For `helm`, did I use only listed pod names, and skip `get_logs` with no pods?
 - [ ] For OOM or slowness, did I look at metrics / applied limits, not only logs?
 - [ ] Did I avoid calling exit 137 "OOM" without corroboration?
 - [ ] If a call returned empty, did I check whether that tool could have seen the answer at all?
-- [ ] If the deployment says `DEPLOY_SUCCESS`, did I confirm the pods are actually Running without a bad `reason`?
-- [ ] Does my answer cite the specific pod, event, log line, or metric behind each claim — and name what I could not see?
+- [ ] If the deployment says `DEPLOY_SUCCESS`, did I confirm the pods are Running without a bad `reason`?
+- [ ] Does my answer cite the pod, event, log line or metric behind each claim, and name what I could not see?
 
 For more info: `search_docs` with "monitor your service", "debug a deployment".
