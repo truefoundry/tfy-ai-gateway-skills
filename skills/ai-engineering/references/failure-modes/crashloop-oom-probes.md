@@ -40,12 +40,12 @@ Do not invent fixes for application code you cannot see — cite the log line an
 
 ## OOMKilled (memory limit)
 
-1. Confirm `OOMKilled` in the container's `reason` or `lastState.reason` — do not infer from exit 137 alone.
+1. Confirm `OOMKilled` in the container's `reason` or `lastState.reason` — do not infer from exit 137 alone. Once confirmed, it is settled: the kernel killed the container at its memory limit. Memory charts sample too coarsely to catch the spike, so usage under the limit on a chart does not rule it out. Do not re-diagnose it as preemption, a node problem or an image issue.
 2. `list_app_metric_charts` → `get_application_chart_data` for memory usage vs time. Look for a climb to the limit, or a spike.
 3. `get_applied_k8s_manifest` for the applied `resources.limits.memory`. Compare usage to limit. Issue it in the same message as step 2's `list_app_metric_charts`.
 4. Distinguish:
    - **Limit too low** — usage saturates the limit; raise limit (and usually request).
-   - **Leak / unbounded growth** — usage climbs across hours/days; raising limit only delays the kill.
+   - **Leak / unbounded growth** — usage climbs across hours/days, or OOM kills recur every few hours; raising limit only delays the kill. Say it looks like a leak, and propose a higher limit as the stopgap.
    - **Burst** — rare spikes (compaction, model load); raise limit or change workload pattern.
 
 For jobs/workflows that OOM once per run, check that run's logs and whether the job's resource block differs from the service's.
@@ -61,7 +61,7 @@ Field pattern: exit 137, CrashLoopBackOff, memory usage well under limit, events
 
 When proposing the fix, edit the TrueFoundry manifest fields: `liveness_probe` / `readiness_probe` / `startup_probe` with `initial_delay_seconds` (default 0), `period_seconds` (10), `timeout_seconds` (1), `failure_threshold` (3); memory is `resources.memory_limit` and `resources.memory_request` in MB. The camelCase names are only what you read in the applied Kubernetes manifest.
 
-**Never** recommend a memory increase when metrics show headroom and events show probe failures.
+**Never** recommend a memory increase when metrics show headroom and events show probe failures — unless a container's `reason` or `lastState.reason` is `OOMKilled`, which overrides the chart.
 
 ## Init container failures
 

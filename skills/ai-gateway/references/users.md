@@ -23,6 +23,7 @@ Users are people who log in to the tenant. Access is not part of the user: a new
 `register_user` with `email`:
 - `sendInviteEmail: true` emails a link to set a password, with `acceptInviteClientURL: "{controlPlaneUrl}/invite-accept"` (the page the link opens; required). Use it only when TrueFoundry manages login; with the tenant's own OAuth it returns 403.
 - `sendInviteEmail: false` (default) adds the user without an email. Use it for users who sign in through SSO; they become active at their first login.
+- If the user didn't ask for an invite email, call it with the default; don't ask first. Mention that an invite can be resent later.
 
 Every new user gets the **Member** role and joins the `everyone` team. No role or team can be set while adding: grant them afterwards (`access-management.md` → Tenant roles, `teams.md`). To add several users, call it once per email.
 

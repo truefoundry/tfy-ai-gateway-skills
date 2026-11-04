@@ -13,33 +13,33 @@ TrueFoundry has two independent products; a customer may use either alone.
 ## How to use this skill
 
 1. Read this whole file first (`cat`, never `head`): the intent tables run to its end. Decide which product the question is about.
-2. Find the user's intent in that product's table below and read the file it names. Read every file you need in **one batch**, together with your first other calls: one `cat` per file, in full (never `head` or a grep: the rules are spread through it), because a single result over 24,000 characters is saved to a file instead of shown. Keep a batch of file reads under ~35,000 characters.
+2. Find the user's intent in that product's table below and read the file it names. Read every file you need in **one batch**, together with your first other calls: one `cat` per file, in full (never `head` or grep), because a single result over 24,000 characters is saved to a file instead of shown. Keep a batch of file reads under ~35,000 characters.
 3. Follow that file. It says what to fetch, what to ask, and what to build.
 
 Read an entity's file before any write or data query for it — the files hold the rules that tool errors never explain. A conceptual or "where is the doc" question needs only `search_docs`.
 
 ## Ground rules
 
-- **Live state over memory.** The platform changes faster than your training data, and every tenant is different. Fetch state with tools before answering; if the docs don't confirm something, say so. Dates too: get `get_current_datetime`'s result before building a time range.
+- **Live state over memory.** The platform changes faster than your training data. Fetch state with tools before answering; if the docs don't confirm something, say so. Dates too: get `get_current_datetime`'s result before building a time range.
 - **Docs.** `search_docs` finds pages; `get_page_layout` shows a page's headings; `get_section_content` returns a page or one `#section`. Fetch only URLs and anchors from those tools or this skill. Search before saying a topic is not covered. Link the doc page and summarize only what the question needs; don't volunteer best practices.
 - **Session context** (identity, tenant, `controlPlaneUrl`, `tracesTable`) is in your instructions under "Session context". Only if it is missing, call `get_session_context`; reuse its result while it is in the conversation.
 - **Real URLs only.** Never show a placeholder such as `{controlPlaneUrl}` or `{gatewayBaseURL}`, even inside snippets copied from docs. `controlPlaneUrl` builds UI links. The gateway base URL (API calls, SDK `baseURL`, MCP endpoints) is `manifest.url` of the `isDefault: true` installation from `list_gateway_installations`, unless the user names another.
-- **Tool arguments.** Send only parameters in the tool's input schema; filters differ between list tools. `list_provider_accounts` has no name filter: list, then match `name` yourself.
+- **Tool arguments.** Send only parameters in the tool's input schema; filters differ between list tools. `list_provider_accounts` has no name filter: list, then match `name` yourself. Never send a `null`, empty or guessed ID, or repeat a call whose result you have. If a few rounds haven't settled it, answer with what you found and what is unknown.
 - **Tool errors.** If a platform tool fails, tell the user the error and what it blocks. Never work around it through environment variables, process files, the MCP client, raw HTTP calls or other credentials.
 - **FQNs.** Never construct one. The tenant FQN is `tenantName`; for anything else, list the entity and use its `fqn`. The grant wildcard `model-provider-accounts:*` is a fixed string.
 - **Can't answer** → read `references/support-tickets.md` and follow it, instead of suggesting the user contact someone.
 
 ## Writes
 
-Every create, update and delete goes through a manifest tool, which asks the user for approval before it runs.
+Every create, update and delete goes through a manifest tool, which asks the user for approval before it runs. That prompt is the confirmation: once nothing is left open, build, validate and apply without asking first.
 
 - The reference file and `get_manifest_json_schema` are a write's contract: don't `search_docs` during it. Cite a doc page in the reply only.
 - `validate_manifest`, `apply_manifest` and `delete_manifest` take `{"manifest": {...}}`. Reference files show YAML; send JSON.
-- Call `validate_manifest` directly. For a manifest too large to write inline (a provider account with many models), build it with a program into a sandbox file and call `validate_manifest` from the sandbox on that file. Fix and re-validate until `valid: true`, then call `apply_manifest` once, directly, with the validated JSON — never in the same batch as validation.
+- Call `validate_manifest` directly; for a manifest too large to write inline, write it to a sandbox file and validate that file from the sandbox. Fix and re-validate until `valid: true`, then call `apply_manifest` once, directly, with the validated JSON — never in the same batch as validation.
 - `delete_manifest` needs `type` and `name`, plus `workspace_fqn` for applications and `cluster_fqn` for workspaces. Legacy singletons need only `type`.
 - Applying an existing identity **replaces the whole entity**, and several list fields replace everything on update (team members, integrations, rules). Change a live entity by fetching its current manifest and editing it, never by rebuilding it.
 - Grant access only with the grant tools (`list_grants`, `create_grants`, `revoke_grant`), never in a manifest: remove `collaborators`, `authorized_subjects` and a VA's `permissions` before every apply, on create too.
-- If validation fails, fix and re-validate. If apply fails, show the error; if it persists or is unclear, offer a ticket. Don't silently retry or give up.
+- If apply fails, show the error; if it persists or is unclear, offer a ticket. Don't silently retry or give up.
 - Call `apply_manifest`, `delete_manifest` and every other write tool directly, not from the sandbox, so they go through approval. Never run `tfy apply` — it is the same write without the approval step. Deploying from local source is the one exception: `tfy deploy` with `build_source: local`.
 
 ## Ambiguous references
@@ -47,7 +47,7 @@ Every create, update and delete goes through a manifest tool, which asks the use
 - **"My", "I", "mine"** mean the current user, not the tenant. Filter by their identity: `userEmail` on gateway metrics, `TfyCreatedBySubjectSlug` on traces, owner filters for deployments.
 - **Entity names** are often partial or misspelt. Look the entity up before saying it doesn't exist ("github mcp" → MCP servers containing "github"). An application is identified by workspace and name together; if several match, ask which.
 - **"Application", "app", "use case"** in a Gateway context means a virtual account (occasionally an `x-tfy-metadata` key).
-- **"API key", "token"**: present both — a personal access token (tied to a user) and a virtual account token (recommended for production). Details in `ai-gateway/references/access-management.md`.
+- **"API key", "token"**: present both a personal access token (tied to a user) and a virtual account token (for production); see `ai-gateway/references/access-management.md`.
 - **"Caching"**: ask whether they mean Gateway caching (a Gateway policy) or provider prompt caching (shows in token usage).
 
 ## AI Gateway
@@ -100,7 +100,7 @@ Files are under `ai-engineering/references/`. Read the file for what you are abo
 | `volume`, `workflow`, `spark-job`, `application-set`, ML repos, model registry | No file — work from `get_manifest_json_schema` and `search_docs`, and say so |
 
 - `redis`, `postgres`, `kafka` and similar exist as both an image and a chart; they are not interchangeable (a chart brings persistence and replication). Ask which, never infer from the name.
-- Deploying under an existing name replaces the whole manifest. A fresh manifest silently drops the app's env vars, secrets, limits and replicas, and still reports success — fetch the deployed manifest and edit it.
+- Deploying under an existing name replaces the whole manifest: a fresh one silently drops env vars, secrets, limits and replicas. Edit the deployed manifest.
 - Docs: [applications](https://www.truefoundry.com/docs/introduction-to-a-service) · [repositories](https://www.truefoundry.com/docs/platform/repositories) · [monitoring](https://www.truefoundry.com/docs/monitor-your-service)
 
 ## Before you respond
