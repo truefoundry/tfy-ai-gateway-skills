@@ -444,8 +444,8 @@
     },
     {
       "id": 25,
-      "prompt": "How much of the caio-emu-starwood-developers team's monthly budget has been spent so far?",
-      "expected_output": "Reads budget-limiting-v2.md, finds the budget with list_gateway_budgets (team_name: caio-emu-starwood-developers), calls get_budget_usage with its id, and reports the monthly limit, amount used and percentage as returned.",
+      "prompt": "How much of the eval-budget team's monthly budget has been spent so far?",
+      "expected_output": "Reads budget-limiting-v2.md, finds the budget with list_gateway_budgets (team_name: eval-budget), calls get_budget_usage with its id, and reports the monthly limit, amount used and percentage as returned.",
       "files": [],
       "expectations": [
         "Calls list_gateway_budgets, optionally filtered by team_name, to get the budget id",
@@ -482,7 +482,7 @@
     },
     {
       "id": 27,
-      "prompt": "Add test@example.com to the caio-emu-cnt-engineering team.",
+      "prompt": "Add test@example.com to the eval-engineering team.",
       "expected_output": "Reads teams.md and write-rules.md, finds the team id with list_teams_for_user, calls add_team_members with that id and {\"emails\": [\"test@example.com\"]}, and does not apply a team manifest.",
       "files": [],
       "expectations": [
@@ -821,7 +821,7 @@
     },
     {
       "id": 45,
-      "prompt": "Give team:caio-emu-cnt-platform access to the openai-main provider account.",
+      "prompt": "Give team:eval-platform access to the openai-main provider account.",
       "expected_output": "Finds the account's id/fqn with list_provider_accounts and the team's id with list_teams_for_user, then calls create_grants with resourceType provider-account, the account fqn, subjectType team, the team id and roleId provider-account-access. Does not apply the provider account manifest with collaborators.",
       "files": [],
       "expectations": [
@@ -839,18 +839,18 @@
     },
     {
       "id": 46,
-      "prompt": "Who has access to the openai-main provider account? Remove gowtham.v@truefoundry.com from it.",
-      "expected_output": "Calls list_grants with resourceType provider-account and the account id and lists subjects and roles. Then calls revoke_grant for gowtham's grant with the values from his list_grants row, which puts the removal to approval; if it is denied, says his access is unchanged. If his row has source ROLE_BINDING, explains it comes from role binding <roleBindingName> and must be changed there instead.",
+      "prompt": "Who has access to the openai-main provider account? Remove test@example.com from it.",
+      "expected_output": "Calls list_grants with resourceType provider-account and the account id and lists subjects and roles. Then calls revoke_grant for test@example.com's grant with the values from that user's list_grants row, which puts the removal to approval; if it is denied, says the user's access is unchanged. If that row has source ROLE_BINDING, explains it comes from role binding <roleBindingName> and must be changed there instead.",
       "files": [],
       "expectations": [
         {
           "text": "Uses list_grants to show current access",
           "critical": true
         },
-        "Calls revoke_grant with the subjectId and roleId from his list_grants row",
-        "If revoke_grant is denied, does not retry it and says his access is unchanged",
+        "Calls revoke_grant with the subjectId and roleId from that user's list_grants row",
+        "If revoke_grant is denied, does not retry it and says the user's access is unchanged",
         "Does not edit the provider account's collaborators",
-        "If his grant's source is ROLE_BINDING, says it comes from that role binding and must be changed there instead of calling revoke_grant"
+        "If the user's grant source is ROLE_BINDING, says it comes from that role binding and must be changed there instead of calling revoke_grant"
       ],
       "tags": {
         "area": "access",
@@ -859,8 +859,8 @@
     },
     {
       "id": 47,
-      "prompt": "Give me a role-binding manifest so we can keep the access of team caio-emu-cnt-engineering in Git.",
-      "expected_output": "Reads access-management.md role bindings, finds the team id with list_teams_for_user, and calls get_role_binding_manifests with subjectType team and that id to export the team's current access. Gives the role-binding YAML (subjects [{type: team, name: caio-emu-cnt-engineering}], its current permissions); applies only if the user asks and is a tenant admin.",
+      "prompt": "Give me a role-binding manifest so we can keep the access of team eval-engineering in Git.",
+      "expected_output": "Reads access-management.md role bindings, finds the team id with list_teams_for_user, and calls get_role_binding_manifests with subjectType team and that id to export the team's current access. Gives the role-binding YAML (subjects [{type: team, name: eval-engineering}], its current permission: provider-account-access on provider account openai-main); applies only if the user asks and is a tenant admin.",
       "files": [],
       "expectations": [
         "Uses a role-binding (access as code), not create_grants",
@@ -1234,7 +1234,7 @@
     {
       "id": 68,
       "prompt": "Why did trace 01a17f20387d701eb40215a473bd6c38 fail?",
-      "expected_output": "Reports a 403 whose message says the user is not authorized or the model does not exist, and uses tfy.error_type tfy-model-not-found on the Model span to say the model bhavesh-test-openai/o4-mini does not exist in the gateway (it is not a permission problem). Names the sender and says it was sent on 2026-10-27 at 20:49 UTC. Includes a trace link.",
+      "expected_output": "Reports a 403 whose message says the user is not authorized or the model does not exist, and uses tfy.error_type tfy-model-not-found on the Model span to say the model eval-openai/o4-mini does not exist in the gateway (it is not a permission problem). Names the sender and says it was sent on 2026-10-27 at 20:49 UTC. Includes a trace link.",
       "files": [],
       "expectations": [
         "Says the model does not exist, based on tfy-model-not-found",
@@ -1250,10 +1250,10 @@
     {
       "id": 69,
       "prompt": "Why did trace 01a181c4c3a077809de62d26e0948c40 fail?",
-      "expected_output": "Reports that the gateway rate limit rule test-durgesh blocked the request with HTTP 429 (tfy.error_type tfy-rate-limit on the Model span, message 'Rate limit exceeded for model: bhavesh-test-microsoft-foundry/gpt-5.4-pro for rule: test-durgesh'). Names the sender and says it was sent on 2026-10-28 at 09:08 UTC. Includes a trace link.",
+      "expected_output": "Reports that the gateway rate limit rule eval-rate-limit blocked the request with HTTP 429 (tfy.error_type tfy-rate-limit on the Model span, message 'Rate limit exceeded for model: eval-foundry/gpt-5.4-pro for rule: eval-rate-limit'). Names the sender and says it was sent on 2026-10-28 at 09:08 UTC. Includes a trace link.",
       "files": [],
       "expectations": [
-        "Names the rate limit rule test-durgesh",
+        "Names the rate limit rule eval-rate-limit",
         "Says it is a gateway rate limit, not the provider's",
         "Includes a trace link"
       ],
@@ -1281,7 +1281,7 @@
     {
       "id": 71,
       "prompt": "What did the request in trace 01a182ae7a8473b780111169426c377b send?",
-      "expected_output": "Reads TfyGatewayInput of the head span only, and reports the request body: model bhavesh-test-anthropic/claude-haiku-5-5, max_tokens 20, top_k 40 and one user message 'Say hi'.",
+      "expected_output": "Reads TfyGatewayInput of the head span only, and reports the request body: model eval-anthropic/claude-haiku-5-5, max_tokens 20, top_k 40 and one user message 'Say hi'.",
       "files": [],
       "expectations": [
         "Selects TfyGatewayInput for this trace only, not SELECT *",
@@ -1315,7 +1315,7 @@
     {
       "id": 73,
       "prompt": "Did trace 01a17b657dbf7152abf02e6759acff8f succeed?",
-      "expected_output": "Reports that it succeeded (Responses head span Ok, HTTP 200) on virtual model caio-emu-v-riot-games-vm/caio-emu-v-riot-games-c-partial: the first target caio-emu-v-riot-games-oa/caio-emu-v-riot-games-partial failed with 503 (request-failure-503, OpenAI overloaded) and the fallback caio-emu-v-riot-games-oa/caio-emu-v-riot-games-okm returned 200. Includes a trace link.",
+      "expected_output": "Reports that it succeeded (Responses head span Ok, HTTP 200) on virtual model eval-vm/eval-fallback: the first target eval-openai/primary failed with 503 (request-failure-503, OpenAI overloaded) and the fallback eval-openai/fallback returned 200. Includes a trace link.",
       "files": [],
       "expectations": [
         "Concludes the request succeeded",
