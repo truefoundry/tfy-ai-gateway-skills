@@ -16,6 +16,8 @@ Users are people who log in to the tenant. Access is not part of the user: a new
 | Registration pending | `metadata.registeredInIdp: false` — added without an invite, has not logged in yet |
 | Active | otherwise |
 
+Act only on the exact email the user gave. If `list_users` doesn't return it, say the user doesn't exist (check `showInvalidUsers: true` first); never deactivate, delete or change a similarly named account instead.
+
 `roles` lists the user's tenant roles. For everything they can access, use `list_grants` with `subjectType: user` and the `id`.
 
 ## Add or invite a user

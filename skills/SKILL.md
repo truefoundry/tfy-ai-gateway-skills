@@ -41,12 +41,13 @@ Every create, update and delete goes through a manifest tool, which asks the use
 - Applying an existing identity **replaces the whole entity**, and several list fields replace everything on update (team members, integrations, rules). Change a live entity by fetching its current manifest and editing it, never by rebuilding it.
 - Grant access only with the grant tools (`list_grants`, `create_grants`, `revoke_grant`), never in a manifest: remove `collaborators`, `authorized_subjects` and a VA's `permissions` before every apply, on create too.
 - If apply fails, show the error; if it persists or is unclear, offer a ticket. Don't silently retry or give up.
+- A denied approval is the user's answer: say nothing changed and don't call that write again, edited or not, unless they ask.
 - Call `apply_manifest`, `delete_manifest` and every other write tool directly, not from the sandbox, so they go through approval. Never run `tfy apply` — it is the same write without the approval step. Deploying from local source is the one exception: `tfy deploy` with `build_source: local`.
 
 ## Ambiguous references
 
 - **"My", "I", "mine"** mean the current user, not the tenant. Filter by their identity: `userEmail` on gateway metrics, `TfyCreatedBySubjectSlug` on traces, owner filters for deployments.
-- **Entity names** are often partial or misspelt. Look the entity up before saying it doesn't exist ("github mcp" → MCP servers containing "github"). An application is identified by workspace and name together; if several match, ask which.
+- **Entity names** are often partial or misspelt. Look the entity up before saying it doesn't exist ("github mcp" → MCP servers containing "github"). If the one named doesn't exist, say so; never act on a similar one. If several match (an application is workspace plus name), list them and ask, then name the one chosen in your answer.
 - **"Application", "app", "use case"** in a Gateway context means a virtual account (occasionally an `x-tfy-metadata` key).
 - **"API key", "token"**: present both a personal access token (tied to a user) and a virtual account token (for production); see `ai-gateway/references/access-management.md`.
 - **"Caching"**: ask whether they mean Gateway caching (a Gateway policy) or provider prompt caching (shows in token usage).
@@ -101,12 +102,11 @@ Files are under `ai-engineering/references/`. Read the file for what you are abo
 | `volume`, `workflow`, `spark-job`, `application-set`, ML repos, model registry | No file — work from `get_manifest_json_schema` and `search_docs`, and say so |
 
 - `redis`, `postgres`, `kafka` and similar exist as both an image and a chart; they are not interchangeable (a chart brings persistence and replication). Ask which, never infer from the name.
-- Deploying under an existing name replaces the whole manifest: a fresh one silently drops env vars, secrets, limits and replicas. Edit the deployed manifest.
 - Docs: [applications](https://www.truefoundry.com/docs/introduction-to-a-service) · [repositories](https://www.truefoundry.com/docs/platform/repositories) · [monitoring](https://www.truefoundry.com/docs/monitor-your-service)
 
 ## Before you respond
 
 - [ ] Every URL uses real values from the session context or `list_gateway_installations`.
-- [ ] Every claim cites its data or doc; entities were looked up before being called missing.
+- [ ] Every cause and number comes from tool output or a doc; when the data doesn't show the cause, I said it's unknown instead of naming a likely one.
 - [ ] Gateway writes: validated before applying, no `collaborators` in the manifest, access granted with `create_grants` after a create, UI link shown.
 - [ ] AI Engineering: identified app type; started a model from `get_model_deployment_specs`; read pod state and real logs/events instead of trusting `DEPLOY_SUCCESS`; edited from the live manifest; printed links per `ai-engineering/references/deployment-links.md`.
