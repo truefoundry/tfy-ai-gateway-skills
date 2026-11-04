@@ -854,6 +854,42 @@
         "Does not say the user agent is not recorded",
         "Distinguishes the gateway's outbound 'node' user agent from the caller's"
       ]
+    },
+    {
+      "id": 75,
+      "prompt": "Grant VA vibeops-rnc access to provider account decision-1.",
+      "expected_output": "Lists the account and VA for ids, then calls list_grants. On 403 from list_grants, says the caller lacks manage on that resource (id came from a list tool, so not a bad id), does not say create_grants will probably fail, and offers or calls create_grants with subjectType virtualaccount. Only if create_grants also returns 403, tells the user a manager of the resource or a tenant admin must grant it.",
+      "files": [],
+      "expectations": [
+        "On list_grants 403, says the caller lacks manage (not that the resource is missing)",
+        "Still offers or calls create_grants",
+        "Does not hedge with 'probably' or conclude create_grants will fail from list_grants alone"
+      ]
+    },
+    {
+      "id": 76,
+      "prompt": "I want my llm gateway usage grouped by provider and model in a clean csv",
+      "expected_output": "Reads metrics.md, filters every query (including totals) with userEmail EQUAL the session email, groups realModelMetrics by providerAccountType and modelName, writes CSV with null-safe reads (p.get(k) or \"\"), does not name the script csv.py, and explains any null provider/model rows via a second query grouped by errorDisplayLabel with isFailure EQUAL true — without guessing the cause.",
+      "files": [],
+      "expectations": [
+        "Filters with userEmail EQUAL the session email on every query including totals",
+        "Groups by providerAccountType and modelName",
+        "Handles null group values without crashing (p.get or equivalent)",
+        "Does not name the sandbox script csv.py",
+        "Explains unresolved/null-provider rows via errorDisplayLabel (not errorType as group-by); does not guess"
+      ]
+    },
+    {
+      "id": 77,
+      "prompt": "Debug my failed model requests this week",
+      "expected_output": "Counts failures from metrics without modelName NOT_IN [\"\"] so both routed and pre-routing failures are included, reports one total broken down by error type or model (same filters as any traces query), and when some failures appear in metrics but have no spans in default, calls list_data_routing_destinations and asks which destination to query — does not put a metrics count and a differently filtered traces count side by side as unexplained.",
+      "files": [],
+      "expectations": [
+        "Failure count includes pre-routing failures (no modelName NOT_IN [\"\"] on the failure query)",
+        "Reports one comparable total or breakdown, not two mismatched counts side by side",
+        "When metrics rows have no default spans, calls list_data_routing_destinations and asks which destination",
+        "Does not call the gap unexplained without checking destinations / same filters"
+      ]
     }
   ]
 }
