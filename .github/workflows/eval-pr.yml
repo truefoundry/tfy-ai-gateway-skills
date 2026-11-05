@@ -58,7 +58,8 @@ jobs:
         env:
           EVAL_ARTIFACT_KEY: ${{ secrets.EVAL_ARTIFACT_KEY }}
         run: |
-          run_id=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow eval-nightly.yml --branch platform \
+          # Scheduled runs are recorded on the default branch (develop); each one tests platform.
+          run_id=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow eval-nightly.yml \
             --status success --limit 1 --json databaseId --jq '.[0].databaseId')
           if [ -z "$run_id" ]; then echo "::error::No successful nightly baseline yet; run eval-nightly first"; exit 1; fi
           gh run download "$run_id" --repo "$GITHUB_REPOSITORY" --name ask-tfy-baseline --dir .

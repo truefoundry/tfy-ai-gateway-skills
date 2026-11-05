@@ -78,7 +78,8 @@ to $1.50 a turn. Use `--only` while iterating.
 
 ## In CI
 
-- `eval-nightly.yml` seeds fixtures and runs every case on `platform` at 02:00 IST. The run
+- `eval-nightly.yml` seeds fixtures and runs every case on `platform` at 02:00 IST. GitHub only
+  schedules workflows from the default branch, so it also lives on `develop`. The run
   directory is the artifact `ask-tfy-baseline`, encrypted because the repo is public and runs hold
   devtest data: `openssl enc -d -aes-256-cbc -pbkdf2 -pass env:EVAL_ARTIFACT_KEY -in baseline.tar.gz.enc | tar -xz`.
   Job summaries show only the headline numbers; the redacted traces are in LangSmith.
