@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - main
+    paths:
+      - "skills/**"
+      - manifest.yaml
+      - .github/workflows/deploy-prod.yml
 
 jobs:
   deploy:

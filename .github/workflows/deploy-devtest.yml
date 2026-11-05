@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - platform
+    paths:
+      - "skills/**"
+      - manifest.yaml
+      - .github/workflows/deploy-devtest.yml
 
 jobs:
   deploy:

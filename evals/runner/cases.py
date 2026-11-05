@@ -1,0 +1,108 @@
+"""Eval cases, read from the skills commit under test.
+
+Cases live in `evals/evals.json` in tfy-ai-gateway-skills and change with the skills, so they are
+read from the same commit the agent runs. A dataset generated once goes stale: by Nov 4 the copy
+in tfy-agent-eval-tenant lacked three cases and had two out of date. Older commits kept the file
+at `skills/evals/evals.json`, inside the directory mounted into the agent's sandbox.
+
+Each case may carry:
+- `expectations`: strings, or {"text": ..., "critical": true} for the claims a pass needs;
+- `tags`: {"area": ..., "kind": ...};
+- `clarification_reply`: what the user answers when the agent asks;
+- `skip`: why the case cannot be measured right now. Skipped cases are reported, never run.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import re
+import subprocess
+from pathlib import Path
+
+from tfy_eval.dataset import Question, normalize_expectations
+
+EVALS_PATHS = ("evals/evals.json", "skills/evals/evals.json")
+FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
+
+
+def _git(repo: Path, *args: str) -> str:
+    return subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True, text=True).stdout
+
+
+def resolve_commit(repo: Path, ref: str) -> str:
+    """The full SHA for `ref`, which the sandbox must be able to fetch from GitHub."""
+    try:
+        _git(repo, "fetch", "--quiet", "origin")
+    except subprocess.CalledProcessError as exc:
+        raise SystemExit(f"git fetch origin failed in {repo}: {exc.stderr.strip()}") from None
+    try:
+        sha = _git(repo, "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}").strip()
+    except subprocess.CalledProcessError:
+        raise SystemExit(f"{ref} is not a commit in {repo}") from None
+    if not FULL_SHA.match(sha):
+        raise SystemExit(f"{ref} resolved to {sha!r}, not a full commit SHA")
+    if not _git(repo, "branch", "--remotes", "--list", "origin/*", "--contains", sha).strip():
+        raise SystemExit(f"{sha} is on no branch of origin; push it first, or the sandbox cannot fetch it")
+    return sha
+
+
+def _expectations(raw: object) -> list[dict]:
+    if not isinstance(raw, list):
+        return normalize_expectations(raw)
+    return normalize_expectations([
+        {"claim": entry.get("text", ""), "importance": "critical" if entry.get("critical") else "normal"}
+        if isinstance(entry, dict) and "text" in entry else entry
+        for entry in raw
+    ])
+
+
+def _tags(raw: object) -> list[str]:
+    if isinstance(raw, dict):
+        return [f"{key}:{value}" for key, value in sorted(raw.items())]
+    return [str(tag) for tag in raw or []]
+
+
+def case_from_eval(entry: dict) -> Question:
+    return Question(
+        id=f"s{entry['id']}",
+        question=entry["prompt"],
+        expected=entry["expected_output"],
+        expectations=_expectations(entry.get("expectations")),
+        tags=_tags(entry.get("tags")),
+        clarification_reply=entry.get("clarification_reply"),
+    )
+
+
+def case_hash(case: Question) -> str:
+    """Identifies what a case asks and how it is graded; a changed case is a different case."""
+    content = json.dumps(
+        [case.question, case.expected, case.expectations, case.clarification_reply], sort_keys=True
+    )
+    return hashlib.sha256(content.encode()).hexdigest()[:16]
+
+
+def read_evals(repo: Path, sha: str) -> list[dict]:
+    for path in EVALS_PATHS:
+        try:
+            return json.loads(_git(repo, "show", f"{sha}:{path}"))["evals"]
+        except subprocess.CalledProcessError:
+            continue
+    raise SystemExit(f"no eval cases at {sha[:12]} (looked in {', '.join(EVALS_PATHS)})")
+
+
+def load_cases(repo: Path, sha: str, only: set[str] | None = None) -> tuple[list[Question], dict[str, str]]:
+    """The cases to run, and the skipped ones with their reasons."""
+    entries = read_evals(repo, sha)
+    ids = [f"s{entry['id']}" for entry in entries]
+    duplicates = sorted({case_id for case_id in ids if ids.count(case_id) > 1})
+    if duplicates:
+        raise SystemExit(f"duplicate case ids at {sha[:12]}: {', '.join(duplicates)}")
+    if only:
+        unknown = only - set(ids)
+        if unknown:
+            raise SystemExit(f"no such case(s) at {sha[:12]}: {', '.join(sorted(unknown))}")
+        entries = [entry for entry in entries if f"s{entry['id']}" in only]
+    skipped = {f"s{entry['id']}": str(entry["skip"]) for entry in entries if entry.get("skip")}
+    cases = [case_from_eval(entry) for entry in entries if not entry.get("skip")]
+    return cases, skipped

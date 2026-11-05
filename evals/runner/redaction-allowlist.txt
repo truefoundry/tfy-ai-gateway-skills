@@ -1,0 +1,2 @@
+# sha256 of values check_redaction.py flagged and a person reviewed as not secret.
+e760ad60556df3b68779ce5f66fe2ca3172068d36f64bf41b5a26357fba202f3  Google Sheets ID in a public docs page comment (SSO matrix), not a credential
