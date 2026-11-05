@@ -11,7 +11,7 @@ Call `list_provider_accounts` with `includeModelProviders: true` and `includeCus
 
 ## "Do you support model X / provider Y?"
 
-Answer from `list_providers`, the platform catalogue, never from memory. For one provider, pass `providerType` (its `type`, below). To list all providers, pass `includeModelProviders: true` and the other `include*` flags `false` (very large). If saved to a file, extract only what you need with one `jq`.
+Answer from `list_providers`, the platform catalogue, never from memory or docs. For one provider, pass `providerType` (its `type`, below). To list all providers, pass `includeModelProviders: true` and the other `include*` flags `false` (very large). If saved to a file, extract only what you need with one `jq`.
 
 - Shape: `data[]` is one entry per provider, with `type` (e.g. `provider-account/openai`) and `label`. Providers have no `name` field; filter on `type`.
 - Models: `data[i].integrations[0].metadata` is an object keyed by `model_id`. Each value has `model`, `mode`, optional `supportedModes`, `status` (`active`, `deprecated`, `preview`, `retired`) and `costs[]`.
