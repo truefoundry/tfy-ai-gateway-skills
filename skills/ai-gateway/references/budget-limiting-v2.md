@@ -22,7 +22,7 @@ Use **`list_gateway_budgets`** to read V2 rules. Each V2 rule is its own manifes
 
 Use it to list budgets and check for overlap before creating one. It returns limits only, never spend.
 
-**Spend:** `get_budget_usage` with a budget's `id` from `list_gateway_budgets` returns, per period, `limit`, `used`, `percentage` and `is_blocked` for its top spenders in its `applies_to` dimension (an aggregate budget has one entry with `entity: null`). For the caller's own budgets, call `get_my_budget_usage` (no arguments). Report the numbers as returned; never estimate them. Link `{controlPlaneUrl}/llm-gateway/policies/budget-limiting-v2` for more.
+**Spend:** `get_budget_usage` with a budget's `id` from `list_gateway_budgets` returns, per period, `limit`, `used`, `percentage` and `is_blocked` for its top spenders in its `applies_to` dimension (an aggregate budget has one entry with `entity: null`). For the caller's own budgets, call `get_my_budget_usage` (no arguments). Report the numbers as returned; never estimate them. No entries means no usage is recorded yet (usage counts from rule creation): say that, with the limit. Link `{controlPlaneUrl}/llm-gateway/policies/budget-limiting-v2` for more.
 
 ## Creating/Updating rules (Write Flow)
 

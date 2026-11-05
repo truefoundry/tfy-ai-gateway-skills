@@ -76,7 +76,7 @@ Files are under `ai-gateway/references/`. **For any create, update or delete, al
 | Single requests, spans, contents, metadata keys, feedback, trace links | `observability.md` |
 | Call a Gateway model from code or a tool — base URL, SDK, snippet | `using-models-from-code.md` |
 
-Other platform topics: integrations with cloud accounts → https://www.truefoundry.com/docs/integrations-overview · secrets are referenced as `tfy-secret://<tenant>:<secret-group>:<key>` (the `fqn` from `list_secrets` has no scheme; add the prefix) → https://www.truefoundry.com/docs/manage-secrets.
+Other platform topics: integrations with cloud accounts → https://www.truefoundry.com/docs/integrations-overview · secrets are referenced as `tfy-secret://<tenant>:<secret-group>:<key>` (the `fqn` from `list_secret_groups` has no scheme; add the prefix) → https://www.truefoundry.com/docs/manage-secrets.
 
 ## AI Engineering
 

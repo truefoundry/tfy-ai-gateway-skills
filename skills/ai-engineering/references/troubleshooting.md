@@ -43,7 +43,7 @@ Branch on what you see, then **open the matching file** (paths under `ai-enginee
 | State | Next file / action |
 |---|---|
 | Response is `null` | No status from the agent. `get_deployment` → build failed / no image: `builds.md`; otherwise `failure-modes/rollout-argocd.md` (status not publishing) |
-| No pods at all | `get_deployment` → build failed / missing image: `builds.md`; deploy stuck: `failure-modes/rollout-argocd.md` |
+| No pods at all | Paused (`metadata.paused`) or scaled to zero (`auto_shutdown`, `replicas: 0`)? Say so; no logs. Else `get_deployment` → build failed / no image: `builds.md`; stuck: `failure-modes/rollout-argocd.md` |
 | `node: null`, condition `reason: Unschedulable` | `failure-modes/pending-scheduling.md` (the condition `message` is the scheduler's reason) |
 | `Pending`, node set, container waiting in `ContainerCreating` | Events: `FailedMount` / PVC → `failure-modes/volumes-storage.md`; image pull → `failure-modes/image-pull.md` |
 | Container `reason: ImagePullBackOff` / `ErrImagePull` | `failure-modes/image-pull.md` |
@@ -59,7 +59,7 @@ Branch on what you see, then **open the matching file** (paths under `ai-enginee
 
 **A `Pending` pod is not a failed pod in Kubernetes terms, but it is a failed deploy for the user.** Nothing may report failure and the deployment may still say `DEPLOY_SUCCESS`.
 
-**No pods means look before the runtime.** If no image was produced there are no pods: `get_application_state` lists none and `get_logs` returns empty.
+**No pods means look before the runtime:** `get_application_state` lists none and `get_logs` returns empty.
 
 A `list_alerts` alert is an early signal; corroborate it with state, logs or metrics.
 
@@ -108,15 +108,15 @@ An empty list means either "nothing happened" or "I could not see it". Before re
 - Are Prometheus/log backends missing on the cluster? (`failure-modes/cluster-capacity.md`)
 - StatefulSet-backed apps (common for some model services) can show **empty** `list_application_events` while pods CrashLoop. Read container `reason` / `lastState` from `get_application_state` and the logs (`model-debug.md`).
 
-State what you could not see rather than reporting health. "No events in the window" and "nothing is wrong" are different claims.
+State what you could not see rather than reporting health: "no events" and "nothing is wrong" are different claims.
 
 **`DEPLOY_SUCCESS` means the rollout was accepted, not that the workload is healthy.** Confirm with `get_application_state` before telling a user their deployment worked.
 
 ## How to answer
 
-- Lead with one root cause, then the evidence (pod name, event reason, log line, metric); add secondary issues only if they block the fix.
-- Propose a concrete fix (manifest field change, registry fix, wait for node, sync, regenerated model specs) — not a generic Kubernetes tutorial.
-- When the cause sits where no tool can see (nodes, NodeClaims, PVCs, system namespaces), give the user the exact `kubectl` command to confirm it.
+- Lead with one root cause, then the evidence (pod, event reason, log line, metric); add other issues only if they block the fix.
+- Propose a concrete fix (manifest field change, registry fix, wait for node, sync, regenerated specs), not a Kubernetes tutorial.
+- When the cause sits where no tool can see (nodes, NodeClaims, PVCs, system namespaces), give the exact `kubectl` command to confirm it.
 - For write fixes, use `validate_manifest` → `apply_manifest` (or `sync_application` / `redeploy_application` / regenerated specs from `get_model_deployment_specs`) with approval. Do not run `tfy apply` in the terminal.
 - For a model server, read `model-debug.md` and research recipes/GitHub issues before inventing engine flags.
 - If you still cannot tell, follow `references/support-tickets.md`.

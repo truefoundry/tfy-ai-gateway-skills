@@ -12,10 +12,10 @@ Model deployments are ordinary **`type: service`** applications. `get_model_depl
 | Target **workspace** | `list_workspaces` → `id` is `workspaceId` |
 | **Already deployed?** | `list_applications` filtered by the user's name or the model name (catalogue specs name the service after the model id), target workspace only. If it exists you are updating — read **Creating or updating** in `deploy-common.md` before generating specs or asking about GPUs |
 | Model source | HuggingFace URL `https://huggingface.co/<org>/<model>` **or** a registry `modelVersionFqn`. If the user gave only a name, confirm the exact `org/model` with a web search |
-| HF token (gated/private Hub models) | `list_secrets` → take the secret's `fqn`. Never ask the user to paste the raw token into chat |
+| HF token (gated/private Hub models) | `list_secret_groups` → take the secret's `fqn`. Never ask the user to paste the raw token into chat |
 | Optional | Preferred server, GPU type, post-deploy intent (Gateway, sticky, scale-to-0) |
 
-`list_workspaces`, `list_applications` and (for gated models) `list_secrets` are independent — call them in one parallel batch.
+`list_workspaces`, `list_applications` and (for gated models) `list_secret_groups` are independent — call them in one parallel batch.
 
 ## Steps
 

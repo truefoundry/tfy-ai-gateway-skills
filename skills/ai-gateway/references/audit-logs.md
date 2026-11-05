@@ -29,7 +29,7 @@ These steps are for `get_audit_logs` (what someone did, a count, an action acros
 
 1. Get `get_current_datetime`'s result, then always set `start` and `end` (ISO 8601). If the user gave no range, use the last 7 days and say so. Do the same for `get_resource_audit_logs`.
 2. Filter with the most specific fields you have:
-   - `resourceType` with `resourceName` (or `resourceFqn`, `resourceId`) when the resource tool does not apply. Virtual accounts and personal access tokens are `service-account`; ML repos are `mlf-project`. A grant or revoke is filed under the resource it is on (`tenant` for tenant roles).
+   - `resourceType` with `resourceName` (or `resourceFqn`, `resourceId`) when the resource tool does not apply. Virtual accounts and personal access tokens are `service-account`; ML repos are `mlf-project`. Legacy remote MCP servers are `provider-integration` (deleted with `DELETE_PROVIDER_INTEGRATION`), so for a deleted MCP server pass `resourceName` with both delete actions and no `resourceType`. If other resources with the same name show up, name them as separate resources. A grant or revoke is filed under the resource it is on (`tenant` for tenant roles).
    - `subjectSlug` for "what did Y do": an email, or a virtual account name.
    - `action` (comma separated) for a kind of change. Take names from `get_audit_log_actions`, never guess, and include every name that fits: a change to one entity type can be `APPLY_`, `CREATE_`, `UPDATE_` or `CREATE_OR_UPDATE_` plus the type, and deletes are `DELETE_` plus the type.
    - `search` matches message, action, resource name and FQN, but is slow; use it only when nothing above fits.
