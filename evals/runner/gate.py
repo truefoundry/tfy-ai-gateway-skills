@@ -231,7 +231,7 @@ def compare(
             (result.accepted if case_id in accept else result.removed).append(case_id)
             continue
         if case_id not in cand.case_hashes:
-            if base.case_hashes.get(case_id) != cand.all_case_hashes[case_id]:
+            if base.all_case_hashes.get(case_id) != cand.all_case_hashes[case_id]:
                 raise GateError(f"case {case_id} changed but the candidate did not run it")
             result.not_run.append(case_id)
             continue

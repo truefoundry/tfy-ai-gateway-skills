@@ -10,6 +10,9 @@ Each case may carry:
 - `tags`: {"area": ..., "kind": ...};
 - `clarification_reply`: what the user answers when the agent asks;
 - `skip`: why the case cannot be measured right now. Skipped cases are reported, never run.
+
+Text may hold `{{trace.<name>.<field>}}` placeholders for fixtures that change every seeding, like
+trace ids. A case is hashed and stored with its placeholders; only the agent and judge see the values.
 """
 
 from __future__ import annotations
@@ -18,12 +21,18 @@ import hashlib
 import json
 import re
 import subprocess
+from dataclasses import replace
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from tfy_eval.dataset import Question, normalize_expectations
 
 EVALS_PATHS = ("evals/evals.json", "skills/evals/evals.json")
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
+FIXTURES_FILE = Path(__file__).resolve().parent / "runs" / "fixtures.json"
+# Devtest keeps traces for about a week; older values may name traces that are gone.
+FIXTURES_MAX_AGE = timedelta(days=2)
+PLACEHOLDER = re.compile(r"\{\{\s*([\w.]+)\s*\}\}")
 
 
 def _git(repo: Path, *args: str) -> str:
@@ -80,6 +89,36 @@ def case_hash(case: Question) -> str:
         [case.question, case.expected, case.expectations, case.clarification_reply], sort_keys=True
     )
     return hashlib.sha256(content.encode()).hexdigest()[:16]
+
+
+def load_fixtures(path: Path = FIXTURES_FILE) -> dict[str, str]:
+    """The values seed_fixtures recorded, or none if they are missing or old enough to have expired."""
+    if not path.exists():
+        return {}
+    data = json.loads(path.read_text())
+    if datetime.now(timezone.utc) - datetime.fromisoformat(data["seeded_at"]) > FIXTURES_MAX_AGE:
+        return {}
+    return data["values"]
+
+
+def fill(case: Question, values: dict[str, str]) -> Question:
+    """The case as the agent and judge see it, with its placeholders replaced."""
+    texts = [case.question, case.expected, case.clarification_reply or ""]
+    texts += [expectation["claim"] for expectation in case.expectations]
+    missing = sorted({key for text in texts for key in PLACEHOLDER.findall(text)} - values.keys())
+    if missing:
+        raise SystemExit(f"case {case.id} needs {', '.join(missing)}; run `python -m runner.seed_fixtures` first")
+
+    def sub(text: str) -> str:
+        return PLACEHOLDER.sub(lambda match: values[match.group(1)], text)
+
+    return replace(
+        case,
+        question=sub(case.question),
+        expected=sub(case.expected),
+        expectations=[{**expectation, "claim": sub(expectation["claim"])} for expectation in case.expectations],
+        clarification_reply=sub(case.clarification_reply) if case.clarification_reply else None,
+    )
 
 
 def read_evals(repo: Path, sha: str) -> list[dict]:

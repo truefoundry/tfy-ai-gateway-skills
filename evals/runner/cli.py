@@ -27,7 +27,7 @@ from tfy_eval.judge import DEFAULT_NUMERIC_TOLERANCE
 from . import gate as gate_mod
 from .affected import affected
 from .asktfy import PinMismatch, PinnedAskTfy, probe
-from .cases import case_hash, load_cases, resolve_commit
+from .cases import case_hash, load_cases, load_fixtures, resolve_commit
 from .experiment import Settings, example_id, execute, run_experiment, start_experiment, sync_dataset
 
 HERE = Path(__file__).resolve().parent
@@ -117,6 +117,7 @@ def _settings(args: argparse.Namespace, ref: str, run_dir: Path | None = None) -
         skipped=skipped,
         allow_dirty=args.allow_dirty,
         all_case_hashes={case.id: case_hash(case) for case in all_cases},
+        fixtures=load_fixtures(),
     )
     return settings, cases
 
@@ -149,8 +150,8 @@ def cmd_ab(args: argparse.Namespace) -> None:
     by_id = {example.id: example for example in examples}
     with ThreadPoolExecutor(max_workers=2) as pool:
         jobs = {
-            pool.submit(execute, side, [by_id[example_id(args.dataset_name, c)] for c in side.cases.values()]): side
-            for side in sides
+            pool.submit(execute, side, [by_id[example_id(args.dataset_name, c)] for c in templates]): side
+            for side, templates in zip(sides, (base_cases, cand_cases))
         }
         failed = None
         for job in as_completed(jobs):
