@@ -150,8 +150,8 @@ def cmd_ab(args: argparse.Namespace) -> None:
     by_id = {example.id: example for example in examples}
     with ThreadPoolExecutor(max_workers=2) as pool:
         jobs = {
-            pool.submit(execute, side, [by_id[example_id(args.dataset_name, c)] for c in side.cases.values()]): side
-            for side in sides
+            pool.submit(execute, side, [by_id[example_id(args.dataset_name, c)] for c in templates]): side
+            for side, templates in zip(sides, (base_cases, cand_cases))
         }
         failed = None
         for job in as_completed(jobs):
