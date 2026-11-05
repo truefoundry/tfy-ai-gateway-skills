@@ -14,8 +14,8 @@ description: Read when the user wants to find, register, update, delete or conne
 
 ## Finding servers and their tools
 
-- By name: `list_mcp_servers` with `filter={"op":"and","values":[{"field":"name","op":"eq","value":"<name>"}]}`. The tool's schema example (`"AND"`, `value`, `column`) is rejected with a 400.
-- By purpose: `list_mcp_servers` with `attributes=id,name,manifest` to keep the response small. If the result is saved to a file, extract only `id`, `manifest.name`, `manifest.type` and `manifest.description` with one `jq`.
+- By name: `list_mcp_servers` with `filter={"op":"and","values":[{"field":"name","op":"EQUAL","value":"<name>"}]}`, exactly this shape. `"AND"`, `column` and any op other than `EQUAL` (`eq`, `like`, `CONTAINS`) are rejected with a 400. For a partial name, list without a filter and match `name` yourself; prefer the exact match.
+- By purpose: `list_mcp_servers` without `attributes` (it allows only `id`, `name`, `fqn`; `manifest` is a 400). If the result is saved to a file, extract only `id`, `manifest.name`, `manifest.type` and `manifest.description` with one `jq`.
 - One server: `get_mcp_server` with its `id`.
 - Tools: `list_mcp_server_tools` with `mcpServerId` (the server's `id`). Reuse the `id` if the `list_mcp_servers` result is still in the conversation; otherwise call `list_mcp_servers` again with a `name` filter. It errors if the server is not connected or misconfigured; the message says why.
 
@@ -181,7 +181,7 @@ Follow `write-rules.md` → Steps: `validate_manifest`, wait for `valid: true`, 
 Users need the endpoint to connect clients. Build it like this:
 
 1. Take `proxyUrl` from `get_mcp_server` (reuse it if still in the conversation, otherwise call again). It looks like `{{mcpProxyBaseURL}}/<tenant>/mcp/<server-name>/server`.
-2. Replace `{{mcpProxyBaseURL}}` with `manifest.url` of the `list_gateway_installations` entry where `isDefault: true` (else the first entry). Steps 1 and 2 are independent: call both in one batch.
+2. Replace `{{mcpProxyBaseURL}}` with `manifest.url` of the `list_gateway_installations` entry where `isDefault: true` and `manifest.enabled: true`. If the default is disabled, use the enabled one (ask if several are enabled); never a disabled installation's URL. Steps 1 and 2 are independent: call both in one batch.
 3. Show the full URL, for example `https://gateway.example.com/acme/mcp/github-mcp/server`. Never show the placeholder.
 
 ## Checklist

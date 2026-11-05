@@ -1398,6 +1398,24 @@
         "area": "metrics",
         "kind": "diagnose"
       }
+    },
+    {
+      "id": 78,
+      "prompt": "What tools does our linear MCP server expose?",
+      "expected_output": "Looks up the MCP server named linear (list_mcp_servers with a name filter, or a list it matches itself), then calls list_mcp_server_tools with its id. Lists the tools it returns, or, if the call fails because the server is not connected, says so with the error. Its list_mcp_servers calls succeed: no 400 from the filter shape or from asking for a manifest attribute.",
+      "files": [],
+      "expectations": [
+        {
+          "text": "Lists the linear server's tools from list_mcp_server_tools, or reports that tool's error and what it means",
+          "critical": true
+        },
+        "No list_mcp_servers call fails with a 400 for its filter or attributes"
+      ],
+      "tags": {
+        "area": "mcp",
+        "kind": "query",
+        "regression": "LangSmith Engine: Skill prescribes invalid list-tool arguments (Nov 5)"
+      }
     }
   ]
 }
