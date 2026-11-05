@@ -92,6 +92,8 @@ def sample(run_dir: Path, out: Path, n: int, seed: int) -> None:
             f" · **Questions asked:** {len(answer.get('clarifications_asked') or [])}"
             f" · **Session:** {answer.get('session_url') or answer.get('session_id')}",
             "",
+            *[f"- Asked: {e['asked']}\n  - Replied: {e['reply']}" for e in answer.get("exchanges") or []],
+            "",
             "**Answer:**",
             "",
             "````markdown",

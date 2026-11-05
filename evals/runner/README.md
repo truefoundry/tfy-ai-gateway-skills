@@ -105,7 +105,7 @@ of up to a day of devtest drift; fixtures are re-seeded before every run to keep
 
 | Outcome | Examples | Counts as |
 |---|---|---|
-| Answered | | Judge verdict: passes at score ≥ 0.7, no contradiction, every critical claim supported |
+| Answered | | Judge verdict: passes at score ≥ 0.7, no contradiction, every critical claim supported. A non-critical claim that starts with a condition ("If …", "After …") whose condition never occurred is ruled `not_applicable` and left out of the score, so write branch-specific claims that way |
 | Agent failure | Step limit, still waiting on approvals after `--max-rounds`, empty answer, server execution timeout | Fail, whatever it said on the way (not retried) |
 | Infrastructure failure | Dropped turn, model error, poll timeout, MCP login needed | Retried up to `--retries` (a timed-out turn is cancelled first), then unmeasured; interim text is never graded |
 
@@ -121,7 +121,7 @@ of up to a day of devtest drift; fixtures are re-seeded before every run to keep
 | `answer_key_reads` | Tool calls that touched `evals.json` (older skills commits ship it in the sandbox). Should always be 0 |
 | `writes_denied` | Approval prompts the runner denied |
 | `secret_requested` | Asked for a secret through the masked form; the runner refuses it |
-| `clarification_asked` | Asked a clarifying question (answered with the case's `clarification_reply`, if any) |
+| `clarification_asked` | Asked a clarifying question, with ask_user_question or by ending its turn on one (answered with the case's `clarification_reply`; with none scripted, ask_user_question is told the user did not answer) |
 | `tool_calls`, `duration_s`, `cost_usd` | Efficiency |
 
 Outputs and feedback comments are redacted with `runner/redaction.py` before they reach

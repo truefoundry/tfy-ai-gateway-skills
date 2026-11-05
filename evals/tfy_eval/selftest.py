@@ -285,8 +285,35 @@ check(
 )
 check(
     "judge JSON schema survives substitution",
-    '"verdict": "supported|partial|missing|contradicted"' in with_tol,
+    '"verdict": "supported|partial|missing|contradicted|not_applicable"' in with_tol,
 )
+
+conditional = [
+    {"claim": "If register_user returns 409, explains it", "importance": "normal"},
+    {"claim": "Uses register_user", "importance": "normal"},
+    {"claim": "After the denied apply, does not retry", "importance": "normal"},
+    {"claim": "If several apps match, asks which one", "importance": "critical"},
+]
+ruled = judge.align_claims(conditional, [
+    {"n": 1, "verdict": "not_applicable", "evidence": "the call was denied"},
+    {"n": 2, "verdict": "not_applicable", "evidence": "-"},
+    {"n": 3, "verdict": "supported", "evidence": "-"},
+    {"n": 4, "verdict": "not_applicable", "evidence": "-"},
+])
+check("a conditional claim can be not applicable", ruled[0]["verdict"] == "not_applicable")
+check("an unconditional claim cannot", ruled[1]["verdict"] == "missing" and "no condition" in ruled[1]["evidence"])
+check("a critical claim cannot", ruled[3]["verdict"] == "missing" and "critical" in ruled[3]["evidence"])
+score, counts = judge.score_claims([ruled[0], ruled[2]], 0)
+check("not applicable claims are left out of the score", score == 1.0 and counts["not_applicable"] == 1)
+check("all claims not applicable is not a fail", judge.score_claims([dict(ruled[0])], 0)[0] == 1.0)
+check("no claims still scores zero", judge.score_claims([], 0)[0] == 0.0)
+
+with_replies = judge.build_prompt(
+    question="q", expected="e", candidate="a",
+    exchanges=[{"asked": "Which RPS target?", "reply": "10 per replica", "via": "ask_user_question"}],
+)
+check("the judge sees what the user replied", "USER REPLIES" in with_replies and "Replied: 10 per replica" in with_replies)
+check("no replies, no section", "USER REPLIES" not in judge.build_prompt(question="q", expected="e", candidate="a"))
 for template in (judge.JUDGE_INSTRUCTIONS, judge.JUDGE_INSTRUCTIONS_FIXED):
     check(
         "both judge prompts carry the tolerance slot",
@@ -384,6 +411,38 @@ check("sandbox MCP calls are extracted in order",
 check("tool_label_name strips args and result", agent_mod.tool_label_name(labels[0]) == "tfy-platform-mcp/create_grants")
 check("tool_label_name on exec", agent_mod.tool_label_name("exec: cat x -> y") == "exec")
 
+# --- the harness's own replies are part of the record -------------------------
+
+
+class _Event:
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
+
+
+class _Call:
+    def __init__(self, call_id, name, arguments):
+        self.id = call_id
+        self.function = _Event(name=name, arguments=arguments)
+        self.tool_info = _Event(name=name, type="truefoundry-system")
+
+
+ask = _Call("q1", "ask_user_question", json.dumps({"question": "Which RPS target?"}))
+events = {"m1": _Event(type="model.message", thread_id="main", content="", tool_calls=[ask])}
+pending = _Event(thread_id="main", tool_calls=[_Event(id="q1", source_event_id="m1")])
+run = agent_mod.AgentRun(question_id="q", trial=0)
+resume = agent_mod._resume_input(run, events, [], [pending], "deny", "10 per replica")
+check("the scripted reply is sent", resume[0]["content"] == "10 per replica")
+check("the exchange is recorded", run.exchanges == [
+    {"asked": "Which RPS target?", "reply": "10 per replica", "via": "ask_user_question"}])
+labels, _ = agent_mod.tool_labels(agent_mod._transcript(run, events, ["m1"]))
+check("the reply shows as the question's result", labels[0].endswith("-> 10 per replica"), labels[0])
+
+check("an answer ending on a question asks in text",
+      agent_mod.asks_in_text("I can retry it.\n\nWhich model and workspace is it?") == "Which model and workspace is it?")
+check("an answer with no question does not", agent_mod.asks_in_text("Done. The service is scaled.") is None)
+check("a question early in a long answer does not count",
+      agent_mod.asks_in_text("Why did it fail? " + "x" * 1000 + " Done.") is None)
+
 # --- critical claims decide the verdict ---------------------------------------
 
 crit = lambda v: [{"importance": "critical", "verdict": v}, {"importance": "normal", "verdict": "supported"}]
@@ -436,6 +495,45 @@ try:
     check("MCP auth is not retried", c.calls == 1)
 finally:
     agent_mod.run_question, agent_mod.time.sleep = real_run, real_sleep
+
+
+class _Sessions:
+    def create(self, **kwargs):
+        return _Event(data=_Event(id="s1"))
+
+
+class _Client:
+    sessions = _Sessions()
+
+
+def _done(content):
+    return _Event(status="done", output=_Event(content=content), metrics=None, required_actions=[])
+
+
+def _scripted_turns(answers):
+    sent = []
+
+    def stream(client, session_id, turn_input, **kwargs):
+        sent.append(turn_input)
+        return _done(answers[len(sent) - 1]), [], []
+    return stream, sent
+
+
+real_stream = agent_mod._stream_turn
+try:
+    agent_mod._stream_turn, sent = _scripted_turns(["Which workspace should I use?", "Deployed to archit-ws."])
+    r = agent_mod.run_question(_Client(), {}, "deploy it", question_id="q", follow_up="archit-ws")
+    check("a question asked in text gets the scripted reply",
+          r.answer == "Deployed to archit-ws." and sent[1] == [{"type": "user.message", "content": "archit-ws"}])
+    check("and is recorded as an exchange", r.exchanges[0]["via"] == "message" and r.clarifications_asked)
+    agent_mod._stream_turn, sent = _scripted_turns(["Which one?", "Still: which one?", "unused"])
+    r = agent_mod.run_question(_Client(), {}, "q", question_id="q", follow_up="that one")
+    check("the reply is sent only once", len(sent) == 2 and r.answer == "Still: which one?")
+    agent_mod._stream_turn, sent = _scripted_turns(["Which one?"])
+    r = agent_mod.run_question(_Client(), {}, "q", question_id="q")
+    check("no scripted reply, no follow-up", len(sent) == 1 and not r.exchanges)
+finally:
+    agent_mod._stream_turn = real_stream
 
 
 class _AbortingSessions:
