@@ -1,0 +1,37 @@
+name: Ask TFY eval (selftests)
+
+on:
+  pull_request:
+    paths:
+      - "evals/**"
+      - ".github/workflows/eval-*.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  selftest:
+    name: Runner and harness selftests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: evals
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Install
+        run: uv pip install --system -r requirements.txt
+
+      - name: Runner
+        run: python -m runner.selftest
+
+      - name: Harness
+        run: python -m tfy_eval.selftest

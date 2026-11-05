@@ -1,7 +1,7 @@
 # Eval fixtures
 
 The cases run on the devtest tenant and name these entities. They are seeded by
-`runner/seed_fixtures.py` in ask-tfy-quality; change both together.
+`runner/seed_fixtures.py`; change both together.
 
 | Entity | State | Cases |
 |---|---|---|
