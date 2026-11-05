@@ -1,0 +1,77 @@
+name: Ask TFY eval (nightly baseline)
+
+on:
+  schedule:
+    - cron: "30 20 * * *" # 02:00 IST
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ask-tfy-eval-nightly
+  cancel-in-progress: false
+
+jobs:
+  baseline:
+    name: Run every case on platform
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    defaults:
+      run:
+        working-directory: evals
+    env:
+      ASK_TFY_HOST: ${{ secrets.EVAL_ASK_TFY_HOST }}
+      ASK_TFY_TENANT: ${{ secrets.EVAL_ASK_TFY_TENANT }}
+      TFY_API_KEY: ${{ secrets.EVAL_TFY_API_KEY }}
+      TRUEFORGE_BASE_URL: ${{ secrets.EVAL_TRUEFORGE_BASE_URL }}
+      TRUEFORGE_JUDGE_MODEL: ${{ vars.EVAL_JUDGE_MODEL || 'tfy-ai-anthropic/claude-sonnet-5-5' }}
+      LANGSMITH_API_KEY: ${{ secrets.LANGSMITH_API_KEY }}
+      LANGSMITH_ENDPOINT: ${{ secrets.LANGSMITH_ENDPOINT }}
+      EVAL_FIXTURE_MANAGER: ${{ secrets.EVAL_FIXTURE_MANAGER }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: platform
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Install
+        run: uv pip install --system -r requirements.txt && uv pip install --system --pre truefoundry
+
+      - name: Seed fixtures
+        run: python -m runner.seed_fixtures
+
+      - name: Run
+        run: python -m runner run --skills-ref origin/platform --run runner/runs/nightly
+
+      # The repo is public: run directories hold devtest data, so only headline numbers are shown
+      # and the artifact is encrypted. Redacted traces are in LangSmith.
+      - name: Headline
+        if: always()
+        run: |
+          [ -f runner/runs/nightly/report.md ] || exit 0
+          sed -n '/^## Headline/,/^## Verdict/p' runner/runs/nightly/report.md | sed '$d' >> "$GITHUB_STEP_SUMMARY"
+
+      # Kept on failure too, for debugging; the PR gate only takes baselines from successful runs.
+      - name: Encrypt the run
+        if: always()
+        env:
+          EVAL_ARTIFACT_KEY: ${{ secrets.EVAL_ARTIFACT_KEY }}
+        run: |
+          [ -d runner/runs/nightly ] || exit 0
+          tar -czf - -C runner/runs nightly \
+            | openssl enc -aes-256-cbc -pbkdf2 -salt -pass env:EVAL_ARTIFACT_KEY -out baseline.tar.gz.enc
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ask-tfy-baseline
+          path: evals/baseline.tar.gz.enc
+          retention-days: 14
+          if-no-files-found: ignore
