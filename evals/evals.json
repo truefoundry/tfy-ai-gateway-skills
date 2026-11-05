@@ -1188,7 +1188,7 @@
     {
       "id": 65,
       "prompt": "Why did this trace fail - {{trace.provider_400.id}}",
-      "expected_output": "Queries every span of the trace on the default destination over the last 7 days without asking which destination first, and reports that the provider rejected the request with a 400 (tfy.error_type request-failure-400 on the Model span) because top_logprobs was 50 and the maximum is 20. Names the sender {{trace.provider_400.sender}} and says it went to eval-vm/chat at {{trace.provider_400.time}} UTC. Includes a trace link. Says the caller should send top_logprobs of 20 or less.",
+      "expected_output": "Queries every span of the trace on the default destination, in the window its trace ID encodes, without asking which destination first, and reports that the provider rejected the request with a 400 (tfy.error_type request-failure-400 on the Model span) because top_logprobs was 50 and the maximum is 20. Names the sender {{trace.provider_400.sender}} and says it went to eval-vm/chat at {{trace.provider_400.time}} UTC. Includes a trace link. Says the caller should send top_logprobs of 20 or less.",
       "files": [],
       "expectations": [
         "Queries the default destination without asking the user to pick one",
@@ -1205,7 +1205,7 @@
     {
       "id": 66,
       "prompt": "Why did request {{trace.guardrail.id}} fail?",
-      "expected_output": "Queries every span of the trace on default over the last 7 days and reports that the input guardrail tfy-guardrail/pii blocked the request before the model ran: HTTP 400, tfy.error_type tfy-input-guardrail on the Model span, message '{{trace.guardrail.error}}'. Names the sender {{trace.guardrail.sender}} and says it went to eval-vm/chat at {{trace.guardrail.time}} UTC. Includes a trace link.",
+      "expected_output": "Queries every span of the trace on default, in the window its trace ID encodes, and reports that the input guardrail tfy-guardrail/pii blocked the request before the model ran: HTTP 400, tfy.error_type tfy-input-guardrail on the Model span, message '{{trace.guardrail.error}}'. Names the sender {{trace.guardrail.sender}} and says it went to eval-vm/chat at {{trace.guardrail.time}} UTC. Includes a trace link.",
       "files": [],
       "expectations": [
         "Names the guardrail tfy-guardrail/pii as the cause",
@@ -1294,7 +1294,7 @@
     {
       "id": 72,
       "prompt": "Why did trace 4bf92f3577b34da6a3ce929d0e0e4736 fail?",
-      "expected_output": "Queries every span of the trace on default over the last 7 days, finds no rows, says the trace is not in default in that window (possibly also because of data-access rules), and asks the user roughly when the request was made and which destination it went to. Does not query other destinations on its own or invent a cause.",
+      "expected_output": "Queries every span of the trace on default over the last 7 days (the ID is not UUIDv7, so it encodes no time), finds no rows, says the trace is not in default in that window (possibly also because of data-access rules), and asks the user roughly when the request was made and which destination it went to. Does not query other destinations on its own or invent a cause.",
       "files": [],
       "expectations": [
         "Queries default once over the last 7 days",

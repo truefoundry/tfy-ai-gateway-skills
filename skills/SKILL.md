@@ -23,7 +23,7 @@ Read an entity's file before any write or data query — it holds rules tool err
 - **Live state over memory.** The platform outpaces your training data, and tenants differ. Fetch state with tools before answering; if the docs don't confirm something, say so. Dates too: call `get_current_datetime` before building a time range.
 - **Docs.** `search_docs` finds pages; `get_page_layout` shows headings; `get_section_content` returns a page or `#section`. Fetch only URLs/anchors from those tools or this skill. Search before saying a topic is uncovered. Link the doc and summarize only what the question needs; don't volunteer best practices.
 - **Session context** (identity, tenant, `controlPlaneUrl`, `tracesTable`) is in your instructions under "Session context". Only if missing, call `get_session_context`; reuse it while in the conversation.
-- **Real URLs only.** Never show a placeholder such as `{controlPlaneUrl}` or `{gatewayBaseURL}`, even in docs snippets. `controlPlaneUrl` builds UI links. Gateway base URL (API calls, SDK `baseURL`, MCP endpoints): `manifest.url` from `list_gateway_installations`, of the `isDefault` one if `manifest.enabled`, else an enabled one, unless the user names another.
+- **Real URLs only.** Never show a placeholder like `{controlPlaneUrl}`, even in docs snippets. `controlPlaneUrl` builds UI links. Gateway base URL (API calls, SDK `baseURL`, MCP endpoints): `manifest.url` from `list_gateway_installations`, of the `isDefault` one if `manifest.enabled`, else an enabled one, unless the user names another.
 - **Tool arguments.** Send only parameters in the tool's input schema; filters differ between list tools. `list_provider_accounts` has no name filter: list, then match `name` yourself. `list_mcp_servers`: filter per `mcp-servers.md`; `attributes` has no `manifest`. Never send a `null`, empty or guessed ID, or repeat a call whose result you have. If a few rounds haven't settled it, answer with what you found and what is unknown.
 - **Sandbox scripts.** Never name a sandbox file after a stdlib module (`csv.py`, `json.py`) — it shadows the import. Any field in tool data can be null: read `r.get(k) or ""` / `or 0`, never `r[k]`.
 - **Tool errors.** If a platform tool fails, tell the user the error and what it blocks. Never work around it via env vars, process files, the MCP client, raw HTTP, or other credentials.
@@ -36,13 +36,13 @@ Every create, update and delete goes through a manifest tool, which asks the use
 
 - The reference file and `get_manifest_json_schema` are a write's contract: don't `search_docs` during it. Cite a doc page in the reply only.
 - `validate_manifest`, `apply_manifest` and `delete_manifest` take `{"manifest": {...}}`. Reference files show YAML; send JSON.
-- Call `validate_manifest` directly; for a manifest too large to write inline, write it to a sandbox file and validate that file from the sandbox. Fix and re-validate until `valid: true`, then call `apply_manifest` once, directly, with the validated JSON — never in the same batch as validation.
+- Call `validate_manifest` directly; for a manifest too large to write inline, validate it from a sandbox file. Fix and re-validate until `valid: true`, then call `apply_manifest` once, directly, with the validated JSON — never in the same batch as validation.
 - `delete_manifest` needs `type` and `name`, plus `workspace_fqn` for applications and `cluster_fqn` for workspaces. Legacy singletons need only `type`.
 - Applying an existing identity **replaces the whole entity**, and several list fields replace everything on update (team members, integrations, rules). Change a live entity by fetching its current manifest and editing it, never by rebuilding it.
 - Grant access only with the grant tools (`list_grants`, `create_grants`, `revoke_grant`), never in a manifest: remove `collaborators`, `authorized_subjects` and a VA's `permissions` before every apply, on create too.
-- If apply fails, show the error; if it persists or is unclear, offer a ticket. Don't silently retry or give up.
-- A denied approval is the user's answer: say nothing changed and don't call that write again, edited or not, unless they ask.
-- Call `apply_manifest`, `delete_manifest` and every other write tool directly, not from the sandbox, so they go through approval. Never run `tfy apply` — it is the same write without the approval step. Deploying from local source is the one exception: `tfy deploy` with `build_source: local`.
+- If apply fails, show the error, and offer a ticket if it persists or is unclear. Don't silently retry or give up.
+- A denied approval is the user's answer: say nothing changed and don't call that write again, edited or not, unless they ask. Then show the validated manifest (for an edit, what changed and what was kept), your choices and why, and what applying it gives (links, checks).
+- Call `apply_manifest`, `delete_manifest` and every other write tool directly, not from the sandbox, so they go through approval. Never run `tfy apply`: it skips approval. Deploying from local source is the one exception: `tfy deploy` with `build_source: local`.
 
 ## Ambiguous references
 
@@ -80,7 +80,7 @@ Other platform topics: integrations with cloud accounts → https://www.truefoun
 
 ## AI Engineering
 
-Files are under `ai-engineering/references/`. Read the file for what you are about to do before you do it — path, what to check first, and how to tell a real failure from a tool that cannot see.
+Files are under `ai-engineering/references/`. Read the file for what you are about to do before you do it: it says what to check first.
 
 | The user wants to… | Read |
 | --- | --- |

@@ -170,6 +170,10 @@ _WRAPPER_TOOLS = ("call_tool", "get_tool_info")
 # Sandbox programs carry the query filters, groupings and output handling the checklists grade,
 # and run 1-3k characters.
 TOOL_ARGS_LABEL_LIMIT = 2000
+# Claims like "the manifest sent to apply_manifest has no collaborators" need the whole manifest,
+# and a provider account or service manifest runs past 2k; there are only a few of these per turn.
+MANIFEST_TOOLS = frozenset({"validate_manifest", "apply_manifest", "delete_manifest"})
+MANIFEST_ARGS_LABEL_LIMIT = 20000
 EXEC_LABEL_LIMIT = 4000
 # The start of what each call returned: enough to see a 403, an empty list or an error class.
 RESULT_LABEL_LIMIT = 240
@@ -203,7 +207,8 @@ def _result_snippet(content: str) -> str:
 def _with_args(label: str, args: Any) -> str:
     if not args:
         return label
-    return f"{label} {json.dumps(args, separators=(',', ':'), ensure_ascii=False)[:TOOL_ARGS_LABEL_LIMIT]}"
+    limit = MANIFEST_ARGS_LABEL_LIMIT if label.rsplit("/", 1)[-1] in MANIFEST_TOOLS else TOOL_ARGS_LABEL_LIMIT
+    return f"{label} {json.dumps(args, separators=(',', ':'), ensure_ascii=False)[:limit]}"
 
 
 def _effective_tool_names(name: str, raw_arguments: str) -> list[str]:
