@@ -52,6 +52,7 @@ LIMITS = [
      "when": {"models": {"in": ["eval-vm/rate-limit"]}}, "log_request_body_on_block": False},
 ]
 GATEWAY_SYNC_S = 60
+LIMIT_SYNC_TIMEOUT_S = 180
 PII = "My SSN is 123-45-6789, my card is 4111 1111 1111 1111 and my email is john.doe@gmail.com"
 
 
@@ -181,15 +182,21 @@ def provider_accounts(manager: str) -> list[dict]:
 def send(gateway: httpx.Client, trace: Trace) -> str:
     """The trace id of the request that came back with the trace's status."""
     statuses = []
-    for _ in range(trace.attempts):
-        response = gateway.post("/chat/completions", headers=trace.headers, json={
-            "model": trace.model, "messages": [{"role": "user", "content": trace.content}], "max_tokens": 20,
-            **trace.body})
-        statuses.append(response.status_code)
-        if response.status_code == trace.status:
-            target = json.loads(base64.b64decode(response.headers["x-tfy-feedback-target-id"]))
-            return target["traceId"]
-    raise SystemExit(f"{trace.name}: {trace.model} returned {statuses}, expected {trace.status}: {response.text[:300]}")
+    # A limit applied moments ago may not have reached every gateway pod: keep sending until it does.
+    deadline = time.monotonic() + (LIMIT_SYNC_TIMEOUT_S if trace.attempts > 1 else 0)
+    while True:
+        for _ in range(trace.attempts):
+            response = gateway.post("/chat/completions", headers=trace.headers, json={
+                "model": trace.model, "messages": [{"role": "user", "content": trace.content}], "max_tokens": 20,
+                **trace.body})
+            statuses.append(response.status_code)
+            if response.status_code == trace.status:
+                target = json.loads(base64.b64decode(response.headers["x-tfy-feedback-target-id"]))
+                return target["traceId"]
+        if time.monotonic() > deadline:
+            raise SystemExit(f"{trace.name}: {trace.model} returned {statuses}, expected {trace.status}: "
+                             f"{response.text[:300]}")
+        time.sleep(20)
 
 
 def wait_for(api: httpx.Client, sent: dict[str, str], timeout: float = 600) -> dict[str, dict]:

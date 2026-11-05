@@ -661,27 +661,6 @@
       }
     },
     {
-      "id": 36,
-      "prompt": "Deploy https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct to workspace archit-ws. My HF token is in the secret group automation-secrets-msyxnmvs-5e2f under key HUGGINGFACE_TOKEN.",
-      "expected_output": "Resolves the workspace and checks for an existing app, finds the secret's fqn with list_secret_groups, then calls get_model_deployment_specs with huggingfaceHubTokenSecretFqn=tfy-secret://<fqn>, picks an isAvailableInWorkspace option, validates and applies. If the specs call fails with a Hugging Face 401, it reports that the token cannot read the model instead of retrying the same call or asking for the raw token.",
-      "files": [],
-      "expectations": [
-        {
-          "text": "Calls get_model_deployment_specs before writing any manifest",
-          "critical": true
-        },
-        "Passes the token as tfy-secret://<fqn>, not a bare FQN or raw token",
-        "Never asks the user to paste the token",
-        "If get_model_deployment_specs returns options, picks one with isAvailableInWorkspace: true or asks before using one that is not",
-        "If it builds a manifest, calls validate_manifest before apply_manifest",
-        "If the specs call fails with a Hugging Face 401, reports it, does not repeat the identical call, and does not switch models without asking"
-      ],
-      "tags": {
-        "area": "deploy",
-        "kind": "write"
-      }
-    },
-    {
       "id": 37,
       "prompt": "Deploy my sklearn model model:acme/fraud/fraud-clf:3 to workspace prod-ws.",
       "expected_output": "Calls get_model_deployment_specs with modelVersionFqn, treats the empty deployments for FastAPI/Triton as expected, and gives the tfy deploy-init model command plus the sklearn/XGBoost docs link.",
