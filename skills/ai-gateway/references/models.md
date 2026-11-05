@@ -11,12 +11,12 @@ Call `list_provider_accounts` with `includeModelProviders: true` and `includeCus
 
 ## "Do you support model X / provider Y?"
 
-Answer from `list_providers`, the platform catalogue, never from memory or docs. For one provider, pass `providerType` (its `type`, below). To list all providers, pass `includeModelProviders: true` and the other `include*` flags `false` (very large). If saved to a file, extract only what you need with one `jq`.
+Answer from `list_providers`, the platform catalogue, never from memory or docs. For one provider, pass `providerType` (its `type`, below). To list all providers, pass `includeModelProviders: true` and the other `include*` flags `false` (very large). If saved to a file, extract with one `jq`.
 
 - Shape: `data[]` is one entry per provider, with `type` (e.g. `provider-account/openai`) and `label`. Providers have no `name` field; filter on `type`.
-- Models: `data[i].integrations[0].metadata` is an object keyed by `model_id`. Each value has `model`, `mode`, optional `supportedModes`, `status` (`active`, `deprecated`, `preview`, `retired`) and `costs[]`.
+- Models: `data[i].integrations[0].metadata` is an object keyed by `model_id`. Each value has `model`, `mode`, optional `supportedModes`, `status` (`active`, `deprecated`, `preview`, `retired`) and `costs[]`. Quote `status`/`mode` as given; missing = unknown, not `active`/`chat`.
 - Providers: list `type` and `label`. `provider-account/virtual-model` has no catalogue.
-- If `metadata` is empty or missing, recheck the type; if still empty, say the catalogue has no models for that provider. Never invent models.
+- If `metadata` is empty or missing, recheck the type; if still empty, say the catalogue has no models for that provider.
 
 ## Create or update a provider account
 
@@ -36,7 +36,7 @@ These are independent; issue them together:
 
 - `list_provider_accounts` (flags as in "List the tenant's models", plus `attributes: ["id","name","provider"]`; no name filter). It is usually saved to a file: match `name` and `provider` with one `jq`. To update, fetch that account with `get_provider_account`.
 - `get_manifest_json_schema` for the account type.
-- `list_providers` from the sandbox with `providerType` (the account type), saved to a file. Reuse a saved file from this conversation if it still exists.
+- `list_providers` from the sandbox with `providerType` (the account type), saved to a file. Reuse a saved file if it still exists.
 
 If matching accounts exist, ask whether to update one or create a new one with a different name.
 

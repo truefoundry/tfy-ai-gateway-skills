@@ -14,9 +14,9 @@ These two paths do not use the HuggingFace catalogue flow in `model-deploy.md`. 
 | Workspace | `list_workspaces` → `id` |
 | `nimModelId` | `<org>/<team>/<model>`, e.g. `nim/meta/llama3-8b-instruct` — any other shape is rejected |
 | `nvcrDockerRegistryProviderIntegrationFqn` | FQN of a docker-registry integration for `nvcr.io` (username `$oauthtoken`, password = NGC API key). Find it in `list_provider_accounts` |
-| `ngcApiKeySecretFqn` | `list_secrets` → take the secret's `fqn` and pass `tfy-secret://<fqn>`. A bare FQN fails with "Secret with FQN … not found" |
+| `ngcApiKeySecretFqn` | `list_secret_groups` → take the secret's `fqn` and pass `tfy-secret://<fqn>`. A bare FQN fails with "Secret with FQN … not found" |
 
-`list_workspaces`, `list_provider_accounts` and `list_secrets` are independent — call them in one parallel batch. If the registry integration or NGC secret does not exist, send the user to https://www.truefoundry.com/docs/deploying-nvidia-nims to create them; you cannot.
+`list_workspaces`, `list_provider_accounts` and `list_secret_groups` are independent — call them in one parallel batch. If the registry integration or NGC secret does not exist, send the user to https://www.truefoundry.com/docs/deploying-nvidia-nims to create them; you cannot.
 
 ### Steps
 

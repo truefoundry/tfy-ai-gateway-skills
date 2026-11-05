@@ -9,12 +9,22 @@ description: Aggregate Gateway questions — requests, cost, tokens, latency, er
 
 ### Running a query
 
-Group-by and timeseries can run to hundreds of rows; the tool cannot sort or limit. Run those from the sandbox with one program that calls the tool, sorts, cuts to what the question needs and prints only that. A single sandbox `call_tool` (no sorting program) is enough only for no `groupBy` and `type: distribution` (one row).
+Group-by and timeseries can return hundreds of rows and the tool cannot sort or limit, so query from the sandbox in one program that sorts and prints only what is needed:
 
-- From code: `result = await call_tool("<server>", "query_llm_gateway_metrics", body={...})` on the Code Mode server hosting the tool. Batch independent queries with `asyncio.gather`; the sandbox times out at 60s.
-- Returns `{"data": {"dataPoints": [...], "intervalInSeconds": N}}`. A 400's message is the server's.
-- Build requests from this file — not the input schema or `get_tool_info` (schema merges all datasources). Never call `get_tool_info` on `query_llm_gateway_metrics`. A wrong field or operator returns a 400 naming it.
-- Print the top 10–20 rows as a table.
+```python
+r = await call_tool("<server>", "query_llm_gateway_metrics", body={
+  "datasource": "realModelMetrics", "type": "distribution", "groupBy": ["modelName"],
+  "startTs": "2026-10-29T00:00:00Z", "endTs": "2026-11-05T00:00:00Z",
+  "aggregations": [{"type": "sum", "column": "costInUSD", "alias": "cost"},
+    {"type": "count", "column": "modelName", "alias": "failures",
+     "filterPredicate": [{"fieldName": "isFailure", "operator": "EQUAL", "value": True}]}],
+  "filters": [{"fieldName": "userEmail", "operator": "EQUAL", "value": "<session email>"}]})
+rows = r["data"]["dataPoints"]
+```
+
+- `filters` and `filterPredicate` are always lists of `{fieldName, operator, value}`. Batch independent queries with `asyncio.gather` (sandbox timeout 60s).
+- Build requests from this file; never call `get_tool_info` on this tool (its schema merges all datasources). A 400 names the wrong field.
+- Print the top 10–20 rows.
 - **Totals.** Print headline totals (requests, cost, tokens, failures) from a `groupBy: []` query in the same program; grouped rows double count teams and virtual → real models. Quote only numbers the program printed; compute percentages and sums in the program, not the reply.
 
 ### Datasources
@@ -22,7 +32,7 @@ Group-by and timeseries can run to hundreds of rows; the tool cannot sort or lim
 | Question about | `datasource` |
 | --- | --- |
 | Model calls: cost, tokens, latency, TTFT, errors, prompt-cache, per real model | `realModelMetrics` |
-| Per virtual model without real-model breakdown (no gateway-cache columns) | `virtualModelMetrics` |
+| Per virtual model (no real-model or gateway-cache columns) | `virtualModelMetrics` |
 | Gateway cache (exact-match / semantic): hit rate, savings | `cacheMetrics` |
 | MCP calls and tool calls | `mcpMetrics` |
 | Guardrail checks | `guardrailMetrics` (`guardrailPolicyMetrics` per policy) |
@@ -30,15 +40,15 @@ Group-by and timeseries can run to hundreds of rows; the tool cannot sort or lim
 | Agent runs | `agentMetrics` |
 | Incoming requests by path, method, span type | `gatewayRequestMetrics` |
 
-Use `realModelMetrics`, not its alias `modelMetrics`. Virtual model → real model breakdown: `realModelMetrics` grouped by `virtualModel` and `modelName` (only calls routed through a virtual model).
+Virtual model → real model breakdown: `realModelMetrics` grouped by `virtualModel` and `modelName` (only calls routed through a virtual model).
 
 ### Request rules
 
 - **Scope.** "My", "I" or "me" means filter `userEmail EQUAL <session email>` on every query, the totals query included. Without it, a caller who can see other users' data gets everyone's numbers.
-- **Time.** Get `get_current_datetime` before building the window, never alongside the query. `startTs`/`endTs` are ISO 8601, both inclusive; without an offset they are UTC and must share the same offset. `endTs` defaults to now; a future value is clamped. Default to the last 7 days when no window is given; state the window in the answer.
+- **Time.** Get `get_current_datetime` before building the window, never alongside the query. `startTs`/`endTs` are ISO 8601, both inclusive; without an offset they are UTC and must share the same offset. Default to the last 7 days when no window is given; state the window in the answer.
 - **`type`.** `distribution` returns one row per group over the window. `timeseries` adds buckets: set `interval` (`"1 hour"`, `"1 day"`, one unit) when asked for granularity; else the server picks from the window. Buckets start at `startTs` (UTC midnight/hour for daily/hourly). Empty buckets: `total: 0`, null groups.
 - **Counting requests.** Every row has `total` (row count = request count). `count` on a column skips NULLs (`count` of `costInUSD` skips calls without cost).
-- **Conditional counts.** A `filterPredicate` on an aggregation counts a subset in the same query (e.g. `count` of `modelName` with `isFailure EQUAL true`, alias `failures`). Aliases must be unique.
+- **Conditional counts.** A `filterPredicate` on an aggregation counts a subset in the same query (`failures` above). Aliases must be unique.
 - **Latency.** Never `avg` latency columns: use `p50`…`p99`. Default to and rank by `p95` (`p99` for worst case).
 - **Percentage columns.** `isFailurePercentageFlag` and `cacheHitFlag` are 100 or 0 per row, so `avg` of them is the error % or hit %; never `sum` or `count` them. `cacheReadInputPercentage` is a per-call share; for the overall cached share, divide `sum cacheReadInputTokens` by `sum inputTokens`.
 - **Rate types** (`ratePerMinute`, `rateSum`, `rateAvg`, `rateMin`, `rateMax`) need `type: timeseries`. `createdAt` takes only `min` and `max`.
@@ -82,9 +92,9 @@ Shown as `datasource` · `groupBy` · aggregations · filters.
 - **Latency** — `realModelMetrics` · `["modelName"]` · `p50`/`p95`/`p99 latencyMs`, `p95 timeToFirstTokenMs` · `modelName NOT_IN [""]`.
 - **One request's totals** — `realModelMetrics` · `[]` · `sum costInUSD`, `sum inputTokens`, `sum outputTokens` · `traceId EQUAL <id>`, window from 5 minutes before the request to 5 minutes after it ends.
 - **Provider prompt cache** — `realModelMetrics` · `sum cacheReadInputTokens`, `sum cacheCreationInputTokens`, `sum inputTokens`.
-- **Gateway cache** — `cacheMetrics` · `["cacheType","cacheLookupStatus"]` (`exact-match`/`semantic`; `hit`/`miss`/`error`) · `avg cacheHitFlag`, `sum potentialCostSavings` ([how savings are computed](https://www.truefoundry.com/docs/ai-gateway/cost-savings#how-each-figure-is-calculated)).
+- **Gateway cache** — `cacheMetrics` · `["cacheType"]` (`exact-match`/`semantic`) · `avg cacheHitFlag` (hit %), `sum potentialCostSavings` ([how savings are computed](https://www.truefoundry.com/docs/ai-gateway/cost-savings#how-each-figure-is-calculated)). Group by `cacheLookupStatus` only to count `hit`/`miss`/`error`; it makes each row's hit % 0 or 100. No row for a type = no lookups, not 0%.
 - **MCP** — `mcpMetrics` · `["mcpServerName","toolName"]` · filter `method IN ["tools/call"]` · `p95 latencyMs`; failures = `count method` with `filterPredicate isToolCallFailure EQUAL true` (`isFailure` misses tool execution errors). Reasons: `groupBy ["toolErrorDisplayLabel"]`.
-- **Guardrails** — `guardrailMetrics` · `["guardrailName","guardrailResult"]` · `guardrailName NOT_EQUAL ""`. Report blocked (`flag`), flagged in audit mode (`audit_mode_flag`), mutated (`mutation`) and failed to run (`error`, `ignored_error`) separately; meanings: [guardrail result values](https://www.truefoundry.com/docs/ai-gateway/fetch-request-logs-span-attributes#guardrail-result-values). `guardrailResultCategory` folds them into `blocked`, `audit_mode_blocked`, `mutated` and `allowed` — which includes `error` and `ignored_error`. Per policy: `guardrailPolicyMetrics` · `["policyName"]`.
+- **Guardrails** — `guardrailMetrics` · `["guardrailName","guardrailResult"]` · `guardrailName NOT_EQUAL ""`. Report blocked (`flag`), flagged in audit mode (`audit_mode_flag`), mutated (`mutation`) and failed to run (`error`, `ignored_error`) separately; meanings: [guardrail result values](https://www.truefoundry.com/docs/ai-gateway/fetch-request-logs-span-attributes#guardrail-result-values). Not `guardrailResultCategory`: its `allowed` includes `error` and `ignored_error`. Per policy: `guardrailPolicyMetrics` · `["policyName"]`.
 - **Rate-limit and budget blocks** — `configMetrics` · filter `configType EQUAL ratelimit` (or `budget`) · `["ratelimitRuleId","configResultCategory"]` (or `budgetRuleId`); rule in `ruleId`, outcome `allowed`/`blocked`. Who was blocked: add `userEmail` and `virtualaccount`. `status` is `blocked` on blocked rows, `all_model_failed` when every load-balancing target failed, NULL otherwise.
 - **Load balancing** — `configMetrics` · filter `configType EQUAL loadbalance` · `["loadbalanceRuleId","requestedModel","targetModel"]` (target in `model`, NULL when all targets failed) · `p95 loadbalanceTargetAttemptCount`.
 - **Agents** — `agentMetrics` · `["agentName"]` · `agentName NOT_IN [""]` · `count isFailure` with `filterPredicate isFailure EQUAL true`, `p50`/`p95 latencyMs`. Null `agentName` = pre-routing — see Reading results.
@@ -92,7 +102,6 @@ Shown as `datasource` · `groupBy` · aggregations · filters.
 ### Not here
 
 - Budget vs limit: `get_budget_usage` / `get_my_budget_usage` (`budget-limiting-v2.md`).
-- Requests, contents, spans, feedback: `observability.md`.
 - Joins across datasources: not possible; say so.
 
 ### Linking to the Metrics page
