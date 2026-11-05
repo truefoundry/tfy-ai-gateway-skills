@@ -47,7 +47,7 @@ The stored manifest of a source-built app is `image.type: image` (built locally)
 
 It also does not fill in defaults. Write every field the schema lists as `required`, even ones that have a default — e.g. `replicas`, `expose`, `protocol`, job `trigger`, both rolling-update percentages, and `resources.ephemeral_storage_request` / `ephemeral_storage_limit`. Unknown fields pass validation and are then silently ignored, so a misspelled key is not caught; take names from the schema.
 
-If the user denies the apply, nothing was deployed or changed: say so, give no links, and don't apply again — with the same or an edited manifest — unless they ask.
+If the user denies the apply, nothing was deployed or changed: say so, show the validated manifest, give no links, and don't apply again — with the same or an edited manifest — unless they ask.
 
 A deploy is not finished when the call returns. Follow it through `get_deployment` and confirm the workload is running rather than that the rollout was accepted. `troubleshooting.md` covers how.
 
