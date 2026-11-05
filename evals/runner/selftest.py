@@ -276,6 +276,13 @@ with tempfile.TemporaryDirectory() as tmp:
     same = write_run(root, "same", cases_all | {"s3": [F, F, F]})
     check("an identical run passes", compare([base], [same]).passed)
 
+    back = compare([base], [write_run(root, "back", cases_all | {"s3": [F, F, F], "s4": [P, F, F]},
+                                      regression_cases=["s4"])])
+    check("a regression case failed 2 of 3 fails the gate on its own", not back.passed
+          and [cid for cid, _ in back.issues_back] == ["s4"] and back.regressions == [])
+    check("a regression case failed 1 of 3 does not", compare([base], [write_run(
+        root, "once", cases_all | {"s3": [F, F, F], "s4": [P, P, F]}, regression_cases=["s4"])]).passed)
+
     partial = write_run(root, "partial", {"s1": [P, P, P]}, hashes={"s1": "h-s1"})
     removed = compare([base], [partial])
     check("cases missing from the candidate fail the gate", not removed.passed and "s2" in removed.removed)

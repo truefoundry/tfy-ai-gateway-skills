@@ -35,7 +35,7 @@ from tfy_eval.dataset import Question
 
 from . import redaction
 from .asktfy import AGENT, PinnedAskTfy, probe
-from .cases import case_hash, fill
+from .cases import case_hash, fill, is_regression
 
 RUNNER_DIR = Path(__file__).resolve().parent
 
@@ -376,6 +376,7 @@ def start_experiment(settings: Settings, cases: list[Question]) -> Experiment:
         "case_hashes": {case.id: case_hash(case) for case in cases},
         "all_case_hashes": settings.all_case_hashes or {case.id: case_hash(case) for case in cases},
         "skipped": settings.skipped,
+        "regression_cases": sorted(case.id for case in cases if is_regression(case)),
         "repeats": settings.repeats,
         "max_rounds": settings.max_rounds,
         "on_approval": "deny, except writes-allowed.txt",

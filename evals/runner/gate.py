@@ -11,6 +11,8 @@ The gate fails on:
   so the overall test carries the gate and big per-case drops are listed to watch; pool more runs
   of each side to make single cases decisive;
 - an aggregate regression: pass rates across all compared cases dropped (paired sign-flip test);
+- a confirmed production issue back: the candidate fails a regression case in at least 2 of every 3
+  measured trials, whatever the baseline did (a new regression case must pass with its fix);
 - runs that are not comparable: a different agent model, judge, harness, runner or tenant;
 - cases that changed or disappeared, unless accepted explicitly: a PR must not be able to weaken
   or delete the case it fails;
@@ -80,6 +82,7 @@ class Side:
 @dataclass
 class GateResult:
     regressions: list[tuple[str, CaseOutcome, CaseOutcome, float]] = field(default_factory=list)
+    issues_back: list[tuple[str, CaseOutcome]] = field(default_factory=list)
     watch: list[tuple[str, CaseOutcome, CaseOutcome, float]] = field(default_factory=list)
     fixed: list[tuple[str, CaseOutcome, CaseOutcome, float]] = field(default_factory=list)
     new_cases: list[str] = field(default_factory=list)
@@ -106,7 +109,7 @@ class GateResult:
     @property
     def passed(self) -> bool:
         return not (
-            self.regressions or self.aggregate_regression or self.drift or self.changed or self.removed
+            self.regressions or self.issues_back or self.aggregate_regression or self.drift or self.changed or self.removed
             or self.lost or self.unapproved_writes or self.answer_key_reads
             or any(share > self.max_unmeasured for share in self.unmeasured.values())
         )
@@ -225,6 +228,11 @@ def compare(
         [o.measured for o in base.outcomes.values()] + [o.measured for o in cand.outcomes.values()] or [0]
     )
 
+    for case_id in sorted(cand.config.get("regression_cases") or [], key=_case_order):
+        now = cand.outcomes.get(case_id)
+        if now and now.measured and 3 * now.fails >= 2 * now.measured:
+            result.issues_back.append((case_id, now))
+
     deltas, compared = [], {}
     for case_id in sorted(set(base.case_hashes) | set(cand.all_case_hashes), key=_case_order):
         if case_id not in cand.all_case_hashes:
@@ -278,6 +286,8 @@ def render(result: GateResult, baseline_dirs: list[Path], candidate_dirs: list[P
         f"Baseline {', '.join(d.name for d in baseline_dirs)}; candidate {', '.join(d.name for d in candidate_dirs)}.",
         "",
         f"- Regressions (significantly fewer passes, Holm-corrected at {result.alpha}): {cases(result.regressions)}",
+        f"- Production issues back (regression case failed 2 of 3): "
+        f"{', '.join(f'{cid} {_fmt(now)}' for cid, now in result.issues_back) or 'none'}",
         f"- Overall: pass rate {result.aggregate_delta:+.1%} across {result.aggregate_cases} cases "
         f"(p={result.aggregate_p:.3f}){' - REGRESSION' if result.aggregate_regression else ''}",
         f"- Watch (looks worse, not significant; pool another run of each side): {cases(result.watch)}",
