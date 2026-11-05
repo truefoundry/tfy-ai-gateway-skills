@@ -1063,8 +1063,8 @@
     },
     {
       "id": 58,
-      "prompt": "Change carol@example.com from read-only member to the custom role gateway-config-creator.",
-      "expected_output": "Gets both role ids from list_roles and carol's id from list_users, creates the gateway-config-creator grant on the tenant with create_grants first, then revokes her read-only-member grant with revoke_grant using its list_grants row.",
+      "prompt": "Change eval-carol@example.com from read-only member to the custom role gateway-config-creator.",
+      "expected_output": "Gets both role ids from list_roles and eval-carol's id from list_users, creates the gateway-config-creator grant on the tenant with create_grants first, then revokes her read-only-member grant with revoke_grant using its list_grants row.",
       "files": [],
       "expectations": [
         "Grants the new role before revoking the old one",
@@ -1074,8 +1074,7 @@
       "tags": {
         "area": "access",
         "kind": "write"
-      },
-      "skip": "fixture missing on devtest: carol@example.com does not exist and no user holds read-only-member; needs a seeded eval- user with that role"
+      }
     },
     {
       "id": 59,
@@ -1183,26 +1182,25 @@
     },
     {
       "id": 65,
-      "prompt": "Why did this trace fail - 01a182ae7a8473b780111169426c377b",
-      "expected_output": "Queries every span of the trace on the default destination over the last 7 days without asking which destination first, and reports that Anthropic rejected the request with a 400 because top_k is deprecated for claude-haiku-5-5 (tfy.error_type request-failure-400 on the Model span), who sent it and when, that the caller should stop sending top_k, and a trace link.",
+      "prompt": "Why did this trace fail - {{trace.provider_400.id}}",
+      "expected_output": "Queries every span of the trace on the default destination over the last 7 days without asking which destination first, and reports that the provider rejected the request with a 400 (tfy.error_type request-failure-400 on the Model span) because top_logprobs was 50 and the maximum is 20. Names the sender {{trace.provider_400.sender}} and says it went to eval-vm/chat at {{trace.provider_400.time}} UTC. Includes a trace link. Says the caller should send top_logprobs of 20 or less.",
       "files": [],
       "expectations": [
         "Queries the default destination without asking the user to pick one",
         "Does not query every destination",
         "Reports the error message from the Model span and what the caller should change",
         "On a 5xx from gateway_execute_sql, retries the same query once and then stops and reports instead of changing the query, destination or searching docs",
-        "The trace link's lm_lfsts/lm_lfets window covers 2026-10-28 13:23 UTC (lm_lfsts about 1793193834000), not another date"
+        "The trace link's lm_lfsts/lm_lfets window covers {{trace.provider_400.time}} UTC (lm_lfsts about {{trace.provider_400.epoch_ms}}), not another date"
       ],
       "tags": {
         "area": "traces",
         "kind": "diagnose"
-      },
-      "skip": "trace fixture expired on devtest; needs a seeded trace"
+      }
     },
     {
       "id": 66,
-      "prompt": "Why did request 01a182c3f76276dc9ae49b83abd4511b fail?",
-      "expected_output": "Queries every span of the trace on default over the last 7 days and reports that the input guardrail tfy-guardrail/pii blocked the request before the model ran: HTTP 400, tfy.error_type tfy-input-guardrail on the Model span, message 'Input Guardrail checks failed for integrations: [tfy-guardrail/pii] - Details: Azure Content Safety violation'. Names the sender and says it went to anthropic-gateway/claude-fable-5 on 2026-10-28 at 13:47 UTC. Includes a trace link.",
+      "prompt": "Why did request {{trace.guardrail.id}} fail?",
+      "expected_output": "Queries every span of the trace on default over the last 7 days and reports that the input guardrail tfy-guardrail/pii blocked the request before the model ran: HTTP 400, tfy.error_type tfy-input-guardrail on the Model span, message '{{trace.guardrail.error}}'. Names the sender {{trace.guardrail.sender}} and says it went to eval-vm/chat at {{trace.guardrail.time}} UTC. Includes a trace link.",
       "files": [],
       "expectations": [
         "Names the guardrail tfy-guardrail/pii as the cause",
@@ -1212,29 +1210,27 @@
       "tags": {
         "area": "traces",
         "kind": "diagnose"
-      },
-      "skip": "trace fixture expired on devtest; needs a seeded trace"
+      }
     },
     {
       "id": 67,
-      "prompt": "Why did trace 01a183162234765a88ea8c8085e830cc fail?",
-      "expected_output": "Reports that the request was rejected with HTTP 429 because budgets were exceeded (tfy.error_type tfy-budget-limit on the Model span): 'chinmay-PAT-100' (aggregate, enforce) and 'vinit-test-2' (per-model, soft_enforce), both resetting 2026-11-01T00:00:00Z. Names the sender and says it went to tfy-ai-bedrock/global.anthropic.claude-opus-5-5 on 2026-10-28 at 15:17 UTC. Includes a trace link.",
+      "prompt": "Why did trace {{trace.budget.id}} fail?",
+      "expected_output": "Reports that the request was rejected with HTTP 429 because the budget eval-budget-enforce (aggregate, enforce, daily) was exceeded (tfy.error_type tfy-budget-limit on the Model span): '{{trace.budget.error}}'. Names the sender {{trace.budget.sender}} and says it went to eval-vm/budget at {{trace.budget.time}} UTC. Includes a trace link.",
       "files": [],
       "expectations": [
         "Identifies a budget limit, not a provider rate limit, as the cause",
-        "Names the budgets and the reset date from the error message",
+        "Names the budget eval-budget-enforce and when it resets, from the error message",
         "Includes a trace link"
       ],
       "tags": {
         "area": "traces",
         "kind": "diagnose"
-      },
-      "skip": "trace fixture expired on devtest; needs a seeded trace"
+      }
     },
     {
       "id": 68,
-      "prompt": "Why did trace 01a17f20387d701eb40215a473bd6c38 fail?",
-      "expected_output": "Reports a 403 whose message says the user is not authorized or the model does not exist, and uses tfy.error_type tfy-model-not-found on the Model span to say the model eval-openai/o4-mini does not exist in the gateway (it is not a permission problem). Names the sender and says it was sent on 2026-10-27 at 20:49 UTC. Includes a trace link.",
+      "prompt": "Why did trace {{trace.not_found.id}} fail?",
+      "expected_output": "Reports a 403 whose message says the caller is not authorized or the model does not exist, and uses tfy.error_type tfy-model-not-found on the Model span to say the model eval-openai/o4-mini does not exist in the gateway (it is not a permission problem). Names the sender {{trace.not_found.sender}} and says it was sent at {{trace.not_found.time}} UTC. Includes a trace link.",
       "files": [],
       "expectations": [
         "Says the model does not exist, based on tfy-model-not-found",
@@ -1244,13 +1240,12 @@
       "tags": {
         "area": "traces",
         "kind": "diagnose"
-      },
-      "skip": "trace fixture expired on devtest; needs a seeded trace"
+      }
     },
     {
       "id": 69,
-      "prompt": "Why did trace 01a181c4c3a077809de62d26e0948c40 fail?",
-      "expected_output": "Reports that the gateway rate limit rule eval-rate-limit blocked the request with HTTP 429 (tfy.error_type tfy-rate-limit on the Model span, message 'Rate limit exceeded for model: eval-foundry/gpt-5.4-pro for rule: eval-rate-limit'). Names the sender and says it was sent on 2026-10-28 at 09:08 UTC. Includes a trace link.",
+      "prompt": "Why did trace {{trace.rate_limit.id}} fail?",
+      "expected_output": "Reports that the gateway rate limit eval-rate-limit blocked the request with HTTP 429 (tfy.error_type tfy-rate-limit on the Model span, message '{{trace.rate_limit.error}}'). Names the sender {{trace.rate_limit.sender}} and says it went to eval-vm/rate-limit at {{trace.rate_limit.time}} UTC. Includes a trace link.",
       "files": [],
       "expectations": [
         "Names the rate limit rule eval-rate-limit",
@@ -1260,8 +1255,7 @@
       "tags": {
         "area": "traces",
         "kind": "diagnose"
-      },
-      "skip": "trace fixture expired on devtest; needs a seeded trace"
+      }
     },
     {
       "id": 70,
@@ -1276,22 +1270,21 @@
         "area": "traces",
         "kind": "diagnose"
       },
-      "skip": "trace fixture expired on devtest; needs a seeded trace"
+      "skip": "needs an eval- MCP server whose call fails behind an Ok MCPGateway head span; seed_fixtures does not create MCP traffic yet"
     },
     {
       "id": 71,
-      "prompt": "What did the request in trace 01a182ae7a8473b780111169426c377b send?",
-      "expected_output": "Reads TfyGatewayInput of the head span only, and reports the request body: model eval-anthropic/claude-haiku-5-5, max_tokens 20, top_k 40 and one user message 'Say hi'.",
+      "prompt": "What did the request in trace {{trace.provider_400.id}} send?",
+      "expected_output": "Reads TfyGatewayInput of the head span only, and reports the request body: model eval-vm/chat, max_tokens 20, logprobs true, top_logprobs 50 and one user message 'Say hi'.",
       "files": [],
       "expectations": [
         "Selects TfyGatewayInput for this trace only, not SELECT *",
-        "Reports top_k 40, max_tokens 20 and the message 'Say hi'"
+        "Reports top_logprobs 50, max_tokens 20 and the message 'Say hi'"
       ],
       "tags": {
         "area": "traces",
         "kind": "lookup"
-      },
-      "skip": "trace fixture expired on devtest; needs a seeded trace"
+      }
     },
     {
       "id": 72,
@@ -1314,19 +1307,18 @@
     },
     {
       "id": 73,
-      "prompt": "Did trace 01a17b657dbf7152abf02e6759acff8f succeed?",
-      "expected_output": "Reports that it succeeded (Responses head span Ok, HTTP 200) on virtual model eval-vm/eval-fallback: the first target eval-openai/primary failed with 503 (request-failure-503, OpenAI overloaded) and the fallback eval-openai/fallback returned 200. Includes a trace link.",
+      "prompt": "Did trace {{trace.fallback.id}} succeed?",
+      "expected_output": "Reports that it succeeded (ChatCompletion head span Ok, HTTP 200) on virtual model eval-vm/fallback: the first target eval-openai/primary failed with 401 (request-failure-401, invalid API key) and the fallback tfy-ai-openrouter/openai-gpt-5.4-nano returned 200. Includes a trace link.",
       "files": [],
       "expectations": [
         "Concludes the request succeeded",
-        "Explains the failed Model span as a fallback or retry that recovered",
-        "Names the 503 target and the target that succeeded"
+        "Explains the failed Model span as a fallback that recovered",
+        "Names the 401 target and the target that succeeded"
       ],
       "tags": {
         "area": "traces",
         "kind": "diagnose"
-      },
-      "skip": "trace fixture expired on devtest; needs a seeded trace"
+      }
     },
     {
       "id": 74,
@@ -1361,7 +1353,7 @@
         "area": "access",
         "kind": "write"
       },
-      "skip": "fixture missing on devtest: virtual account vibeops-rnc and provider account decision-1 do not exist, and the eval user can manage every provider account so list_grants cannot 403; needs a seeded non-admin fixture"
+      "skip": "needs a caller without manage on the provider account so list_grants returns 403; the eval token can manage every provider account"
     },
     {
       "id": 76,

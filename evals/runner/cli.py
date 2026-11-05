@@ -27,7 +27,7 @@ from tfy_eval.judge import DEFAULT_NUMERIC_TOLERANCE
 from . import gate as gate_mod
 from .affected import affected
 from .asktfy import PinMismatch, PinnedAskTfy, probe
-from .cases import case_hash, load_cases, resolve_commit
+from .cases import case_hash, load_cases, load_fixtures, resolve_commit
 from .experiment import Settings, example_id, execute, run_experiment, start_experiment, sync_dataset
 
 HERE = Path(__file__).resolve().parent
@@ -117,6 +117,7 @@ def _settings(args: argparse.Namespace, ref: str, run_dir: Path | None = None) -
         skipped=skipped,
         allow_dirty=args.allow_dirty,
         all_case_hashes={case.id: case_hash(case) for case in all_cases},
+        fixtures=load_fixtures(),
     )
     return settings, cases
 

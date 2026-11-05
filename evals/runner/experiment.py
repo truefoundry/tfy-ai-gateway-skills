@@ -35,7 +35,7 @@ from tfy_eval.dataset import Question
 
 from . import redaction
 from .asktfy import AGENT, PinnedAskTfy, probe
-from .cases import case_hash
+from .cases import case_hash, fill
 
 RUNNER_DIR = Path(__file__).resolve().parent
 
@@ -80,6 +80,8 @@ class Settings:
     allow_dirty: bool = False
     # Every runnable case at the commit, so a run of a few cases is not read as deleting the rest.
     all_case_hashes: dict[str, str] | None = None
+    # Values for the cases' {{...}} placeholders, from seed_fixtures.
+    fixtures: dict[str, str] | None = None
 
 
 ANSWER_KEY = "evals.json"
@@ -349,13 +351,14 @@ def start_experiment(settings: Settings, cases: list[Question]) -> Experiment:
     if dirty and not settings.allow_dirty:
         raise SystemExit(f"uncommitted changes in {' and '.join(dirty)}: a run must be reproducible from its "
                          "recorded commits (pass --allow-dirty for a throwaway run)")
+    filled = [fill(case, settings.fixtures or {}) for case in cases]
     run_dir = settings.run_dir
     if run_dir.exists():
         raise SystemExit(f"{run_dir} already exists; pick another --run")
     run_dir.mkdir(parents=True)
     probe_client = PinnedAskTfy(settings.host, settings.tenant, settings.token, settings.skills_sha, settings.timeout)
     stamped = probe(probe_client)
-    experiment = Experiment(settings, cases, judge_model="", model=stamped.get("modelIdentifier"))
+    experiment = Experiment(settings, filled, judge_model="", model=stamped.get("modelIdentifier"))
     experiment.judge_model = judge_mod.pick_model(experiment.judge_client(), settings.judge_model)
 
     config = {
@@ -386,7 +389,7 @@ def start_experiment(settings: Settings, cases: list[Question]) -> Experiment:
         "pass_threshold": settings.pass_threshold,
         "numeric_tolerance": settings.numeric_tolerance,
     }
-    dataset_mod.save(cases, run_dir / "dataset.jsonl")
+    dataset_mod.save(filled, run_dir / "dataset.jsonl")
     (run_dir / "config.json").write_text(json.dumps(config, indent=2))
     experiment.config = config
     print(

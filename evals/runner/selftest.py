@@ -1,5 +1,5 @@
 """Offline checks for the runner: the sfy transport and pin check, case loading, the write check,
-grading of failed trials, the gate, and affected-case selection.
+grading of failed trials, the gate, affected-case selection and fixture placeholders.
 
     cd evals && python -m runner.selftest
 """
@@ -11,6 +11,7 @@ import subprocess
 import tempfile
 import time
 import types
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest import mock
 
@@ -20,9 +21,10 @@ from tfy_eval import agent as agent_mod
 from . import asktfy
 from .affected import affected
 from .asktfy import AGENT, DeadlineStream, PinMismatch, PinnedAskTfy, SfyTransport, check_pinned, sfy_raw_path
-from .cases import case_from_eval, case_hash, load_cases
+from .cases import PLACEHOLDER, case_from_eval, case_hash, fill, load_cases, load_fixtures
 from .experiment import Experiment, Settings, answer_key_reads, example_id, is_write, unapproved_writes
 from .gate import GateError, compare, fisher_less, holm, sign_flip_p
+from .seed_fixtures import TRACES
 
 SHA = "0235a3f0cb8af8913e628b3eaddb0f449a88be43"
 SESSIONS = "/api/svc/v1/ai-features/acme/sessions"
@@ -393,6 +395,27 @@ with tempfile.TemporaryDirectory() as tmp:
     git(repo, "checkout", "-q", "-b", "docs", base_sha)
     check("a change outside skills and cases runs nothing",
           affected(repo, nightly, commit(repo, {"README.md": "r"}, "docs")).mode == "none")
+
+# --- fixture placeholders
+template = case_from_eval({"id": 9, "prompt": "Why did trace {{trace.x.id}} fail?", "expected_output": "at {{trace.x.time}}",
+                           "expectations": ["covers {{ trace.x.time }}"]})
+filled = fill(template, {"trace.x.id": "01ab", "trace.x.time": "2026-11-05 07:16"})
+check("placeholders are filled in the question, expected answer and checklist",
+      (filled.question, filled.expected, filled.expectations[0]["claim"])
+      == ("Why did trace 01ab fail?", "at 2026-11-05 07:16", "covers 2026-11-05 07:16"))
+check("a case missing a fixture value is refused", raises(SystemExit, lambda: fill(template, {"trace.x.id": "01ab"})))
+check("a case without placeholders is unchanged", fill(case_from_eval(
+    {"id": 1, "prompt": "hi", "expected_output": "x"}), {}).question == "hi")
+with tempfile.TemporaryDirectory() as tmp:
+    path = Path(tmp) / "fixtures.json"
+    path.write_text(json.dumps({"seeded_at": "2026-01-01T00:00:00+00:00", "values": {"trace.x.id": "old"}}))
+    check("fixtures old enough to have expired are ignored", load_fixtures(path) == {})
+    path.write_text(json.dumps({"seeded_at": datetime.now(timezone.utc).isoformat(), "values": {"trace.x.id": "new"}}))
+    check("fresh fixtures are read", load_fixtures(path) == {"trace.x.id": "new"})
+    check("no fixtures file means no values", load_fixtures(Path(tmp) / "none.json") == {})
+seeded = {f"trace.{trace.name}.{key}" for trace in TRACES for key in ("id", "time", "epoch_ms", "sender", "error")}
+used = set(PLACEHOLDER.findall((Path(__file__).resolve().parents[1] / "evals.json").read_text()))
+check("every placeholder in evals.json is a value seed_fixtures writes", used and used <= seeded)
 
 print(f"\n{len(failures)} failure(s)" if failures else "\nall checks passed")
 raise SystemExit(1 if failures else 0)
