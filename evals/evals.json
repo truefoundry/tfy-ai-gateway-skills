@@ -445,16 +445,16 @@
     {
       "id": 25,
       "prompt": "How much of the eval-budget team's monthly budget has been spent so far?",
-      "expected_output": "Reads budget-limiting-v2.md, finds the budget with list_gateway_budgets (team_name: eval-budget), calls get_budget_usage with its id, and reports the monthly limit, amount used and percentage as returned.",
+      "expected_output": "Reads budget-limiting-v2.md, finds the budget eval-budget-monthly with list_gateway_budgets (team_name: eval-budget), calls get_budget_usage with its id, and reports the $100 monthly limit. get_budget_usage returns no usage entries because the team has had no traffic, so it says nothing has been spent this month (or that no usage is recorded) and bases that on the empty result.",
       "files": [],
       "expectations": [
         "Calls list_gateway_budgets, optionally filtered by team_name, to get the budget id",
         "Calls get_budget_usage with that budget's id",
         {
-          "text": "Reports the cost_per_month limit, used amount and percentage from get_budget_usage",
+          "text": "Reports the $100 cost_per_month limit and says no spend is recorded this month, based on get_budget_usage returning no usage entries",
           "critical": true
         },
-        "Does not invent or estimate usage numbers"
+        "Does not invent usage numbers beyond what the empty result implies"
       ],
       "tags": {
         "area": "config",
