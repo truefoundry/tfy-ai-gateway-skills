@@ -378,8 +378,16 @@ check(
 )
 check(
     "long arguments are truncated",
-    len(agent_mod._effective_tool_names("validate_manifest", json.dumps({"m": "x" * 5000}))[0])
-    == len("validate_manifest ") + agent_mod.TOOL_ARGS_LABEL_LIMIT,
+    len(agent_mod._effective_tool_names("gateway_execute_sql", json.dumps({"q": "x" * 5000}))[0])
+    == len("gateway_execute_sql ") + agent_mod.TOOL_ARGS_LABEL_LIMIT,
+)
+check(
+    "manifest arguments are kept whole, direct or wrapped",
+    agent_mod._effective_tool_names("apply_manifest", json.dumps({"m": "x" * 5000}))[0]
+    == "apply_manifest " + json.dumps({"m": "x" * 5000}, separators=(",", ":"))
+    and len(agent_mod._effective_tool_names(
+        "call_tool", json.dumps({"mcp_server": "p", "tool_name": "validate_manifest", "input": {"m": "x" * 5000}})
+    )[0]) > 5000,
 )
 check(
     "unparseable arguments fall back to the wrapper name",
