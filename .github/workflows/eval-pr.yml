@@ -10,6 +10,7 @@ permissions:
   contents: read
   actions: read
   pull-requests: write
+  id-token: write
 
 concurrency:
   group: ask-tfy-eval-pr-${{ github.event.pull_request.number }}
@@ -89,6 +90,15 @@ jobs:
         run: |
           printf '## Ask TFY eval gate: NOT RUN\n' > gate.md
           exit 1
+
+      - name: Join tailnet
+        if: contains(fromJSON('["cases", "all", "ab"]'), steps.affected.outputs.mode)
+        uses: tailscale/github-action@306e68a486fd2350f2bfc3b19fcd143891a4a2d8 # v4.1.2
+        with:
+          oauth-client-id: ${{ vars.TS_CI_PR_CLIENT_ID }}
+          audience: ${{ vars.TS_CI_PR_AUDIENCE }}
+          tags: tag:ci-internal
+          hostname: gh-${{ github.event.repository.name }}-${{ github.run_id }}
 
       - name: Seed fixtures
         if: contains(fromJSON('["cases", "all", "ab"]'), steps.affected.outputs.mode)
