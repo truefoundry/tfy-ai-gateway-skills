@@ -7,7 +7,8 @@ at `skills/evals/evals.json`, inside the directory mounted into the agent's sand
 
 Each case may carry:
 - `expectations`: strings, or {"text": ..., "critical": true} for the claims a pass needs;
-- `tags`: {"area": ..., "kind": ...};
+- `tags`: {"area": ..., "kind": ...}, plus "regression": the issue link for a case that reproduces a
+  confirmed production issue. The gate fails a candidate that fails such a case in 2 of 3 trials;
 - `clarification_reply`: what the user answers when the agent asks;
 - `skip`: why the case cannot be measured right now. Skipped cases are reported, never run.
 
@@ -81,6 +82,10 @@ def case_from_eval(entry: dict) -> Question:
         tags=_tags(entry.get("tags")),
         clarification_reply=entry.get("clarification_reply"),
     )
+
+
+def is_regression(case: Question) -> bool:
+    return any(tag.startswith("regression:") for tag in case.tags)
 
 
 def case_hash(case: Question) -> str:
