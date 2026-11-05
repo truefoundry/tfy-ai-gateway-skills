@@ -1,0 +1,197 @@
+name: Ask TFY regression check
+
+# Runs the troubleshooting benchmark in evals/askbench against the base and the head of a skills change
+# and fails if the head is worse. Every run costs real money (about $270 for both arms), so it never runs
+# on a plain PR: add the `askbench` label, or start it by hand.
+on:
+  workflow_dispatch:
+    inputs:
+      base_ref:
+        description: Skills git ref to compare against
+        default: platform
+      head_ref:
+        description: Skills git ref under test (default, the ref this workflow was started on)
+        default: ""
+      max_usd:
+        description: Total Ask TFY spend cap for both arms, in USD
+        default: "300"
+  pull_request:
+    types: [labeled, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    name: Unit tests (no secrets)
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (contains(github.event.pull_request.labels.*.name, 'askbench') &&
+       (github.event.action != 'labeled' || github.event.label.name == 'askbench'))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Unit tests
+        run: node --test evals/askbench/askbench.test.mjs
+
+  askbench:
+    name: Ask TFY base vs head
+    needs: unit
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (contains(github.event.pull_request.labels.*.name, 'askbench') &&
+       (github.event.action != 'labeled' || github.event.label.name == 'askbench'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    # An Environment lets the repo require a reviewer before the secrets are released. Keep the repo setting
+    # "send secrets to workflows from fork PRs" off.
+    environment: askbench
+    # At the job level, so a run that is skipped (a different label was added) never joins the group
+    # and cannot cancel a run in flight.
+    concurrency:
+      group: askbench-${{ github.event.pull_request.number || github.run_id }}
+      cancel-in-progress: true
+    env:
+      # Untrusted values go through env, never straight into the script.
+      EVENT_NAME: ${{ github.event_name }}
+      THIS_REPO: ${{ github.server_url }}/${{ github.repository }}
+      IS_FORK: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
+      PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+      PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+      PR_HEAD_REPO: ${{ github.event.pull_request.head.repo.html_url }}
+      INPUT_BASE_REF: ${{ inputs.base_ref }}
+      INPUT_HEAD_REF: ${{ inputs.head_ref }}
+      INPUT_MAX_USD: ${{ inputs.max_usd }}
+      RUN_REF_NAME: ${{ github.ref_name }}
+    steps:
+      - name: Check secrets
+        id: gate
+        env:
+          ASKBENCH_TFY_HOST: ${{ secrets.ASKBENCH_TFY_HOST }}
+          ASKBENCH_TFY_API_KEY: ${{ secrets.ASKBENCH_TFY_API_KEY }}
+        run: |
+          if [ -n "$ASKBENCH_TFY_HOST" ] && [ -n "$ASKBENCH_TFY_API_KEY" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "run=false" >> "$GITHUB_OUTPUT"
+          {
+            echo "## Ask TFY regression check was not run"
+            echo
+            echo "Secrets \`ASKBENCH_TFY_HOST\` and \`ASKBENCH_TFY_API_KEY\` are not available to this run."
+            echo "Set them (ideally in an Environment named \`askbench\`): the host of an empty sandbox TrueFoundry"
+            echo "tenant and a read-only token allowed to create Ask TFY sessions."
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$IS_FORK" = "true" ]; then
+            echo "::error::askbench cannot run on a pull request from a fork (no secrets). A maintainer runs it with workflow_dispatch on a branch of this repository."
+            exit 1
+          fi
+          echo "askbench skipped: ASKBENCH_TFY_HOST / ASKBENCH_TFY_API_KEY not set"
+
+      - name: Checkout
+        if: steps.gate.outputs.run == 'true'
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        if: steps.gate.outputs.run == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Resolve what to compare
+        if: steps.gate.outputs.run == 'true'
+        run: |
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            base_repo="$THIS_REPO"; base_ref="$PR_BASE_REF"
+            head_repo="$PR_HEAD_REPO"; head_ref="$PR_HEAD_REF"; max_usd=300
+          else
+            base_repo="$THIS_REPO"; base_ref="${INPUT_BASE_REF:-platform}"
+            head_repo="$THIS_REPO"; head_ref="${INPUT_HEAD_REF:-$RUN_REF_NAME}"; max_usd="${INPUT_MAX_USD:-300}"
+          fi
+          # Nothing unvalidated is written to $GITHUB_ENV (a newline in an input would add variables).
+          for v in "$base_ref" "$head_ref"; do
+            case "$v" in ''|-*|*[!A-Za-z0-9._/-]*) echo "::error::refused ref: $v"; exit 1;; esac
+          done
+          for v in "$base_repo" "$head_repo"; do
+            case "$v" in https://github.com/*) ;; *) echo "::error::refused repo url"; exit 1;; esac
+            case "$v" in *[!A-Za-z0-9._/:-]*) echo "::error::refused repo url"; exit 1;; esac
+          done
+          case "$max_usd" in ''|*[!0-9.]*) echo "::error::max_usd must be a number"; exit 1;; esac
+          if [ "$base_repo" = "$head_repo" ] && [ "$base_ref" = "$head_ref" ]; then
+            echo "::error::base and head are the same ref ($base_ref); nothing to compare"; exit 1
+          fi
+          # Each arm gets half of the cap.
+          arm_usd=$(awk -v m="$max_usd" 'BEGIN { printf "%.2f", m / 2 }')
+          sha() { git ls-remote "$1" "refs/heads/$2" "refs/tags/$2" | head -n 1 | cut -f1; }
+          {
+            echo "BASE_REPO=$base_repo"
+            echo "BASE_REF=$base_ref"
+            echo "HEAD_REPO=$head_repo"
+            echo "HEAD_REF=$head_ref"
+            echo "ARM_USD=$arm_usd"
+            echo "BASE_SHA=$(sha "$base_repo" "$base_ref")"
+            echo "HEAD_SHA=$(sha "$head_repo" "$head_ref")"
+          } >> "$GITHUB_ENV"
+
+      - name: Run base
+        if: steps.gate.outputs.run == 'true'
+        env:
+          ASKBENCH_TFY_HOST: ${{ secrets.ASKBENCH_TFY_HOST }}
+          ASKBENCH_TFY_API_KEY: ${{ secrets.ASKBENCH_TFY_API_KEY }}
+          ASKBENCH_TFY_TENANT: ${{ vars.ASKBENCH_TFY_TENANT }}
+          ASKBENCH_MCP_EXTRA: ${{ secrets.ASKBENCH_MCP_EXTRA }}
+        run: |
+          node evals/askbench/run.mjs --repo "$BASE_REPO" --ref "$BASE_REF" --max-usd "$ARM_USD" --max-minutes 150 --out askbench-out/base
+          # Second pass: redo harness errors and failed verifications; it never starts new cases.
+          node evals/askbench/run.mjs --repo "$BASE_REPO" --ref "$BASE_REF" --max-usd "$ARM_USD" --redo-only --out askbench-out/base
+
+      - name: Run head
+        if: steps.gate.outputs.run == 'true'
+        env:
+          ASKBENCH_TFY_HOST: ${{ secrets.ASKBENCH_TFY_HOST }}
+          ASKBENCH_TFY_API_KEY: ${{ secrets.ASKBENCH_TFY_API_KEY }}
+          ASKBENCH_TFY_TENANT: ${{ vars.ASKBENCH_TFY_TENANT }}
+          ASKBENCH_MCP_EXTRA: ${{ secrets.ASKBENCH_MCP_EXTRA }}
+        run: |
+          node evals/askbench/run.mjs --repo "$HEAD_REPO" --ref "$HEAD_REF" --max-usd "$ARM_USD" --max-minutes 150 --out askbench-out/head
+          node evals/askbench/run.mjs --repo "$HEAD_REPO" --ref "$HEAD_REF" --max-usd "$ARM_USD" --redo-only --out askbench-out/head
+
+      - name: Check the refs did not move
+        if: steps.gate.outputs.run == 'true'
+        run: |
+          sha() { git ls-remote "$1" "refs/heads/$2" "refs/tags/$2" | head -n 1 | cut -f1; }
+          echo "base $BASE_REF at ${BASE_SHA:-unknown}, head $HEAD_REF at ${HEAD_SHA:-unknown}" | tee -a "$GITHUB_STEP_SUMMARY"
+          if [ -n "$BASE_SHA" ] && [ "$(sha "$BASE_REPO" "$BASE_REF")" != "$BASE_SHA" ]; then echo "::error::base ref moved during the run"; exit 1; fi
+          if [ -n "$HEAD_SHA" ] && [ "$(sha "$HEAD_REPO" "$HEAD_REF")" != "$HEAD_SHA" ]; then echo "::error::head ref moved during the run"; exit 1; fi
+
+      - name: Compare
+        if: steps.gate.outputs.run == 'true'
+        run: node evals/askbench/compare.mjs --base askbench-out/base --head askbench-out/head
+
+      - name: Prepare artifact
+        # Scores, verdicts, spans, tool names, latency and cost only. No reply text, no questions.
+        if: always() && steps.gate.outputs.run == 'true'
+        env:
+          ASKBENCH_TFY_HOST: ${{ secrets.ASKBENCH_TFY_HOST }}
+          ASKBENCH_TFY_API_KEY: ${{ secrets.ASKBENCH_TFY_API_KEY }}
+        run: node evals/askbench/publish.mjs --in askbench-out --out askbench-public
+
+      - name: Upload results
+        if: always() && steps.gate.outputs.run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: askbench-results
+          path: askbench-public/
+          retention-days: 7
+          if-no-files-found: ignore

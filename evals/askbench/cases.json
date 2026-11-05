@@ -1,0 +1,134 @@
+[
+ {
+  "id": "R01",
+  "area": "access-identity",
+  "kind": "troubleshoot",
+  "ask": "Saving a model permission on a virtual account fails with 403 \"You do not have permission to manage provider-account <id>\". The person doing it is not a tenant admin; they can already call the virtual model \"my-vm/chat\" and manage the virtual account itself. They are adding the model under Manage Permissions > Add Permission > Models. What is missing?"
+ },
+ {
+  "id": "R02",
+  "area": "access-identity",
+  "kind": "troubleshoot",
+  "ask": "A virtual account token gets every model of one provider account from GET /models, not just the two models of that account I scoped it to. Is that an authorization leak, and how do I restrict the list?"
+ },
+ {
+  "id": "R03",
+  "area": "access-identity",
+  "kind": "troubleshoot",
+  "ask": "Re-applying a virtual account manifest returns 422 \"Invalid Resource FQN: my-tenant:virtual-model:my-acct:model:old-model for resource type provider-integration\". The file is identical to the one that applied fine last week, and adding a tag to it does not help. What causes this and how do I get it applied?"
+ },
+ {
+  "id": "R04",
+  "area": "access-identity",
+  "kind": "troubleshoot",
+  "ask": "I call /chat/completions on the gateway with the user's token in Authorization and an agent's identity token in x-tfy-agent-authorization. When the agent has been granted the model I still get 403 \"User <me> is not authorized to access model my-vm/chat or model does not exist\", and when the agent has not been granted it, the call returns 200. Why does the agent token make no difference?"
+ },
+ {
+  "id": "R05",
+  "area": "access-identity",
+  "kind": "troubleshoot",
+  "ask": "A virtual account owned by a team cannot see an MCP server that I granted to that team through a role binding: GET /api/svc/v1/mcp with the account's token returns 200 with an empty list. Is the owning team's access supposed to apply to the account, and what is the simplest way to declare the access once?"
+ },
+ {
+  "id": "R06",
+  "area": "mcp-tools",
+  "kind": "troubleshoot",
+  "ask": "In MCP Gateway > Add Server > Connect Official Remote MCP Servers, searching for Figma shows \"No matching result found\", although the docs list Figma next to GitHub and Sentry, which do appear. Is this a plan or version issue on our side, or something else?"
+ },
+ {
+  "id": "R07",
+  "area": "mcp-tools",
+  "kind": "troubleshoot",
+  "ask": "A tools/list call through the MCP gateway to a server registered with OAuth2 client credentials fails with HTTP 500 \"OAuth2 client_credentials auth failed for MCP server my-org:mcp-server:my-mcp: client_credentials token acquisition failed\". The client secret reference looks right, and GET /api/svc/v1/mcp/<id>/auth/status for the server says authentication_not_required, which makes no sense. Where do I look?"
+ },
+ {
+  "id": "R08",
+  "area": "mcp-tools",
+  "kind": "troubleshoot",
+  "ask": "Listing MCP servers with a virtual account key (GET /api/svc/mcp-registry/v0.1/servers and GET /api/svc/v1/mcp) returns only one of our three servers, while an admin token returns all three. Is the key missing something, and does listing create an auth record for the account?"
+ },
+ {
+  "id": "R09",
+  "area": "mcp-tools",
+  "kind": "troubleshoot",
+  "ask": "After our pipeline re-registers an MCP server with PUT /api/svc/v1/apply (it returns 200, the pipeline sends its own fixed manifest for the server), an agent that used the server gets 403 \"User my-agent is not authorized to access MCP server: my-mcp\" on its next tools/list. What happened?"
+ },
+ {
+  "id": "R10",
+  "area": "budgets-finops",
+  "kind": "troubleshoot",
+  "ask": "Editing a Budget Limiting v2 rule that applies per virtual account, I added another virtual account to when.subjects. Saving returns HTTP 400 \"Budget validation failed: per-virtual-account applies is not allowed when when.subjects includes\" (the console toast cuts off there). Switching the rule's applies_to type to per-user gets a 403 as well. What is the rule violating and how do I fix it?"
+ },
+ {
+  "id": "R11",
+  "area": "budgets-finops",
+  "kind": "troubleshoot",
+  "ask": "Developers using Claude Code through the gateway hit their virtual account's daily budget (enforce mode) and the client then keeps retrying for minutes instead of stopping. What does the gateway send back when the budget is exceeded, and is it telling the client to stop?"
+ },
+ {
+  "id": "R12",
+  "area": "budgets-finops",
+  "kind": "troubleshoot",
+  "ask": "A per-user daily budget in enforce mode never blocks our coding agent, which calls the gateway with a virtual account token: spend is well over the limit and every call still returns 200. Why does the rule not fire for the agent, and what should the budget be keyed on?"
+ },
+ {
+  "id": "R13",
+  "area": "routing-failover",
+  "kind": "troubleshoot",
+  "ask": "Disabling a gateway endpoint (gateway installation) fails with HTTP 422 \"Manifest validation failed\", detail \"GatewayInstallationManifest : must have required property 'isDefault'\". The edit only flips enabled to false. How do I disable it?"
+ },
+ {
+  "id": "R15",
+  "area": "routing-failover",
+  "kind": "troubleshoot",
+  "ask": "My priority virtual model has two targets. When the first provider answers HTTP 400 (it rejects a strict json_schema response_format), the client gets that 400 instead of the second target serving the request. Is there a setting to fail over on that, does it change what fails over today, and would those 400s mark the first target unhealthy?"
+ },
+ {
+  "id": "R16",
+  "area": "clients",
+  "kind": "troubleshoot",
+  "ask": "Claude Code pointed at the gateway with a gpt-x model on /v1/messages fails on every tool call with 400 \"Function tools with reasoning_effort are not supported for gpt-x in /v1/chat/completions\". Putting reasoning_effort none in the request body and enabling thinking both changed nothing. What actually works?"
+ },
+ {
+  "id": "R17",
+  "area": "clients",
+  "kind": "troubleshoot",
+  "ask": "Claude Code through the gateway uses a virtual model named like a Sonnet model that has a Haiku target as one route. Requests that land on the Haiku route fail with 400 \"adaptive thinking is not supported on this model\" and \"This model does not support the effort parameter.\"; the same requests to the Sonnet target are fine. Setting override_params temperature on the Haiku target changed nothing. How can I make the Haiku route work?"
+ },
+ {
+  "id": "R18",
+  "area": "clients",
+  "kind": "troubleshoot",
+  "ask": "tfy apply --dir ./virtual-accounts --dry-run prints \"[Dry Run] Skipped manifest my-va of type virtual-account because it has dependencies.\" for some virtual accounts, so they are not validated, and we use this as a CI check. Is this a bug, and how do we validate them?"
+ },
+ {
+  "id": "R19",
+  "area": "observability",
+  "kind": "troubleshoot",
+  "ask": "Our chat UI uses one shared gateway key. It forwards the signed-in user in X-OpenWebUI-User-Email and X-OpenWebUI-User-Name headers and in the OpenAI user field. Requests return 200, but cost in the gateway metrics grouped by user shows only the app, never the people. How do we get per-person cost attribution and per-person limits?"
+ },
+ {
+  "id": "R20",
+  "area": "observability",
+  "kind": "troubleshoot",
+  "ask": "POST /api/svc/v1/llm-gateway/metrics/query (modelMetrics, grouped by virtualaccount and modelName, last 7 days) returns HTTP 200 with an empty dataPoints list when I call it with a virtual account token. The same query with an admin key returns rows, and the account's own requests show in the console. Why no 403, and why is it empty?"
+ },
+ {
+  "id": "R21",
+  "area": "models-providers",
+  "kind": "troubleshoot",
+  "ask": "A chat completions request through the gateway to my-openai/gpt-x with a function tool fails with 400 \"Function tools with reasoning_effort are not supported for gpt-x in /v1/chat/completions\". I never set reasoning_effort, and the same code works against other models. Why does it fail, and what are my options to keep the tool and get a 200?"
+ },
+ {
+  "id": "R22",
+  "area": "models-providers",
+  "kind": "troubleshoot",
+  "ask": "A POST /v1/messages through the gateway to my-anthropic/claude-x with thinking {type: adaptive, display: \"updates\"} returns 400 \"anthropic error: thinking.adaptive.display: Input should be 'summarized', 'omitted'\". The client library documents the updates display. Is the gateway rejecting it, and how do I enable it?"
+ },
+ {
+  "id": "R23",
+  "area": "guardrails",
+  "kind": "troubleshoot",
+  "ask": "My custom webhook guardrail (Enforce) takes 6 to 8 seconds on some inputs and those requests fail with HTTP 400 \"Input Guardrail checks failed ... Details: Guardrail API execution failed: Request timed out after 5000ms\". Adding timeout and timeout_ms of 10000 to the guardrail config was accepted but made no difference. How can I get these requests through?"
+ }
+]
