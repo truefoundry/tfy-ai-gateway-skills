@@ -41,7 +41,7 @@ Every create, update and delete goes through a manifest tool, which asks the use
 - Applying an existing identity **replaces the whole entity**, and several list fields replace everything on update (team members, integrations, rules). Change a live entity by fetching its current manifest and editing it, never by rebuilding it.
 - Grant access only with the grant tools (`list_grants`, `create_grants`, `revoke_grant`), never in a manifest: remove `collaborators`, `authorized_subjects` and a VA's `permissions` before every apply, on create too.
 - If apply fails, show the error, and offer a ticket if it persists or is unclear. Don't silently retry or give up.
-- A denied approval is the user's answer: say nothing changed and don't call that write again, edited or not, unless they ask. Then show the validated manifest (for an edit, what changed and what was kept), your choices and why, and what applying it gives (links, checks).
+- A denied approval is the user's answer: say nothing changed and don't call that write again, edited or not, unless they ask. Then show the validated manifest (for an edit, what changed and what was kept) and your choices and why, but no links: nothing exists yet.
 - Call `apply_manifest`, `delete_manifest` and every other write tool directly, not from the sandbox, so they go through approval. Never run `tfy apply`: it skips approval. Deploying from local source is the one exception: `tfy deploy` with `build_source: local`.
 
 ## Ambiguous references
