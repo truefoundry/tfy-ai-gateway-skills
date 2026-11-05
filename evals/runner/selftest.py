@@ -333,6 +333,9 @@ with tempfile.TemporaryDirectory() as tmp:
           raises(GateError, lambda: compare([base], [skipped_edit])))
     skipped_new = write_run(root, "skipped-new", {"s1": [P, P, P]}, all_case_hashes=every_case | {"s9": "h-s9"})
     check("so is one that skipped a new case", raises(GateError, lambda: compare([base], [skipped_new])))
+    base_subset = write_run(root, "base-subset", {"s1": [P, P, P]}, all_case_hashes=every_case)
+    check("two subset runs of the same case compare it alone",
+          compare([base_subset], [subset]).aggregate_cases == 1)
 
 
 # --- affected cases
