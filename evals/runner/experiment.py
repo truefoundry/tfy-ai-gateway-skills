@@ -222,6 +222,7 @@ class Experiment:
                 # Writes really apply on devtest, so only cases that clean up after themselves may.
                 on_approval="allow" if case.id in s.writes_allowed else "deny",
                 clarification_reply=case.clarification_reply or agent_mod.DEFAULT_CLARIFICATION_REPLY,
+                follow_up=case.clarification_reply,
                 max_rounds=s.max_rounds,
                 max_reconnects=s.max_reconnects,
             )
@@ -248,6 +249,7 @@ class Experiment:
             "sandbox_tool_calls": run.sandbox_tool_calls,
             "clarifications_asked": run.clarifications_asked,
             "secrets_requested": run.secrets_requested,
+            "exchanges": run.exchanges,
             "approvals": run.approvals_granted,
             "unapproved_writes": unasked,
             "answer_key_reads": key_reads,
@@ -285,6 +287,7 @@ class Experiment:
                 expectations=case.expectations,
                 tool_calls=(out.get("tool_calls") or []) + [f"sandbox/{c}" for c in out.get("sandbox_tool_calls") or []]
                 or None,
+                exchanges=out.get("exchanges"),
                 pass_threshold=s.pass_threshold,
                 repeats=s.judge_repeats,
                 numeric_tolerance=s.numeric_tolerance,

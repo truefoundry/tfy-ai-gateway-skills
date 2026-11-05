@@ -38,12 +38,16 @@ RECONNECT_BACKOFF_S = (2, 5, 10, 20, 30)
 POLL_TIMEOUT_S = 900
 POLL_INTERVAL_S = 5
 
-# Sent back when the agent calls ask_user_question. An agent that stops to
-# ask instead of answering is itself a finding, so we record it and nudge once.
+# Sent back when the agent calls ask_user_question and the case scripts no reply. An agent that
+# stops to ask instead of answering is itself a finding, so we record it. "Proceed with your best
+# interpretation" would order the agent to make the very write the question was guarding.
 DEFAULT_CLARIFICATION_REPLY = (
-    "No human is available to answer. Proceed with your best interpretation, "
-    "state any assumptions you made, and give your full answer now."
+    "The user did not answer. Continue without the answer: state any assumption you make, "
+    "and do not make a change that depends on it."
 )
+
+# An answer whose last lines hold a question mark ended the turn by asking in plain text.
+TEXT_QUESTION_TAIL = 400
 
 SECRET_TOOL = "ask_user_secret"
 # An eval never hands over a credential; how the agent carries on without one is the behaviour graded.
@@ -84,6 +88,11 @@ class AgentRun:
     subagents: list[str] = field(default_factory=list)
     clarifications_asked: list[str] = field(default_factory=list)
     secrets_requested: list[str] = field(default_factory=list)
+    # Every question the agent put to the user and what the harness answered, in order. The
+    # platform emits no tool.response for an answer we send, so without this the judge sees the
+    # agent act on a reply it cannot find and calls it a guess.
+    exchanges: list[dict] = field(default_factory=list)
+    replies: dict[str, str] = field(default_factory=dict)
     approvals_granted: list[str] = field(default_factory=list)
     # Tool call ids that were put to the user, approved or denied.
     approval_call_ids: list[str] = field(default_factory=list)
@@ -113,6 +122,7 @@ class AgentRun:
             "subagents": self.subagents,
             "clarifications_asked": self.clarifications_asked,
             "secrets_requested": self.secrets_requested,
+            "exchanges": self.exchanges,
             "approvals_granted": self.approvals_granted,
             "earlier_attempts": [
                 {"status": a.status, "failure": a.failure, "error": a.error, "session_id": a.session_id,
@@ -272,6 +282,27 @@ def _event_summary(event: Any) -> dict:
     return summary
 
 
+def _transcript(run: AgentRun, events: dict[str, Any], order: list[str]) -> list[dict]:
+    """The event summaries, plus the answers the harness sent, which the stream never echoes."""
+    entries = [_event_summary(events[eid]) for eid in order]
+    answered = {entry.get("tool_call_id") for entry in entries if entry["type"] == "tool.response"}
+    entries += [
+        {"type": "tool.response", "tool_call_id": call_id, "content": content, "source": "eval-harness"}
+        for call_id, content in run.replies.items()
+        if call_id not in answered
+    ]
+    return entries
+
+
+def asks_in_text(answer: str) -> str | None:
+    """The question an answer ends on, when the agent asked in prose instead of ask_user_question."""
+    tail = answer.strip()[-TEXT_QUESTION_TAIL:]
+    if "?" not in tail:
+        return None
+    lines = [line.strip() for line in tail.splitlines() if "?" in line]
+    return lines[-1][:500]
+
+
 def tool_labels(transcript: list[dict]) -> tuple[list[str], list[str]]:
     """Every tool call as `tool args -> start of result`, plus the MCP calls sandbox commands made."""
     results = {
@@ -335,6 +366,7 @@ def run_question(
     base_url: str = "",
     on_approval: str = "allow",
     clarification_reply: str = DEFAULT_CLARIFICATION_REPLY,
+    follow_up: str | None = None,
     max_rounds: int = 4,
     max_reconnects: int = 8,
     on_progress: Callable[[str], None] | None = None,
@@ -343,6 +375,10 @@ def run_question(
 
     `agent` is passed straight to sessions.create, so either {"name": ...} for a
     saved agent or {"spec": {...}} for an inline one.
+
+    `follow_up` is the case's scripted reply. Ending the turn on a question is as valid a way to
+    ask as ask_user_question, so if the agent does that before asking any other way, the reply is
+    sent once as the user's next message.
     """
     run = AgentRun(question_id=question_id, trial=trial)
     started = time.monotonic()
@@ -373,7 +409,7 @@ def run_question(
                 on_progress=on_progress,
             )
 
-            run.transcript = [_event_summary(events[eid]) for eid in order]
+            run.transcript = _transcript(run, events, order)
             run.tool_calls, run.sandbox_tool_calls = tool_labels(run.transcript)
 
             status = getattr(final_state, "status", None)
@@ -439,6 +475,14 @@ def run_question(
             if not pending_approvals and not pending_responses:
                 run.status = "done"
                 run.answer = _final_answer(final_state, events, order)
+                question_asked = asks_in_text(run.answer) if follow_up and not run.exchanges else None
+                if question_asked and round_index + 1 < max_rounds:
+                    run.clarifications_asked.append(question_asked)
+                    run.exchanges.append({"asked": question_asked, "reply": follow_up, "via": "message"})
+                    turn_input = [{"type": "user.message", "content": follow_up}]
+                    if on_progress:
+                        on_progress(f"{question_id}: answered a question asked in text (round {run.rounds})")
+                    continue
                 break
 
             turn_input = _resume_input(
@@ -684,14 +728,18 @@ def _resume_input(
             message = events.get(getattr(ref, "source_event_id", ""))
             call = _find_call(message, ref.id) if message is not None else None
             is_secret = call is not None and _tool_name(call) == SECRET_TOOL
+            content = SECRET_REFUSAL if is_secret else clarification_reply
             if call is not None:
-                (run.secrets_requested if is_secret else run.clarifications_asked).append(_question_text(call))
+                asked = _question_text(call)
+                (run.secrets_requested if is_secret else run.clarifications_asked).append(asked)
+                run.exchanges.append({"asked": asked, "reply": content, "via": _tool_name(call)})
+            run.replies[ref.id] = content
             resume.append(
                 {
                     "type": "user.tool_response",
                     "thread_id": pending.thread_id,
                     "tool_call_id": ref.id,
-                    "content": SECRET_REFUSAL if is_secret else clarification_reply,
+                    "content": content,
                 }
             )
 

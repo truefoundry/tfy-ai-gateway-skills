@@ -48,16 +48,17 @@
     {
       "id": 3,
       "prompt": "get_model_deployment_specs failed for my any-to-any Hub model. Can we still deploy it?",
-      "expected_output": "Retries with an explicit pipelineTagOverride inferred from the model card / architecture, or uses similar-model recovery; does not give up at the first catalogue error.",
+      "expected_output": "Asks which model and workspace (reply: Qwen/Qwen2.5-Omni-7B in archit-ws), then retries get_model_deployment_specs with a pipelineTagOverride inferred from the model card or architecture, or uses similar-model recovery; does not give up at the first catalogue error.",
       "files": [],
       "expectations": [
         {
-          "text": "Retries get_model_deployment_specs with pipelineTagOverride (e.g. text-generation or image-text-to-text) instead of stopping",
+          "text": "Retries get_model_deployment_specs for Qwen/Qwen2.5-Omni-7B with a concrete pipelineTagOverride (e.g. image-text-to-text or text-generation, never auto) instead of stopping",
           "critical": true
         },
         "Bases the override on Hub card / architecture family, not a random guess",
         "If still failing, uses similar-model strategy (generate for sibling, swap artifact/model id) and re-validates",
-        "Does not invent a full vLLM service from scratch unless recovery requires it"
+        "Does not invent a full vLLM service from scratch unless recovery requires it",
+        "Asks which Hub model and workspace before acting, and resolves the workspace with list_workspaces"
       ],
       "clarification_reply": "It's Qwen/Qwen2.5-Omni-7B from Hugging Face, for workspace archit-ws.",
       "tags": {
@@ -93,16 +94,17 @@
       "files": [],
       "expectations": [
         {
-          "text": "Uses autoscaling / scale-to-0 fields from schema/docs (Elasti idle timeout), not pause/resume alone",
+          "text": "Uses scale-to-0 fields from schema/docs (Elasti auto_shutdown with wait_time 900 seconds, not 15), not pause/resume alone",
           "critical": true
         },
         {
-          "text": "Adds tfy_sticky_session_header_name (or schema-equivalent sticky config) and tells the client which header to send",
+          "text": "Ensures the service labels carry tfy_sticky_session_header_name (adds it, or confirms from the live manifest that it is already set) and tells the client which header to send",
           "critical": true
         },
         "Warns about cold start on scale-from-zero and best-effort sticky routing",
         "Edits the live manifest, validates, then calls apply_manifest directly so the change goes through approval",
-        "If apply_manifest is denied, does not retry it and says nothing was changed"
+        "If apply_manifest is denied, does not retry it and says nothing was changed",
+        "Before applying, points out app state that changes what the apply does (replicas: 0, paused, a failed deletion) and does not change replicas beyond what the request needs without saying so"
       ],
       "tags": {
         "area": "deploy",
@@ -230,12 +232,13 @@
       "expected_output": "Lists applications named emotion-class-svc; when more than one workspace has one, shows the matches with their workspaces and asks which the user means before diagnosing anything.",
       "files": [],
       "expectations": [
-        "Calls list_applications filtered by the name",
+        "Calls list_applications with the exact name filter (applicationName), not a substring search",
         {
           "text": "If more than one workspace has an application with that name, lists them with their workspaces and asks which one before diagnosing; if only one exists, says so",
           "critical": true
         },
-        "Only after the application is settled, reads pod state with get_application_state"
+        "Only after the application is settled, reads pod state with get_application_state",
+        "After the user picks the test-ws one, reports what the tools show for it (cluster connection, active version, failed deployments and their errors) and says what it could not see instead of naming an unconfirmed cause"
       ],
       "clarification_reply": "The one in workspace test-ws on cluster tfy-vedant-upgraded.",
       "tags": {
@@ -268,10 +271,10 @@
       "expected_output": "Checks whether the name is taken in onboarding-ws, clones the repo, sets a host on the exposed port from generate_deployment_endpoint, builds a tfy-python-buildpack manifest from requirements.txt, validates it, and shows the manifest plus the tfy deploy command (build_source local, local_build from docker info) or the git build_source alternative — without deploying.",
       "files": [],
       "expectations": [
-        "Checks list_applications for the name in onboarding-ws",
+        "Checks list_applications in onboarding-ws for the service name the manifest finally uses, and never says a name is free without that check",
         "Takes workspace_fqn from list_workspaces",
         "Sets ports[].host from generate_deployment_endpoint for the exposed port instead of inventing one",
-        "Uses tfy-python-buildpack with the folder as build_context_path and requirements.txt, and a uvicorn/gunicorn command on port 8000",
+        "Uses tfy-python-buildpack with the example folder as project_root_path (or as build_context_path with project_root_path ./), requirements.txt, and a uvicorn/gunicorn command binding 0.0.0.0:8000",
         "Proposes tfy deploy -f truefoundry.yaml --no-wait with build_source local and local_build decided by `docker info` (or build_source git with a commit SHA via apply_manifest); never tfy apply",
         {
           "text": "Calls validate_manifest and does not deploy",
@@ -339,9 +342,10 @@
           "critical": true
         },
         "Does not apply a manifest with an incompatible target",
-        "Weights sum to 100"
+        "Weights sum to 100",
+        "After the user picks compatible targets, validates and calls apply_manifest once; if it is denied, says nothing changed"
       ],
-      "clarification_reply": "Then send all of it to openai-main/text-embedding-3-small for now.",
+      "clarification_reply": "Then send all of it to openai-main/text-embedding-3-small for now. Call it embedding-split in the eval-vm group.",
       "tags": {
         "area": "models",
         "kind": "write"
@@ -368,22 +372,24 @@
     {
       "id": 21,
       "prompt": "Register the Linear MCP server (https://mcp.linear.app/mcp) on our gateway with OAuth.",
-      "expected_output": "Checks list_mcp_servers and list_mcp_catalogue together. If a Linear server is already registered, reports it instead of creating a duplicate. Otherwise, since Linear is in the catalogue's tfyManaged list, it copies that entry's tfyManagedMcpManifest (type mcp-server/tfy-managed, keeping server_identifier), adds name and description (no collaborators), asks for no URL or credentials, then validates and calls apply_manifest, which puts it to approval, and grants access with create_grants only after a successful apply. If the apply is denied, says nothing was registered.",
+      "expected_output": "Checks list_mcp_servers and list_mcp_catalogue together. If a Linear server is already registered, shows it and asks whether to use it, update it or create another, and creates nothing on its own assumption; with the reply below it gives the existing server's endpoint and makes no write. Otherwise, since Linear is in the catalogue's tfyManaged list, it copies that entry's tfyManagedMcpManifest (type mcp-server/tfy-managed, keeping server_identifier), adds name and description (no collaborators), asks for no URL or credentials, then validates and calls apply_manifest, which puts it to approval, and grants access with create_grants only after a successful apply. If the apply is denied, says nothing was registered.",
       "files": [],
       "expectations": [
         "Calls list_mcp_servers and list_mcp_catalogue before deciding",
-        "If a Linear server is already registered, reports it and does not register a duplicate",
+        "If a Linear server is already registered, shows it and asks whether to use it, update it or create another; does not apply a new server unless the user chose to create one (an unanswered question is not a choice)",
         {
           "text": "Any new registration uses type mcp-server/tfy-managed with the catalogue's server_identifier, not mcp-server/remote, and calls validate_manifest before apply_manifest",
           "critical": true
         },
         "Does not ask for a URL, client_id or client_secret",
-        "The manifest has no collaborators field, and create_grants is called only after apply_manifest succeeds (not after a denied apply)"
+        "The manifest has no collaborators field, and create_grants is called only after apply_manifest succeeds (not after a denied apply)",
+        "If the user says to use the existing server, gives its endpoint and makes no write"
       ],
       "tags": {
         "area": "mcp",
         "kind": "write"
-      }
+      },
+      "clarification_reply": "Use the existing one; don't create another."
     },
     {
       "id": 22,
@@ -415,8 +421,10 @@
         },
         "The policy is a single manifest with a new name and has no rules: array",
         "Calls list_gateway_config_instances with type gateway-guardrails-config and picks a policy name not already listed; does not use get_gateway_config for this",
-        "The policy targets mcpServers or mcpTools and sets mcp_tool_pre_invoke_guardrails to [bank-guardrails/<integration-name>]",
-        "All four hook arrays are present"
+        "The policy targets mcpServers or mcpTools and sets mcp_tool_pre_invoke_guardrails to [bank-guardrails/<integration-name>] (also adding it to mcp_tool_post_invoke_guardrails is fine)",
+        "All four hook arrays are present",
+        "The group manifest has no collaborators field",
+        "If the group apply is denied, does not apply the policy and says nothing changed"
       ],
       "tags": {
         "area": "guardrails",
@@ -451,7 +459,7 @@
         "Calls list_gateway_budgets, optionally filtered by team_name, to get the budget id",
         "Calls get_budget_usage with that budget's id",
         {
-          "text": "Reports the $100 cost_per_month limit and says no spend is recorded this month, based on get_budget_usage returning no usage entries",
+          "text": "Reports the $100 cost_per_month limit and the spend as get_budget_usage returns it; if it returns no usage entries, says no spend is recorded yet instead of inventing figures",
           "critical": true
         },
         "Does not invent usage numbers beyond what the empty result implies"
@@ -541,11 +549,16 @@
       "expectations": [
         "Uses query_llm_gateway_metrics, not gateway_execute_sql",
         {
-          "text": "Hit rate from avg of cacheHitFlag on cacheMetrics, not sum or count of it",
+          "text": "Hit rate from avg of cacheHitFlag on cacheMetrics (ungrouped or grouped by cacheType only), not sum or count of it and not worked out from hit and miss row counts",
           "critical": true
         },
         "Prompt-cache tokens from sum cacheReadInputTokens on realModelMetrics, not traces/TfyGatewayOutput",
-        "Keeps gateway caching and provider prompt caching separate"
+        "Keeps gateway caching and provider prompt caching separate",
+        {
+          "text": "Every number in the reply appears in the program output; rates or shares worked out in the reply count as a failure",
+          "critical": true
+        },
+        "If cacheMetrics has no semantic cache rows, says there were no semantic cache lookups in the window instead of reporting a 0% hit rate"
       ],
       "tags": {
         "area": "metrics",
@@ -555,13 +568,13 @@
     {
       "id": 31,
       "prompt": "How many guardrail evaluations failed yesterday, by guardrail name?",
-      "expected_output": "Reads metrics.md and calls query_llm_gateway_metrics on guardrailMetrics for yesterday (UTC), grouped by guardrailName and guardrailResult (not guardrailResultCategory, which folds errors into allowed). Reports per guardrail the blocked count (flag) separately from checks that errored (error, ignored_error), with a /monitoring/metrics?metricsV2Tab=guardrails link.",
+      "expected_output": "Reads metrics.md and calls query_llm_gateway_metrics on guardrailMetrics for yesterday (UTC), grouped by guardrailName and guardrailResult (not guardrailResultCategory, which folds errors into allowed). Reports per guardrail blocked (flag), audit-mode flags (audit_mode_flag), mutations (mutation) and checks that failed to run (error, ignored_error) separately, with a /monitoring/metrics?metricsV2Tab=guardrails link.",
       "files": [],
       "expectations": [
         "Uses datasource guardrailMetrics, not guardrailPolicyMetrics or SQL",
         "startTs and endTs cover exactly yesterday",
         {
-          "text": "Distinguishes blocked (flag) from the check itself erroring (error, ignored_error)",
+          "text": "Per guardrail, reports checks that failed to run (error, ignored_error) separately from blocked (flag), audit-mode flags and mutations, and says which of these it counts as failed",
           "critical": true
         },
         "Gives a link under /monitoring/metrics"
@@ -596,11 +609,12 @@
       "expectations": [
         "Writes autoscaling under replicas with min_replicas/max_replicas, not an autoscaling block or minReplicas",
         "Uses wait_time: 600 (seconds), not 10",
-        "Flags that auto_shutdown with autoscaling requires metrics.type rps",
+        "Explains before applying, in a question or a message, that auto_shutdown with autoscaling requires metrics.type rps",
         {
           "text": "Starts from activeDeployment.manifest and does not call apply_manifest until the user has said how to resolve the rps requirement",
           "critical": true
-        }
+        },
+        "Uses the RPS target the user gave (10) and does not pick one itself"
       ],
       "clarification_reply": "Switch the autoscaling metric to rps then, targeting 10 requests per second per replica.",
       "tags": {
@@ -649,7 +663,7 @@
     {
       "id": 36,
       "prompt": "Deploy https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct to workspace archit-ws. My HF token is in the secret group automation-secrets-msyxnmvs-5e2f under key HUGGINGFACE_TOKEN.",
-      "expected_output": "Resolves the workspace and checks for an existing app, calls list_secrets for the fqn, then calls get_model_deployment_specs with huggingfaceHubTokenSecretFqn=tfy-secret://<fqn>, picks an isAvailableInWorkspace option, validates and applies.",
+      "expected_output": "Resolves the workspace and checks for an existing app, finds the secret's fqn with list_secret_groups, then calls get_model_deployment_specs with huggingfaceHubTokenSecretFqn=tfy-secret://<fqn>, picks an isAvailableInWorkspace option, validates and applies. If the specs call fails with a Hugging Face 401, it reports that the token cannot read the model instead of retrying the same call or asking for the raw token.",
       "files": [],
       "expectations": [
         {
@@ -658,8 +672,9 @@
         },
         "Passes the token as tfy-secret://<fqn>, not a bare FQN or raw token",
         "Never asks the user to paste the token",
-        "Picks an option with isAvailableInWorkspace: true or asks before using one that is not",
-        "Calls validate_manifest before apply_manifest"
+        "If get_model_deployment_specs returns options, picks one with isAvailableInWorkspace: true or asks before using one that is not",
+        "If it builds a manifest, calls validate_manifest before apply_manifest",
+        "If the specs call fails with a Hugging Face 401, reports it, does not repeat the identical call, and does not switch models without asking"
       ],
       "tags": {
         "area": "deploy",
@@ -691,12 +706,14 @@
       "expected_output": "Reads the app's state and the deployed manifest (auto_shutdown, artifacts_download.cache_volume) before concluding, and explains the lack of new pods from what it found: scale-to-zero after idle, or the PreSync downloader that runs before service pods exist (read with get_logs podNamesRegex=downloader-<deploymentId>.*). Does not read empty events as healthy.",
       "files": [],
       "expectations": [
-        "Checks the deployed manifest for auto_shutdown and, if present, artifacts_download.cache_volume",
+        "Checks the deployed manifest for auto_shutdown and, since this is a model deployment, artifacts_download.cache_volume; if cache_volume is set, reads the downloader logs (get_logs podNamesRegex=downloader-<deploymentId>.*)",
         "Checks get_application_state or the deployment status before concluding",
         {
           "text": "Explains the lack of new pods from what it found, not from empty events",
           "critical": true
-        }
+        },
+        "Checks whether the redeploy created a new deployment version, and says so if it did not",
+        "If it suggests keeping the service warm, says to remove auto_shutdown; min_replicas alone does not stop scale-to-zero"
       ],
       "tags": {
         "area": "deploy",
@@ -725,15 +742,16 @@
     {
       "id": 40,
       "prompt": "get_application_state shows my pod as Pending, node is set, restarts is 7. Is it a scheduling problem?",
-      "expected_output": "Recognises a started but unready pod (status Pending because it is not Ready), reads the container reason and lastState, and routes to crashloop-oom-probes, not pending-scheduling.",
+      "expected_output": "Recognises a started but unready pod (status Pending because it is not Ready), says the container reason, exitCode and lastState decide the cause (or offers to read them, given the app name), and routes to crashloop-oom-probes, not pending-scheduling.",
       "files": [],
       "expectations": [
         {
           "text": "Uses node != null to rule out scheduling",
           "critical": true
         },
-        "Reads container reason / lastState",
-        "Opens failure-modes/crashloop-oom-probes.md"
+        "Says the container reason, exitCode and lastState (OOMKilled, 137, probe kill) decide the cause, and offers to read them for a named application",
+        "Opens failure-modes/crashloop-oom-probes.md",
+        "Names crashloop, OOMKilled and failing liveness or startup probes as the candidates; does not offer causes that cannot restart a container (ContainerCreating, image pull, FailedMount)"
       ],
       "tags": {
         "area": "deploy",
@@ -743,13 +761,13 @@
     {
       "id": 41,
       "prompt": "Show me the logs of the redis master in my Helm release `nikp-redis` in workspace `agent-ws`.",
-      "expected_output": "Takes the real pod name from get_application_state, calls get_logs with applicationId and podName or podNamesRegex, direction desc; does not construct a pod name or call get_logs without a pod filter.",
+      "expected_output": "Takes the real pod name from get_application_state (or get_application_argocd_resources). If a pod exists, calls get_logs with applicationId and podName or podNamesRegex, direction desc. If no pod exists (for example the release is paused), says so and why, does not call get_logs, and offers to resume it. Never constructs a pod name or calls get_logs without a pod filter.",
       "files": [],
       "expectations": [
         "Calls get_application_state for pod names",
         "If a pod exists, passes a pod filter to get_logs; if there are no pods (for example the release is paused), says so instead of calling get_logs",
         {
-          "text": "Does not invent a pod name",
+          "text": "Does not pass a constructed pod name to get_logs or state one as fact; any kubectl suggestion lists pods first instead of naming a pod no tool returned",
           "critical": true
         }
       ],
@@ -761,17 +779,18 @@
     {
       "id": 42,
       "prompt": "Add gpt-4o, text-embedding-3-small and my fine-tune ft:gpt-4o-mini:acme::abc123 to my OpenAI account `openai-main`.",
-      "expected_output": "Fetches the account, schema and catalogue in one batch; resolves the two catalogue models by exact key; finds no catalogue entry for the fine-tune and asks for its model types; builds the manifest with a sandbox program that keeps every existing integration, adds public_cost only to the catalogue models with a price entry, and omits cost on the fine-tune; validates, then applies once.",
+      "expected_output": "Fetches the account, schema and catalogue in one batch; resolves the two catalogue models by exact key; finds no catalogue entry for the fine-tune and asks for its model types; builds the manifest with a sandbox program that keeps every existing integration, adds each named catalogue model not already in the account (with public_cost only if its catalogue entry has a price), reports models already present and leaves them unchanged, and omits cost on the fine-tune; validates, then applies once.",
       "files": [],
       "expectations": [
         "Resolves named models against the list_providers catalogue",
         {
-          "text": "Asks for model types of the non-catalogue model instead of defaulting to chat",
+          "text": "Asks for the model types of the non-catalogue model instead of defaulting to chat, and uses the answer in the manifest",
           "critical": true
         },
         "Omits cost on the non-catalogue model",
         "Keeps existing integrations",
-        "Applies once, directly"
+        "Applies once, directly",
+        "Does not add a second integration for a model already in the account"
       ],
       "clarification_reply": "The fine-tune is a chat model.",
       "tags": {
@@ -907,7 +926,8 @@
           "critical": true
         },
         "Calls validate_manifest until valid: true, then apply_manifest once in a separate batch",
-        "Does not ask the user to paste the YAML"
+        "Does not ask the user to paste the YAML",
+        "After the denied apply, says nothing changed and does not apply again"
       ],
       "tags": {
         "area": "config",
@@ -922,10 +942,11 @@
       "expectations": [
         "Calls list_providers with providerType provider-account/aws-bedrock",
         {
-          "text": "Answers only from catalogue keys, never from memory",
+          "text": "Answers only from list_providers catalogue keys and their fields, never from memory or docs",
           "critical": true
         },
-        "Does not dump the whole catalogue"
+        "Does not dump the whole catalogue",
+        "Reports each model's status and mode as the catalogue gives them; null or unknown values are not shown as active or chat"
       ],
       "tags": {
         "area": "models",
@@ -938,12 +959,13 @@
       "expected_output": "Uses the given key as auth_data.api_key without looking for a way to create a secret, builds every non-retired catalogue model into the manifest with a program, validates it, and calls apply_manifest once with the full list.",
       "files": [],
       "expectations": [
-        "Uses the given key in auth_data without searching for how to create a secret",
+        "Uses the given key in auth_data as given, without searching for how to create a secret or asking the user to store it as one",
         "Does not ask which models; the user said all",
         {
           "text": "Calls apply_manifest once with every integration, never a partial list",
           "critical": true
-        }
+        },
+        "After the denied apply, says the account was not created and does not apply again"
       ],
       "tags": {
         "area": "models",
@@ -1079,14 +1101,15 @@
     {
       "id": 59,
       "prompt": "Add dave@example.com to TrueFoundry.",
-      "expected_output": "Reads users.md and calls register_user once with the email. If it returns 403 about manual provisioning, explains users then arrive through SSO or SCIM and that an admin can enable Manual provisioning; if 402, explains the plan user limit; if 409, checks his status with list_users (showInvalidUsers true) and suggests resending the invite or reactivating.",
+      "expected_output": "Reads users.md and calls register_user once with the email. If it returns 403 about manual provisioning, explains users then arrive through SSO or SCIM and that an admin can enable Manual provisioning; if 402, explains the plan user limit; if 409, checks his status with list_users (showInvalidUsers true) and suggests resending the invite or reactivating. In eval the call is denied; then it says the user was not added.",
       "files": [],
       "expectations": [
         {
           "text": "Uses register_user",
           "critical": true
         },
-        "If register_user returns 403, 402 or 409, explains it per users.md instead of retrying"
+        "If register_user returns 403, 402 or 409, explains it per users.md instead of retrying",
+        "If register_user is denied, says the user was not added and does not call it again"
       ],
       "tags": {
         "area": "access",
@@ -1130,7 +1153,7 @@
     {
       "id": 62,
       "prompt": "Who deleted the MCP server github-mcp?",
-      "expected_output": "Calls get_audit_log_actions to find DELETE_MCP_SERVER, then get_audit_logs with action DELETE_MCP_SERVER, resourceType mcp-server and resourceName github-mcp over a time range (widening it if nothing is found), and reports who deleted it and when.",
+      "expected_output": "Calls get_audit_log_actions, then get_audit_logs for resourceName github-mcp filtered to the delete actions that can apply to an MCP server (DELETE_MCP_SERVER, and DELETE_PROVIDER_INTEGRATION for legacy remote MCP servers), with start and end set and widened if nothing is found. Reports who deleted it and when. If the logs show another resource named github-mcp deleted too (for example an application), mentions it as a separate resource.",
       "files": [],
       "expectations": [
         "Takes the action name from get_audit_log_actions instead of guessing",
@@ -1138,7 +1161,9 @@
         {
           "text": "Reports the subject and time of the delete",
           "critical": true
-        }
+        },
+        "Filters get_audit_logs by delete action instead of listing every event for the name or checking which MCP servers exist now",
+        "Does not call the MCP server delete the only github-mcp deletion when the logs show another resource with that name deleted"
       ],
       "tags": {
         "area": "audit",
@@ -1170,10 +1195,11 @@
       "expectations": [
         "Takes the total cost and failures from an ungrouped query, not from adding grouped rows",
         {
-          "text": "Every number in the reply appears in the program output",
+          "text": "Every number in the reply appears in the program output; sums, shares or percentages worked out in the reply count as a failure",
           "critical": true
         },
-        "Does not add realModelMetrics rows into virtual model totals"
+        "Does not add realModelMetrics rows into virtual model totals",
+        "States the window used; if 'last week' was read as the last 7 days, says so"
       ],
       "tags": {
         "area": "metrics",
@@ -1366,8 +1392,8 @@
           "critical": true
         },
         "Groups by providerAccountType and modelName",
-        "Produces the CSV even when a row's provider or model is null (blank cell), without crashing",
-        "Explains unresolved/null-provider rows via errorDisplayLabel (not errorType as group-by); does not guess"
+        "Produces the CSV even when a row's provider or model is null, writing a blank or a clear placeholder such as (unresolved), without crashing",
+        "If any row has a null provider or model, explains those rows from a second query grouped by errorDisplayLabel with isFailure EQUAL true (same userEmail filter and window); never names a likely cause without that query"
       ],
       "tags": {
         "area": "metrics",
@@ -1385,8 +1411,9 @@
           "text": "Reports one comparable total or breakdown, not two mismatched counts side by side",
           "critical": true
         },
-        "When metrics rows have no default spans, calls list_data_routing_destinations and asks which destination",
-        "Does not call the gap unexplained without checking destinations / same filters"
+        "If the answer compares a metrics failure count with a traces count, both use the same filters, and failures with no spans in default lead to list_data_routing_destinations and a question about which destination",
+        "Every UI link uses the control plane host from the session or tool output, never a hand-typed host",
+        "Each cause comes from an error message or errorDisplayLabel in tool output; where the data shows no cause, says it is unknown"
       ],
       "tags": {
         "area": "metrics",

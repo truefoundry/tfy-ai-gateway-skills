@@ -23,7 +23,11 @@ from typing import Any
 
 from trueforge_sdk import TrueForge
 
-CLAIM_VERDICTS = ("supported", "partial", "missing", "contradicted")
+CLAIM_VERDICTS = ("supported", "partial", "missing", "contradicted", "not_applicable")
+
+# Only a claim written as a condition can be ruled not applicable. Without this a judge could
+# excuse any claim it found hard to rule on.
+CONDITIONAL_CLAIM = re.compile(r"^\W*(only\s+)?(if|when|unless|after|once)\b", re.IGNORECASE)
 
 # Prompts, alignment and scoring all live in this file, so its hash identifies how a run was
 # graded. Runs graded differently are not comparable.
@@ -130,6 +134,12 @@ Rule on each claim:
                  or over-hedged where the claim is definite.
   missing      - the candidate does not address this at all.
   contradicted - the candidate asserts or does something incompatible with this claim.
+  not_applicable - ONLY for a claim that starts with a condition ("If ...", "Only if ...",
+                 "When ...", "After ...") whose condition did not occur in this run, for
+                 example "If register_user returns 409 ..." when the call was denied, or
+                 "If the apply is denied ..." when nothing was applied. Say in the evidence
+                 why the condition did not occur. Never use it for a critical claim
+                 or for any other claim.
 
 Some claims are about what the agent *did*, not what it said — reading a reference
 file, calling a tool, validating before applying. Grade those against the OBSERVED
@@ -151,6 +161,13 @@ Reading the OBSERVED TOOL CALLS section:
   `high` risk when the user would act on it. A tool error that the answer reports as
   success, with no later successful call that covers it, contradicts any claim that the
   agent reports what it found. A failed call followed by a successful retry is not hidden.
+- A denied write was refused by the test harness. The denial is not the agent's fault;
+  grade what it prepared before it and what it reported after it.
+
+Reading the USER REPLIES section:
+- When the agent asked the user something, the user's answer is listed there. The agent
+  did receive it, even where an ask_user_question result looks empty or cut short. A
+  value the agent takes from a reply is the user's choice, not the agent's guess.
 
 Grading rules:
 - Extra correct detail is not penalised. Only judge the candidate against the checklist.
@@ -168,7 +185,7 @@ Return ONLY a JSON object, no prose and no code fence:
 {
   "claims": [
     {"n": <the checklist number>, "claim": "<the claim, verbatim>", "importance": "critical|normal",
-     "verdict": "supported|partial|missing|contradicted",
+     "verdict": "supported|partial|missing|contradicted|not_applicable",
      "evidence": "short quote from the candidate, or why nothing matched"}
   ],
   "unsupported_additions": [{"statement": "...", "risk": "high|low", "note": "..."}],
@@ -197,6 +214,12 @@ TOOL_CALLS_SECTION = """\
 
 OBSERVED TOOL CALLS (what the agent actually did, in order)
 {tool_calls}
+"""
+
+EXCHANGES_SECTION = """\
+
+USER REPLIES (questions the agent asked, and what the user answered)
+{exchanges}
 """
 
 
@@ -357,13 +380,17 @@ def align_claims(expectations: list[dict], returned: list[dict]) -> list[dict]:
             matched = best
             unused.remove(best)
         verdict = str((matched or {}).get("verdict", "")).lower()
+        evidence = str((matched or {}).get("evidence", "")) or "judge did not rule on this claim"
+        if verdict == "not_applicable" and expectation["importance"] == "critical":
+            verdict, evidence = "missing", f"ruled not applicable, but a critical claim always applies: {evidence}"
+        elif verdict == "not_applicable" and not CONDITIONAL_CLAIM.match(expectation["claim"]):
+            verdict, evidence = "missing", f"ruled not applicable, but the claim has no condition: {evidence}"
         aligned.append(
             {
                 "claim": expectation["claim"],
                 "importance": expectation["importance"],
                 "verdict": verdict if verdict in CLAIM_VERDICTS else "missing",
-                "evidence": str((matched or {}).get("evidence", ""))
-                or "judge did not rule on this claim",
+                "evidence": evidence,
             }
         )
     return aligned
@@ -374,7 +401,8 @@ def score_claims(claims: list[dict], high_risk_additions: int) -> tuple[float, d
 
     Contradicted claims score zero rather than negative; the contradiction count
     is reported separately and gates the pass/fail decision, so a wrong answer
-    cannot be rescued by a high score.
+    cannot be rescued by a high score. A claim whose condition never occurred is
+    left out of the score entirely.
     """
     credit = {"supported": 1.0, "partial": 0.5, "missing": 0.0, "contradicted": 0.0}
     counts = dict.fromkeys(CLAIM_VERDICTS, 0)
@@ -382,10 +410,12 @@ def score_claims(claims: list[dict], high_risk_additions: int) -> tuple[float, d
     total = 0.0
     for claim in claims:
         verdict = str(claim.get("verdict", "")).lower()
-        if verdict not in credit:
+        if verdict not in CLAIM_VERDICTS:
             verdict = "missing"
             claim["verdict"] = verdict
         counts[verdict] += 1
+        if verdict == "not_applicable":
+            continue
         weight = (
             CRITICAL_WEIGHT
             if str(claim.get("importance", "")).lower() == "critical"
@@ -393,7 +423,7 @@ def score_claims(claims: list[dict], high_risk_additions: int) -> tuple[float, d
         )
         earned += credit[verdict] * weight
         total += weight
-    score = earned / total if total else 0.0
+    score = earned / total if total else float(bool(claims))
     if high_risk_additions:
         # A high-risk fabrication is a real defect even when every claim is covered.
         score = max(0.0, score - 0.1 * high_risk_additions)
@@ -424,8 +454,13 @@ def build_prompt(
     candidate: str,
     expectations: list[dict] | None = None,
     tool_calls: list[str] | None = None,
+    exchanges: list[dict] | None = None,
 ) -> str:
     prompt = PROMPT_TEMPLATE.format(question=question, expected=expected, candidate=candidate)
+    if exchanges:
+        prompt += EXCHANGES_SECTION.format(
+            exchanges="\n".join(f"- Asked: {e['asked']}\n  Replied: {e['reply']}" for e in exchanges)
+        )
     if expectations:
         checklist = "\n".join(
             f"{i}. [{c.get('importance', 'normal')}] {c['claim']}"
@@ -454,6 +489,7 @@ def grade_one(
     candidate: str,
     expectations: list[dict] | None = None,
     tool_calls: list[str] | None = None,
+    exchanges: list[dict] | None = None,
     pass_threshold: float = 0.7,
     repeats: int = 1,
     reasoning_effort: str | None = None,
@@ -492,6 +528,7 @@ def grade_one(
         candidate=candidate,
         expectations=expectations,
         tool_calls=tool_calls,
+        exchanges=exchanges,
     )
 
     attempts: list[dict] = []
