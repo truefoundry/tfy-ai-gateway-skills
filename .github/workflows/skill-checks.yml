@@ -5,6 +5,8 @@ on:
     paths:
       - "skills/**"
       - "scripts/check_skills.py"
+      - "scripts/tool_schemas.py"
+      - "tool-schemas/**"
       - ".github/workflows/skill-checks.yml"
 
 permissions:
