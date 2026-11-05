@@ -11,11 +11,11 @@ description: Aggregate Gateway questions — requests, cost, tokens, latency, er
 
 Group-by and timeseries can run to hundreds of rows; the tool cannot sort or limit. Run those from the sandbox with one program that calls the tool, sorts, cuts to what the question needs and prints only that. A single sandbox `call_tool` (no sorting program) is enough only for no `groupBy` and `type: distribution` (one row).
 
-- From code: `result = await call_tool("<server>", "query_llm_gateway_metrics", body={...})` on the Code Mode server hosting the tool. Independent queries can use `asyncio.gather`; sandbox timeout is 60s, so keep to a few queries.
-- Returns `{"data": {"dataPoints": [...], "intervalInSeconds": N}}`. Don't call to infer this shape. A 400's message is the server's.
+- From code: `result = await call_tool("<server>", "query_llm_gateway_metrics", body={...})` on the Code Mode server hosting the tool. Batch independent queries with `asyncio.gather`; the sandbox times out at 60s.
+- Returns `{"data": {"dataPoints": [...], "intervalInSeconds": N}}`. A 400's message is the server's.
 - Build requests from this file — not the input schema or `get_tool_info` (schema merges all datasources). Never call `get_tool_info` on `query_llm_gateway_metrics`. A wrong field or operator returns a 400 naming it.
-- Print the top 10–20 rows as a compact table.
-- **Totals.** Print headline totals (requests, cost, tokens, failures) from a `groupBy: []` query in the same program; grouped rows double count teams and virtual → real models. Quote only numbers the program printed.
+- Print the top 10–20 rows as a table.
+- **Totals.** Print headline totals (requests, cost, tokens, failures) from a `groupBy: []` query in the same program; grouped rows double count teams and virtual → real models. Quote only numbers the program printed; compute percentages and sums in the program, not the reply.
 
 ### Datasources
 
@@ -30,7 +30,7 @@ Group-by and timeseries can run to hundreds of rows; the tool cannot sort or lim
 | Agent runs | `agentMetrics` |
 | Incoming requests by path, method, span type | `gatewayRequestMetrics` |
 
-`modelMetrics` reads the same rows as `realModelMetrics`; use `realModelMetrics`. Virtual model → real model breakdown: `realModelMetrics` grouped by `virtualModel` and `modelName` (only calls routed through a virtual model).
+Use `realModelMetrics`, not its alias `modelMetrics`. Virtual model → real model breakdown: `realModelMetrics` grouped by `virtualModel` and `modelName` (only calls routed through a virtual model).
 
 ### Request rules
 
@@ -68,7 +68,7 @@ Each point has `total`, each aggregation under its `alias` (default `<type><Colu
 | `targetModel` | `model` |
 | `providerAccountType`, `modelName`, `providerModelName` | same name |
 
-Failures before routing leave group values null — models: `providerAccountType`/`modelName` (not found, forbidden, rate-limited); agents: `agentName`; load-balance: `targetModel` (key `model`) when every target failed. Read with `p.get(k) or ""`. Explain with a second failure query — models/agents: `groupBy ["errorDisplayLabel"]` + `isFailure EQUAL true` (`errorType` is a filter only, never group-by); MCP tool failures: `toolErrorDisplayLabel` + `isToolCallFailure`. Don't guess.
+Failures before routing leave group values null — models: `providerAccountType`/`modelName` (not found, forbidden, rate-limited); agents: `agentName`; load-balance: `targetModel` (key `model`) when every target failed. Read groups with `p.get(k) or ""` and numbers with `p.get(alias) or 0`. Explain with a second failure query — models/agents: `groupBy ["errorDisplayLabel"]` + `isFailure EQUAL true` (`errorType` is a filter only, never group-by); MCP tool failures: `toolErrorDisplayLabel` + `isToolCallFailure`. Run it; don't guess.
 
 Data-access rules filter every query; with no matching rule it returns nothing. An empty or small result can mean no access: say so and link `{controlPlaneUrl}/access-management?tab=data-access` ([data access](https://www.truefoundry.com/docs/ai-gateway/data-access)).
 
@@ -102,6 +102,6 @@ Shown as `datasource` · `groupBy` · aggregations · filters.
 ### Checklist
 
 - [ ] "My"/"I"/"me" → `userEmail` on every query including totals; failure counts omit name `NOT_IN [""]`.
-- [ ] Grouped/timeseries from sandbox; no `get_tool_info`; null groups via `p.get`.
+- [ ] Grouped/timeseries from sandbox; no `get_tool_info`; nulls via `p.get`.
 - [ ] Request count from `total`; latency as percentiles; flags with `avg` only.
 - [ ] Numbers from program output; window stated; empty → data-access.

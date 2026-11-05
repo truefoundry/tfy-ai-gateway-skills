@@ -28,7 +28,7 @@ What is available by type:
 | `helm` | `list_application_events` (subchart pods: lifecycle only) | `get_logs` **with a pod filter** | See Helm applications; also `get_application_argocd_resources` |
 | `notebook`, `rstudio`, `ssh-server` | `list_application_events` | `get_logs` | See Notebooks below; authoring/access: `notebook-ssh.md` |
 
-If many apps fail the same way at once, jump to `failure-modes/cluster-capacity.md` before a deep single-app dive.
+If many apps fail the same way at once, read `failure-modes/cluster-capacity.md` first.
 
 ## Phase 2: Read the application state and route
 
@@ -49,7 +49,7 @@ Branch on what you see, then **open the matching file** (paths under `ai-enginee
 | Container `reason: ImagePullBackOff` / `ErrImagePull` | `failure-modes/image-pull.md` |
 | Container `reason: CreateContainerConfigError` / `CreateContainerError` | Missing Secret/ConfigMap key or bad env reference; the container never started, so no logs. Check manifest `env` and secret FQNs (`secrets.md`) and the event message |
 | `lastState.reason: OOMKilled`, exit code 137, or suspected memory | `failure-modes/crashloop-oom-probes.md`. An OOM-looping container shows `reason: CrashLoopBackOff`; the OOM is in `lastState` |
-| `reason: CrashLoopBackOff` / high `restarts` | `failure-modes/crashloop-oom-probes.md` |
+| `reason: CrashLoopBackOff`, or `restarts` > 0 (even `Pending`, node set) | `failure-modes/crashloop-oom-probes.md` |
 | Init container (empty `image`, listed after the main ones) waiting or failed; pod stuck initializing | `failure-modes/crashloop-oom-probes.md` → Init container failures |
 | Pod `status: Terminating` | Being deleted (rollout or scale-down), not a crash |
 | Events mention `FailedMount` / PVC (any status) | `failure-modes/volumes-storage.md` |

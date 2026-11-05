@@ -52,6 +52,8 @@ Steps 1 and 2 are independent: call `list_mcp_servers` (filtered as above) and `
 2. **`integrations`** — known remote servers with a `url` and, optionally, an `auth_data` showing the auth type (`oauth2`, `header` or none). Use Path B.
 3. **Not in the catalogue** — search online. Prefer a remote (HTTP/SSE/streamable) endpoint; fall back to stdio only if none exists. Use Path C. If the user has an OpenAPI spec, use Path D. To combine or subset tools of existing servers, use Path E.
 
+A `tfyManaged` entry wins even when the user gives a URL or an auth method (OAuth, API key): register it with Path A, not as `mcp-server/remote`.
+
 ### Step 3: Build the manifest
 
 Call `get_manifest_json_schema` for the chosen type. Templates below are simplified. `name` is 3–73 chars, lowercase letters, digits and hyphens, starting with a letter; it cannot change later.
