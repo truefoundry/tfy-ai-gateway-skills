@@ -1,9 +1,9 @@
 ---
 name: secrets
-description: Create and reference TrueFoundry secrets / secret groups in application manifests — HF tokens, registry creds, API keys. Read when deploying gated models, private images, or injecting credentials.
+description: Find, create and reference TrueFoundry secrets / secret groups in application manifests — HF tokens, registry creds, API keys, DB passwords. Read when deploying gated models, private images, or injecting credentials.
 ---
 
-Never put raw secret values in chat, manifests committed to git, or `env` plain strings when a Secret FQN exists. Prefer Secret Groups + FQNs.
+Never put raw secret values in chat, in manifests, or in `env` as plain strings when a secret exists. Prefer secret groups and secret references.
 
 ## Contents
 - Find existing secrets
@@ -14,9 +14,9 @@ Never put raw secret values in chat, manifests committed to git, or `env` plain 
 
 ## Find existing secrets
 
-1. `list_secret_groups` — the groups the user can access, each with its secrets. Values are never returned. `list_secrets` lists secrets directly.
-2. Match by name/FQN for HF tokens, NGC keys, Docker registry, DB passwords.
-3. Use the **FQN** in the application manifest — not the decrypted value.
+1. `list_secret_groups` — the groups the user can access, each with its secrets. It never returns values. `list_secrets` returns values when called with `withValue: true`, so never pass `withValue`.
+2. Match by name for HF tokens, NGC keys, Docker registry, DB passwords.
+3. The `fqn` these return is `<tenant>:<group>:<key>` with no scheme. Prefix it with `tfy-secret://` in manifests. A bare FQN in `env` is injected as a literal string and the deploy still succeeds.
 
 If the user pastes a raw token, do not echo it back and do not put it in a manifest. Ask them to store it as a TrueFoundry secret (below) and give you the FQN.
 
@@ -28,15 +28,14 @@ So when the secret does not exist yet, give the user the steps — Secret Groups
 
 - Put secrets in a **secret group** the application's workspace can read.
 - Name clearly (`hf-token-prod`, `ngc-api-key`).
-- For model deploy: pass `huggingfaceHubTokenSecretFqn` into `get_model_deployment_specs` and/or set the env the downloader expects (`HF_TOKEN` / `HUGGING_FACE_HUB_TOKEN` via secret ref).
+- For model deploy: pass `huggingfaceHubTokenSecretFqn` into `get_model_deployment_specs` and/or set the env the downloader expects (`HF_TOKEN` / `HUGGING_FACE_HUB_TOKEN`) to a secret reference.
 
 ## Reference in manifests
 
-Patterns (confirm in `get_manifest_json_schema`):
-
-- Env value as secret reference / `value_from` secret FQN (platform-specific shape).
-- Image pull secrets / private registry integrations for `ImagePullBackOff` (`failure-modes/image-pull.md`).
-- NIM: `ngcApiKeySecretFqn` + NVCR registry integration FQN on `get_nim_deployment_specs`.
+- **Env secret:** `env: {DB_PASSWORD: "tfy-secret://<tenant>:<group>:<key>"}`. The value is the string itself; there is no `value_from`.
+- **File:** `mounts: [{type: secret, mount_path: /etc/creds/key, secret_fqn: "tfy-secret://<tenant>:<group>:<key>"}]`.
+- **Private image:** `image.docker_registry` set to the registry integration FQN (`deploy-from-image.md`, `failure-modes/image-pull.md`).
+- **NIM:** `ngcApiKeySecretFqn` + NVCR registry integration FQN on `get_nim_deployment_specs`.
 
 Editing secrets on an existing app = full manifest replace (`deploy-common.md`) — keep every other field.
 
@@ -45,15 +44,15 @@ Editing secrets on an existing app = full manifest replace (`deploy-common.md`) 
 | Need | Secret |
 |---|---|
 | Gated HuggingFace model | HF token secret FQN |
-| Private container image | Registry creds / integration |
+| Private container image | Registry integration on `image.docker_registry` |
 | NVIDIA NIM | NGC API key secret FQN |
 | App talks to OpenAI/etc directly | Provider API key secret (or prefer AI Gateway) |
-| DB / Redis password | Secret FQN in env |
+| DB / Redis password | `tfy-secret://...` in `env` |
 
 ## Checklist
 
-- [ ] Did I use FQNs instead of raw values?
-- [ ] Did I avoid printing secret values in the reply?
+- [ ] Did I use `tfy-secret://<tenant>:<group>:<key>` references instead of raw values or bare FQNs?
+- [ ] Did I avoid `withValue` and avoid printing secret values in the reply?
 - [ ] For gated models, did I pass the FQN into catalogue specs / artifacts download?
 - [ ] Did I validate the manifest after wiring secret refs?
 
