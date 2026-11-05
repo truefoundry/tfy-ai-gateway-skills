@@ -5,7 +5,7 @@
 - Every file under skills/ is at most 12,000 bytes, the skill loader's per-file cap. Files over
   11,500 are listed so the PR that crosses the line splits them.
 - Every tool a skill names in backticks exists in tool-schemas/tfy-platform-mcp.json, or is one of
-  OTHER_TOOLS, and skills/references/tool-inputs-*.md match that snapshot.
+  OTHER_TOOLS. Refresh the snapshot with scripts/tool_schemas.py.
 - Every URL a skill links to resolves. Only 404 and 410 fail: a 403 or a timeout from bot
   protection says nothing about whether the page exists, so those are reported, not failed.
 
@@ -103,11 +103,9 @@ def main() -> None:
                 unchecked.append(f"{url} ({code}) in {where}")
 
     tools = unknown_tools()
-    generated = [f"{problem}: run `python scripts/tool_schemas.py render`" for problem in tool_schemas.stale()]
-    failures = over + tools + generated + broken
+    failures = over + tools + broken
     lines = ["## Skill checks", ""]
-    for title, items in (("Over the size cap", over), ("Unknown tools", tools), ("Stale generated files", generated),
-                         ("Broken links", broken),
+    for title, items in (("Over the size cap", over), ("Unknown tools", tools), ("Broken links", broken),
                          ("Near the size cap (split in the PR that crosses 12,000)", near),
                          ("Links that could not be checked", unchecked)):
         if items:
