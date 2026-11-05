@@ -58,15 +58,20 @@ jobs:
           [ -f runner/runs/nightly/report.md ] || exit 0
           sed -n '/^## Headline/,/^## Verdict/p' runner/runs/nightly/report.md | sed '$d' >> "$GITHUB_STEP_SUMMARY"
 
+      # Kept on failure too, for debugging; the PR gate only takes baselines from successful runs.
       - name: Encrypt the run
+        if: always()
         env:
           EVAL_ARTIFACT_KEY: ${{ secrets.EVAL_ARTIFACT_KEY }}
         run: |
+          [ -d runner/runs/nightly ] || exit 0
           tar -czf - -C runner/runs nightly \
             | openssl enc -aes-256-cbc -pbkdf2 -salt -pass env:EVAL_ARTIFACT_KEY -out baseline.tar.gz.enc
 
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: ask-tfy-baseline
           path: evals/baseline.tar.gz.enc
           retention-days: 14
+          if-no-files-found: ignore
