@@ -11,7 +11,7 @@ Any tool, library, or framework that supports OpenAI-compatible APIs can integra
 
 | Parameter   | Value                                                                              |
 | ----------- | ---------------------------------------------------------------------------------- |
-| `baseURL`   | `manifest.url` of the `isDefault: true` installation from `list_gateway_installations` — never a hardcoded URL |
+| `baseURL`   | `manifest.url` of the `isDefault: true` installation from `list_gateway_installations`, if `manifest.enabled`; else an enabled one — never a hardcoded URL |
 | `apiKey`    | TrueFoundry API Key (PAT or VAT)                                                  |
 | `model`     | Model ID in `providerAccount/modelName` format (e.g. `openai-main/gpt-4o-mini`)   |
 
