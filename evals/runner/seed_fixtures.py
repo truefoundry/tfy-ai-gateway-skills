@@ -51,6 +51,7 @@ LIMITS = [
      "limits": {"requests_per_minute": 1}, "applies_to": {"type": "aggregate"},
      "when": {"models": {"in": ["eval-vm/rate-limit"]}}, "log_request_body_on_block": False},
 ]
+DOCS_MCP_URL = "https://global.truefoundry.com/ask-ai/tfy-docs-mcp"
 GATEWAY_SYNC_S = 60
 LIMIT_SYNC_TIMEOUT_S = 180
 PII = "My SSN is 123-45-6789, my card is 4111 1111 1111 1111 and my email is john.doe@gmail.com"
@@ -104,6 +105,7 @@ def main() -> None:
         grant_access(api, find_account(api, manifest["name"]), *sender)
     for manifest in LIMITS:
         apply(api, manifest)
+    apply(api, docs_proxy(manager))
     # The gateway loads applied config asynchronously; earlier requests may route by the old one.
     time.sleep(GATEWAY_SYNC_S)
 
@@ -177,6 +179,13 @@ def provider_accounts(manager: str) -> list[dict]:
          "integrations": [virtual("chat", WORKING_MODEL), virtual("fallback", "eval-openai/primary", WORKING_MODEL),
                           virtual("budget", WORKING_MODEL), virtual("rate-limit", WORKING_MODEL)]},
     ]
+
+
+def docs_proxy(manager: str) -> dict:
+    """An MCP server whose manifest still lists collaborators, for the move-to-grants case (s48)."""
+    return {"name": "eval-docs-proxy", "type": "mcp-server/remote", "url": DOCS_MCP_URL,
+            "description": "Ask TFY eval fixture: its manifest still carries a collaborators list (s48)",
+            "collaborators": [{"role_id": "mcp-server-manager", "subject": f"user:{manager}"}]}
 
 
 def send(gateway: httpx.Client, trace: Trace) -> str:

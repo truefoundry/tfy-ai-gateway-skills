@@ -149,8 +149,9 @@ the agent did. A claim about a specific query or snippet is graded on the query 
 snippet text in the candidate answer, or on the arguments of the call that ran it.
 
 Reading the OBSERVED TOOL CALLS section:
-- Each line is `tool {arguments} -> start of the result the agent got back`. Arguments
-  and results may be cut short; a cut-off value is unknown, not wrong.
+- Each line is `tool {arguments} -> the result the agent got back`. Long arguments and
+  results are cut short; a result that ends in `…[cut]` continues past what you see. A
+  cut-off value is unknown, not wrong.
 - `(called N times)` means the identical call and result happened N times.
 - `sandbox/<server>/<tool>` lines are MCP calls a program in the agent's sandbox made;
   their arguments and results are not shown.
@@ -179,6 +180,11 @@ Grading rules:
 - Also list, under `unsupported_additions`, confident factual claims the candidate
   makes that the checklist contradicts or that would mislead the reader. Mark the
   risk `high` only when acting on the statement would cause a real misconfiguration.
+- An addition needs evidence against it: the checklist, a result shown that says
+  otherwise, or a figure, name or row missing from a result shown whole (no `…[cut]`).
+  A statement whose source was cut off or not shown is unverifiable, not unsupported;
+  leave it out. Facts the agent found that the reference answer did not anticipate
+  are not contradicted by it.
 
 Return ONLY a JSON object, no prose and no code fence:
 

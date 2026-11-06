@@ -21,7 +21,9 @@ from tfy_eval import agent as agent_mod
 from . import asktfy
 from .affected import affected
 from .asktfy import AGENT, DeadlineStream, PinMismatch, PinnedAskTfy, SfyTransport, check_pinned, sfy_raw_path
-from .cases import PLACEHOLDER, case_from_eval, case_hash, fill, load_cases, load_fixtures
+from .cases import (
+    PLACEHOLDER, case_from_eval, case_hash, conditional_critical_claims, fill, load_cases, load_fixtures,
+)
 from .experiment import Experiment, Settings, answer_key_reads, example_id, is_write, unapproved_writes
 from .gate import GateError, compare, fisher_less, holm, sign_flip_p
 from .seed_fixtures import TRACES
@@ -146,6 +148,14 @@ edited = case_from_eval({"id": 5, "prompt": "Q?", "expected_output": "A.", "expe
 check("editing a case changes its hash", case_hash(new) != case_hash(edited))
 check("an edited case is a new LangSmith example", example_id("d", new) != example_id("d", edited))
 check("example ids are scoped to the dataset", example_id("d1", new) != example_id("d2", new))
+gated = case_from_eval({"id": 6, "prompt": "Q?", "expected_output": "A.", "expectations": [
+    {"text": "If the apply succeeds, links the policy", "critical": True}, "If denied, says so"]})
+check("a critical claim written as a condition is flagged",
+      conditional_critical_claims(gated) == ["If the apply succeeds, links the policy"])
+check("a normal conditional claim is fine", conditional_critical_claims(new) == [])
+dataset = json.loads((Path(__file__).resolve().parents[1] / "evals.json").read_text())["evals"]
+check("no case in evals.json has a conditional critical claim",
+      not [e["id"] for e in dataset if conditional_critical_claims(case_from_eval(e))])
 
 # --- write check
 def call(call_id: str, name: str, kind: str | None, arguments: dict | None = None) -> dict:

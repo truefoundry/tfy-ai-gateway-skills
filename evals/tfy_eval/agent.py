@@ -175,9 +175,12 @@ TOOL_ARGS_LABEL_LIMIT = 2000
 MANIFEST_TOOLS = frozenset({"validate_manifest", "apply_manifest", "delete_manifest"})
 MANIFEST_ARGS_LABEL_LIMIT = 20000
 EXEC_LABEL_LIMIT = 4000
-# The start of what each call returned: enough to see a 403, an empty list or an error class.
-RESULT_LABEL_LIMIT = 240
+# What each call returned, as much as the transcript keeps. Answers quote counts, costs and rows
+# from deep in a result, and the judge can only check a figure it is shown.
+TRANSCRIPT_RESULT_LIMIT = 4000
 RESULT_SEPARATOR = " -> "
+# Ends a result that was cut, so the judge knows a figure it cannot find may sit past the cut.
+RESULT_CUT_MARKER = " …[cut]"
 
 # Sandbox programs reach MCP tools too (`mcp-client call-tool <server> <tool>` in a shell, or
 # `call_tool("<server>", "<tool>", ...)` in Python). Those calls never surface as tool calls.
@@ -201,7 +204,9 @@ def tool_label_name(label: str) -> str:
 
 
 def _result_snippet(content: str) -> str:
-    return " ".join(str(content).split())[:RESULT_LABEL_LIMIT]
+    raw = str(content)
+    cut = len(raw) >= TRANSCRIPT_RESULT_LIMIT
+    return " ".join(raw[:TRANSCRIPT_RESULT_LIMIT].split()) + (RESULT_CUT_MARKER if cut else "")
 
 
 def _with_args(label: str, args: Any) -> str:
@@ -281,7 +286,7 @@ def _event_summary(event: Any) -> dict:
             ]
     elif event.type == "tool.response":
         summary["tool_call_id"] = getattr(event, "tool_call_id", None)
-        summary["content"] = (getattr(event, "content", None) or "")[:4000]
+        summary["content"] = (getattr(event, "content", None) or "")[:TRANSCRIPT_RESULT_LIMIT]
     elif event.type == "thread.created":
         summary["title"] = getattr(event, "title", None)
     return summary
