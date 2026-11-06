@@ -27,7 +27,7 @@ from tfy_eval.judge import DEFAULT_NUMERIC_TOLERANCE
 from . import gate as gate_mod
 from .affected import affected
 from .asktfy import PinMismatch, PinnedAskTfy, probe
-from .cases import case_hash, load_cases, load_fixtures, resolve_commit
+from .cases import case_hash, load_cases, load_fixtures, resolve_commit, skip_unseeded, unavailable_fixtures
 from .experiment import Settings, example_id, execute, run_experiment, start_experiment, sync_dataset
 
 HERE = Path(__file__).resolve().parent
@@ -91,6 +91,8 @@ def _settings(args: argparse.Namespace, ref: str, run_dir: Path | None = None) -
     only = {case.strip() for case in args.only.split(",") if case.strip()} if args.only else None
     all_cases, _ = load_cases(repo, sha)
     cases, skipped = load_cases(repo, sha, only)
+    cases, unseeded = skip_unseeded(cases, unavailable_fixtures())
+    skipped |= unseeded
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
     settings = Settings(
         host=_need(args.host, "--host", "ASK_TFY_HOST"),

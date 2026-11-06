@@ -82,6 +82,7 @@ TRACES = [
     Trace("rate_limit", "eval-vm/rate-limit", 429, "tfy-rate-limit", attempts=3),
     Trace("fallback", "eval-vm/fallback", 200, "request-failure-401"),
 ]
+TRACE_BY_NAME = {trace.name: trace for trace in TRACES}
 
 
 def main() -> None:
@@ -109,14 +110,26 @@ def main() -> None:
     # The gateway loads applied config asynchronously; earlier requests may route by the old one.
     time.sleep(GATEWAY_SYNC_S)
 
-    sent |= {trace.name: send(gateway, trace) for trace in TRACES if trace is not NOT_FOUND}
-    found = wait_for(api, sent)
-    values = {f"trace.{name}.{key}": value for name, trace in found.items() for key, value in trace.items()
-              if key != "subject"}
+    # A trace that cannot be produced costs only the cases that name it: the runner skips those.
+    unavailable: dict[str, str] = {}
+    for trace in TRACES:
+        if trace is NOT_FOUND:
+            continue
+        try:
+            sent[trace.name] = send(gateway, trace)
+        except SystemExit as exc:
+            unavailable[f"trace.{trace.name}"] = str(exc)
+    found = wait_for(api, sent, strict=False)
+    unavailable |= {f"trace.{name}": f"trace {sent[name]} was not queryable with span error "
+                    f"{TRACE_BY_NAME[name].error_type} after the wait" for name, info in found.items() if not info}
+    values = {f"trace.{name}.{key}": value for name, trace in found.items() if trace
+              for key, value in trace.items() if key != "subject"}
     FIXTURES_FILE.parent.mkdir(exist_ok=True)
-    FIXTURES_FILE.write_text(json.dumps({"seeded_at": datetime.now(timezone.utc).isoformat(), "values": values},
-                                        indent=2) + "\n")
-    print(f"fixtures ready; {len(found)} traces written to {FIXTURES_FILE}")
+    FIXTURES_FILE.write_text(json.dumps({"seeded_at": datetime.now(timezone.utc).isoformat(), "values": values,
+                                         "unavailable": unavailable}, indent=2) + "\n")
+    print(f"fixtures ready; {sum(1 for info in found.values() if info)} traces written to {FIXTURES_FILE}")
+    for name, reason in unavailable.items():
+        print(f"WARNING: {name} not seeded, its cases will be skipped: {reason}")
 
 
 def apply(api: httpx.Client, manifest: dict) -> None:
@@ -212,20 +225,23 @@ def send(gateway: httpx.Client, trace: Trace) -> str:
         time.sleep(20)
 
 
-def wait_for(api: httpx.Client, sent: dict[str, str], timeout: float = 600) -> dict[str, dict]:
-    """Each trace once queryable: id, time, sender and the error of the span that shows the failure."""
-    by_name = {trace.name: trace for trace in TRACES}
+def wait_for(api: httpx.Client, sent: dict[str, str], timeout: float = 600,
+             strict: bool = True) -> dict[str, dict | None]:
+    """Each trace once queryable: id, time, sender and the error of the span that shows the failure.
+    Past the timeout, strict exits; otherwise a trace still missing maps to None."""
     start = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
     deadline = time.monotonic() + timeout
     while True:
         spans = api.post("/v1/spans/query", json={
             "startTime": start, "traceIds": list(sent.values()), "dataRoutingDestination": "default",
             "limit": 200}).raise_for_status().json()["data"]
-        found = {name: describe(by_name[name], trace_id, [s for s in spans if s["traceId"] == trace_id])
+        found = {name: describe(TRACE_BY_NAME[name], trace_id, [s for s in spans if s["traceId"] == trace_id])
                  for name, trace_id in sent.items()}
         if all(found.values()):
             return found
         if time.monotonic() > deadline:
+            if not strict:
+                return found
             raise SystemExit(f"traces not queryable or not failing as intended after {timeout:.0f}s: "
                              + ", ".join(f"{name} {sent[name]}" for name, info in found.items() if not info))
         time.sleep(15)
