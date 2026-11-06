@@ -23,6 +23,7 @@ from .affected import affected
 from .asktfy import AGENT, DeadlineStream, PinMismatch, PinnedAskTfy, SfyTransport, check_pinned, sfy_raw_path
 from .cases import (
     PLACEHOLDER, case_from_eval, case_hash, conditional_critical_claims, fill, load_cases, load_fixtures,
+    skip_unseeded, unavailable_fixtures,
 )
 from .experiment import Experiment, Settings, answer_key_reads, example_id, is_write, unapproved_writes
 from .gate import GateError, compare, fisher_less, holm, sign_flip_p
@@ -433,6 +434,14 @@ with tempfile.TemporaryDirectory() as tmp:
     path.write_text(json.dumps({"seeded_at": datetime.now(timezone.utc).isoformat(), "values": {"trace.x.id": "new"}}))
     check("fresh fixtures are read", load_fixtures(path) == {"trace.x.id": "new"})
     check("no fixtures file means no values", load_fixtures(Path(tmp) / "none.json") == {})
+    path.write_text(json.dumps({"seeded_at": datetime.now(timezone.utc).isoformat(), "values": {"trace.x.id": "1"},
+                                "unavailable": {"trace.y": "not queryable"}}))
+    check("unavailable fixtures are read", unavailable_fixtures(path) == {"trace.y": "not queryable"})
+    on_y = case_from_eval({"id": 65, "prompt": "Why did {{trace.y.id}} fail?", "expected_output": "x"})
+    on_x = case_from_eval({"id": 66, "prompt": "Why did {{trace.x.id}} fail?", "expected_output": "x"})
+    kept, unseeded = skip_unseeded([on_y, on_x], unavailable_fixtures(path))
+    check("a case naming an unseeded trace is skipped, with why",
+          [c.id for c in kept] == ["s66"] and "trace.y" in unseeded["s65"] and "not queryable" in unseeded["s65"])
 seeded = {f"trace.{trace.name}.{key}" for trace in TRACES for key in ("id", "time", "epoch_ms", "sender", "error")}
 used = set(PLACEHOLDER.findall((Path(__file__).resolve().parents[1] / "evals.json").read_text()))
 check("every placeholder in evals.json is a value seed_fixtures writes", used and used <= seeded)

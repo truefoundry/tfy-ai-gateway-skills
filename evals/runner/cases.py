@@ -107,21 +107,46 @@ def case_hash(case: Question) -> str:
     return hashlib.sha256(content.encode()).hexdigest()[:16]
 
 
-def load_fixtures(path: Path = FIXTURES_FILE) -> dict[str, str]:
-    """The values seed_fixtures recorded, or none if they are missing or old enough to have expired."""
+def _seeded(path: Path) -> dict:
+    """What seed_fixtures recorded, or nothing if it is missing or old enough to have expired."""
     if not path.exists():
         return {}
     data = json.loads(path.read_text())
     if datetime.now(timezone.utc) - datetime.fromisoformat(data["seeded_at"]) > FIXTURES_MAX_AGE:
         return {}
-    return data["values"]
+    return data
+
+
+def load_fixtures(path: Path = FIXTURES_FILE) -> dict[str, str]:
+    return _seeded(path).get("values", {})
+
+
+def unavailable_fixtures(path: Path = FIXTURES_FILE) -> dict[str, str]:
+    """Fixtures the last seeding could not produce (`trace.provider_400`), with why."""
+    return _seeded(path).get("unavailable", {})
+
+
+def placeholders(case: Question) -> set[str]:
+    texts = [case.question, case.expected, case.clarification_reply or ""]
+    texts += [expectation["claim"] for expectation in case.expectations]
+    return {key for text in texts for key in PLACEHOLDER.findall(text)}
+
+
+def skip_unseeded(cases: list[Question], unavailable: dict[str, str]) -> tuple[list[Question], dict[str, str]]:
+    """The cases that can run, and the ones that name a fixture the seeding could not produce."""
+    kept, skipped = [], {}
+    for case in cases:
+        missing = sorted({key.rsplit(".", 1)[0] for key in placeholders(case)} & unavailable.keys())
+        if missing:
+            skipped[case.id] = f"fixture {missing[0]} was not seeded: {unavailable[missing[0]]}"
+        else:
+            kept.append(case)
+    return kept, skipped
 
 
 def fill(case: Question, values: dict[str, str]) -> Question:
     """The case as the agent and judge see it, with its placeholders replaced."""
-    texts = [case.question, case.expected, case.clarification_reply or ""]
-    texts += [expectation["claim"] for expectation in case.expectations]
-    missing = sorted({key for text in texts for key in PLACEHOLDER.findall(text)} - values.keys())
+    missing = sorted(placeholders(case) - values.keys())
     if missing:
         raise SystemExit(f"case {case.id} needs {', '.join(missing)}; run `python -m runner.seed_fixtures` first")
 
