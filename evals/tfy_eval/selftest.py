@@ -414,6 +414,29 @@ check("a wrapped call with long arguments still unwraps", labels[0].startswith("
 check("label carries the start of its result", labels[0].endswith('-> {"error":"User denied tool call: denied by eval harness"}'))
 check("results are flattened to one line", labels[1].endswith("-> line one line two"))
 check("a call with no result has no arrow", labels[2] == "get_me")
+check("a short result is whole and unmarked", not labels[1].endswith(agent_mod.RESULT_CUT_MARKER))
+row = '{"model":"gpt-4o","requests":12345}'
+cut_label = agent_mod.tool_labels([
+    {"type": "model.message", "tool_calls": [{"id": "r", "name": "query", "arguments": "{}"}]},
+    {"type": "tool.response", "tool_call_id": "r",
+     "content": (row * 200)[:agent_mod.TRANSCRIPT_RESULT_LIMIT]},
+])[0][0]
+check("a long result is kept far past its first rows", cut_label.count("12345") > 50, cut_label[:80])
+check("a result the transcript cut is marked as cut", cut_label.endswith(agent_mod.RESULT_CUT_MARKER))
+
+said = [
+    {"type": "model.message", "thread_id": "main", "content": "Checking the app first."},
+    {"type": "model.message", "thread_id": "sub", "content": "subagent notes"},
+    {"type": "model.message", "thread_id": "main", "content": "", "tool_calls": []},
+    {"type": "model.message", "thread_id": "main", "content": "It is paused, so no pods start."},
+    {"type": "model.message", "thread_id": "main", "content": "Final answer."},
+]
+check("interim messages are the root agent's, before the answer",
+      agent_mod.interim_messages(said, "Final answer.") == ["Checking the app first.", "It is paused, so no pods start."])
+interim_prompt = judge.build_prompt(question="q", expected="e", candidate="a", interim=["It is paused."])
+check("the judge sees interim messages", "EARLIER AGENT MESSAGES" in interim_prompt and "- It is paused." in interim_prompt)
+check("no interim section without messages", "EARLIER AGENT MESSAGES" not in judge.build_prompt(
+    question="q", expected="e", candidate="a"))
 check("sandbox MCP calls are extracted in order",
       sandbox == ["tfy-platform-mcp/list_users", "tfy-platform-mcp/apply_manifest"])
 check("tool_label_name strips args and result", agent_mod.tool_label_name(labels[0]) == "tfy-platform-mcp/create_grants")

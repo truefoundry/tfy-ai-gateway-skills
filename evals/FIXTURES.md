@@ -10,10 +10,11 @@ The cases run on the devtest tenant and name these entities. They are seeded by
 | Team `eval-budget` | Team budget `eval-budget-monthly`: audit mode, $100 per month, aggregate | s25 |
 | User `test@example.com` | `provider-account-access` on `openai-main`; in no `eval-` team | s27, s46 |
 | User `eval-carol@example.com` | Tenant role `read-only-member` (plus the default `member`) | s58 |
-| Provider account `eval-openai` | OpenAI with an invalid API key; model `primary` always fails with 401 | s68, s73 |
+| Provider account `eval-openai` | OpenAI with an invalid API key; model `primary` always fails with 401; manifest lists `collaborators` | s44, s68, s73 |
 | Provider account `eval-vm` | Virtual models `chat`, `budget`, `rate-limit` routed to `tfy-ai-openrouter/openai-gpt-5.4-nano`; `fallback` tries `eval-openai/primary` first | s65-s73 |
 | Budget `eval-budget-enforce` | Tenant budget, enforce, $0.000001 per day, on `eval-vm/budget` only | s67 |
 | Rate limit `eval-rate-limit` | 1 request per minute, enforce, on `eval-vm/rate-limit` only | s69 |
+| MCP server `eval-docs-proxy` | Remote, the public docs MCP; manifest lists `collaborators` (the manager as `mcp-server-manager`) | s48 |
 
 The token's own subject (the `ask-ai-eval` virtual account in CI) gets `provider-account-access` on
 both eval- accounts. Every limit is scoped to an eval- model, so no one else's traffic is affected.

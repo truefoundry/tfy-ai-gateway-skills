@@ -69,7 +69,7 @@
     {
       "id": 4,
       "prompt": "My vLLM pod on a single L4 keeps crashing during model load with `torch.OutOfMemoryError: CUDA out of memory`, even though the catalogue suggested that GPU. Fix it.",
-      "expected_output": "Recognises a CUDA (GPU memory) OOM rather than a container OOMKilled; treats the catalogue default --gpu-memory-utilization (~0.90, in args/env) as the likely culprit on a small GPU; lowers that flag / max length / switches quant or GPU; does not invent a top-level gpu_memory_utilization field; patches from the live manifest or regenerates, and calls apply_manifest, which puts it to approval.",
+      "expected_output": "Recognises a CUDA (GPU memory) OOM rather than a container OOMKilled; treats the catalogue default --gpu-memory-utilization (~0.90, in args/env) as the likely culprit on a small GPU; lowers that flag / max length / switches quant or GPU; does not invent a top-level gpu_memory_utilization field. The question names no app, so it finds or asks for the app first; once it has one it patches from the live manifest or regenerates, and calls apply_manifest, which puts it to approval.",
       "files": [],
       "expectations": [
         "Checks main-container logs/events for CUDA OOM vs download failure vs container OOMKilled",
@@ -80,7 +80,7 @@
         "Calls out lowering --gpu-memory-utilization in args/env (e.g. toward 0.70–0.80) on small GPUs rather than only adding more GPUs",
         "Does not add a top-level gpu_memory_utilization key on the service manifest",
         "Considers max model length / quantization / larger GPU as alternatives",
-        "Patches from the live manifest or regenerates via get_model_deployment_specs, then validates and calls apply_manifest directly so the change goes through approval"
+        "If it patches an app, it works from the live manifest or regenerates via get_model_deployment_specs, then validates and calls apply_manifest directly so the change goes through approval"
       ],
       "tags": {
         "area": "deploy",
@@ -114,7 +114,7 @@
     {
       "id": 7,
       "prompt": "Create a notebook in workspace onboarding-ws so I can explore this dataset, and give me the URL.",
-      "expected_output": "Authors a notebook application from the notebook schema in onboarding-ws, validates it and calls apply_manifest, which puts it to approval; covers OAuth/login expectations from the notebook-ssh playbook; says the notebook URL comes from list_applications → activeDeployment.metadata.endpoints once it is deployed, and does not call generate_deployment_endpoint for a notebook. If the apply is denied, says no notebook was created.",
+      "expected_output": "Reads the notebook schema and asks for the image, since no tool lists the workbench images; with the reply below it authors a notebook application in onboarding-ws, validates it and calls apply_manifest, which puts it to approval; covers OAuth/login expectations from the notebook-ssh playbook; says the notebook URL comes from list_applications → activeDeployment.metadata.endpoints once it is deployed, and does not call generate_deployment_endpoint for a notebook. If the apply is denied, says no notebook was created.",
       "files": [],
       "expectations": [
         {
@@ -129,7 +129,8 @@
       "tags": {
         "area": "deploy",
         "kind": "write"
-      }
+      },
+      "clarification_reply": "Use the image jupyter/minimal-notebook:latest with the default 20 GB home directory."
     },
     {
       "id": 8,
@@ -162,7 +163,7 @@
           "text": "Calls get_cluster_autoscaler_logs on Azure/GCP, or reads Karpenter events and asks the user for kubectl NodeClaim/NodePool output on AWS",
           "critical": true
         },
-        "On AWS, handles get_cluster_autoscaler_logs 501 by using NodeClaim status rather than giving up"
+        "Does not treat get_cluster_autoscaler_logs as the provisioning evidence on aws-eks (it returns 501 there); uses Karpenter events and NodeClaim output instead"
       ],
       "tags": {
         "area": "deploy",
@@ -234,7 +235,7 @@
       "expectations": [
         "Calls list_applications with the exact name filter (applicationName), not a substring search",
         {
-          "text": "If more than one workspace has an application with that name, lists them with their workspaces and asks which one before diagnosing; if only one exists, says so",
+          "text": "Lists the applications named emotion-class-svc with their workspaces and, when more than one exists, asks which one before diagnosing (if only one exists, says so)",
           "critical": true
         },
         "Only after the application is settled, reads pod state with get_application_state",
@@ -289,7 +290,7 @@
     {
       "id": 17,
       "prompt": "Add a rate limit of 100 requests per minute for the team tfy-ai-team across all models.",
-      "expected_output": "Reads rate-limiting-v2.md and write-rules.md, calls list_gateway_config_instances for both rate-limit families and get_manifest_json_schema for tenant-rate-limit-config/model in one batch, builds one named manifest with when.subjects.teams.in: [tfy-ai-team], limits.requests_per_minute: 100 and applies_to.type: aggregate, validates until valid, applies once, and links {controlPlaneUrl}/llm-gateway/policies/rate-limiting-v2.",
+      "expected_output": "Reads rate-limiting-v2.md and write-rules.md, calls list_gateway_config_instances for both rate-limit families and get_manifest_json_schema for tenant-rate-limit-config/model in one batch, builds one named manifest with when.subjects.teams.in: [tfy-ai-team], limits.requests_per_minute: 100 and applies_to.type: aggregate, validates until valid and applies once. On success it links {controlPlaneUrl}/llm-gateway/policies/rate-limiting-v2; in eval the apply is denied, so it shows the manifest and gives no link.",
       "files": [],
       "expectations": [
         "Reads ai-gateway/references/rate-limiting-v2.md before building anything",
@@ -299,7 +300,7 @@
           "critical": true
         },
         "Calls validate_manifest until valid: true, then apply_manifest once in a separate batch; does not merge into gateway-rate-limiting-config",
-        "Links {controlPlaneUrl}/llm-gateway/policies/rate-limiting-v2 with the real controlPlaneUrl"
+        "If apply_manifest succeeds, links {controlPlaneUrl}/llm-gateway/policies/rate-limiting-v2 with the real controlPlaneUrl; after a denied apply it gives no link"
       ],
       "tags": {
         "area": "config",
@@ -372,18 +373,17 @@
     {
       "id": 21,
       "prompt": "Register the Linear MCP server (https://mcp.linear.app/mcp) on our gateway with OAuth.",
-      "expected_output": "Checks list_mcp_servers and list_mcp_catalogue together. If a Linear server is already registered, shows it and asks whether to use it, update it or create another, and creates nothing on its own assumption; with the reply below it gives the existing server's endpoint and makes no write. Otherwise, since Linear is in the catalogue's tfyManaged list, it copies that entry's tfyManagedMcpManifest (type mcp-server/tfy-managed, keeping server_identifier), adds name and description (no collaborators), asks for no URL or credentials, then validates and calls apply_manifest, which puts it to approval, and grants access with create_grants only after a successful apply. If the apply is denied, says nothing was registered.",
+      "expected_output": "Checks list_mcp_servers and list_mcp_catalogue together. A Linear server is already registered, so it shows it and asks whether to use it, update it or create another, and creates nothing on its own assumption. With the reply below it gives the existing server's endpoint (its proxyUrl on the gateway base URL) and makes no write. Had the user asked for a new server, it would follow the catalogue entry (mcp-server/tfy-managed only if Linear is in the catalogue's tfyManaged list, else mcp-server/remote with OAuth), ask for no URL or credentials that the catalogue provides, validate before apply_manifest, send no collaborators, and call create_grants only after a successful apply.",
       "files": [],
       "expectations": [
         "Calls list_mcp_servers and list_mcp_catalogue before deciding",
-        "If a Linear server is already registered, shows it and asks whether to use it, update it or create another; does not apply a new server unless the user chose to create one (an unanswered question is not a choice)",
         {
-          "text": "Any new registration uses type mcp-server/tfy-managed with the catalogue's server_identifier, not mcp-server/remote, and calls validate_manifest before apply_manifest",
+          "text": "Shows the Linear server that is already registered and asks whether to use it, update it or create another, before any apply_manifest",
           "critical": true
         },
         "Does not ask for a URL, client_id or client_secret",
-        "The manifest has no collaborators field, and create_grants is called only after apply_manifest succeeds (not after a denied apply)",
-        "If the user says to use the existing server, gives its endpoint and makes no write"
+        "If the user says to use the existing server, gives its endpoint and makes no write",
+        "If it registers a new server anyway, it calls validate_manifest before apply_manifest, the manifest has no collaborators field, and create_grants is called only after apply_manifest succeeds"
       ],
       "tags": {
         "area": "mcp",
@@ -412,19 +412,18 @@
     {
       "id": 23,
       "prompt": "Add a tfy-prompt-injection guardrail on every MCP tool call to our existing 'bank-guardrails' guardrail group and turn it on for all MCP servers.",
-      "expected_output": "Reads the existing group with list_provider_accounts, keeps every existing integration and appends the new one, then applies a new named gateway-guardrails-config policy targeting MCP with a non-empty mcp_tool_pre_invoke_guardrails list.",
+      "expected_output": "Reads the existing group with list_provider_accounts, keeps every existing integration and appends the new one, and sends no collaborators. Checks existing policies with list_gateway_config_instances, then applies a new named gateway-guardrails-config policy targeting MCP with a non-empty mcp_tool_pre_invoke_guardrails list. In eval the group apply is denied; then it applies no policy and says nothing changed, and the policy is graded only if it prepared one.",
       "files": [],
       "expectations": [
         {
           "text": "The group manifest keeps every existing integration",
           "critical": true
         },
-        "The policy is a single manifest with a new name and has no rules: array",
-        "Calls list_gateway_config_instances with type gateway-guardrails-config and picks a policy name not already listed; does not use get_gateway_config for this",
-        "The policy targets mcpServers or mcpTools and sets mcp_tool_pre_invoke_guardrails to [bank-guardrails/<integration-name>] (also adding it to mcp_tool_post_invoke_guardrails is fine)",
-        "All four hook arrays are present",
         "The group manifest has no collaborators field",
-        "If the group apply is denied, does not apply the policy and says nothing changed"
+        "Calls list_gateway_config_instances with type gateway-guardrails-config to see existing policies; does not use get_gateway_config for this",
+        "If the group apply is denied, does not apply the policy and says nothing changed",
+        "If it builds the policy manifest, it is a single manifest with a name not already listed and no rules: array",
+        "If it builds the policy manifest, it targets mcpServers or mcpTools, sets mcp_tool_pre_invoke_guardrails to [bank-guardrails/<integration-name>] (also adding it to mcp_tool_post_invoke_guardrails is fine), and has all four hook arrays"
       ],
       "tags": {
         "area": "guardrails",
@@ -644,12 +643,12 @@
     {
       "id": 35,
       "prompt": "Deploy the app in https://github.com/truefoundry/getting-started-examples (folder plot_agent/crewai_plot_agent) as a service on port 8000 in workspace onboarding-ws. Use its pyproject.toml and uv.lock; there is no Dockerfile. Show me the manifest and the exact deploy command first; don't deploy yet.",
-      "expected_output": "Clones, picks tfy-python-buildpack with python_dependencies {type: uv} and a command; checks docker info for local_build; includes replicas, explicit expose, host from generate_deployment_endpoint, and ephemeral storage in resources; calls validate_manifest and shows truefoundry.yaml plus the tfy deploy -f truefoundry.yaml --no-wait command without deploying.",
+      "expected_output": "Clones, picks tfy-python-buildpack with python_dependencies {type: uv} and a command; checks docker info for local_build; includes replicas, explicit expose, host from generate_deployment_endpoint, and ephemeral storage in resources; calls validate_manifest and shows the manifest plus the exact deploy step without deploying: tfy deploy -f truefoundry.yaml --no-wait, or, since the repo is pushed and unmodified, apply_manifest with build_source type git pinned to a commit SHA.",
       "files": [],
       "expectations": [
         "Uses python_dependencies type uv, not requirements_path",
         "Manifest includes replicas and resources.ephemeral_storage_request/limit",
-        "Proposes tfy deploy -f truefoundry.yaml --no-wait (never tfy apply)",
+        "Gives the exact deploy step without running it: tfy deploy -f truefoundry.yaml --no-wait, or apply_manifest with build_source type git pinned to a commit SHA; never tfy apply",
         {
           "text": "Calls validate_manifest and does not deploy",
           "critical": true
@@ -682,13 +681,13 @@
     {
       "id": 38,
       "prompt": "I redeployed qwen3-8b in workspace tfy-auto-deploy 40 minutes ago and there are still no new pods. Is it stuck?",
-      "expected_output": "Reads the app's state and the deployed manifest (auto_shutdown, artifacts_download.cache_volume) before concluding, and explains the lack of new pods from what it found: scale-to-zero after idle, or the PreSync downloader that runs before service pods exist (read with get_logs podNamesRegex=downloader-<deploymentId>.*). Does not read empty events as healthy.",
+      "expected_output": "Reads the app's state and the deployed manifest (auto_shutdown, artifacts_download.cache_volume) before concluding, and explains the lack of new pods from what it found: scale-to-zero after idle, a redeploy that created no new deployment version, or the PreSync downloader that runs before service pods exist (read with get_logs podNamesRegex=downloader-<deploymentId>.*). Does not read empty events as healthy.",
       "files": [],
       "expectations": [
         "Checks the deployed manifest for auto_shutdown and, since this is a model deployment, artifacts_download.cache_volume; if cache_volume is set, reads the downloader logs (get_logs podNamesRegex=downloader-<deploymentId>.*)",
         "Checks get_application_state or the deployment status before concluding",
         {
-          "text": "Explains the lack of new pods from what it found, not from empty events",
+          "text": "Explains the lack of new pods from what it found (scale-to-zero, no new deployment version, or the PreSync downloader), not from empty events",
           "critical": true
         },
         "Checks whether the redeploy created a new deployment version, and says so if it did not",
@@ -780,7 +779,7 @@
     {
       "id": 43,
       "prompt": "Create an AWS Bedrock account `bedrock-eu` in eu-west-1 with all models.",
-      "expected_output": "Asks for auth method and secret; offers regions from costs[].region that are in the schema enum (never *); a sandbox program keeps only non-retired models with a cost entry for eu-west-1 or *, sets public_cost only when that entry has a price key, uses the schema integration type integration/model/bedrock; validates from the sandbox and applies once directly.",
+      "expected_output": "Asks for the auth method; offers regions from costs[].region that are in the schema enum (never *); a sandbox program keeps only non-retired models with a cost entry for eu-west-1 or *, sets public_cost only when that entry has a price key, uses the schema integration type integration/model/bedrock; validates from the sandbox and applies once directly.",
       "files": [],
       "expectations": [
         "Integration type is integration/model/bedrock",
@@ -792,7 +791,7 @@
         "Builds the manifest with a program, not inline",
         "Validates the generated manifest, then calls apply_manifest once, directly"
       ],
-      "clarification_reply": "Use an AWS access key. The key id and secret are in secret group bedrock-creds, keys AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY. Keep eu-west-1.",
+      "clarification_reply": "Use an assumed IAM role: arn:aws:iam::123456789012:role/eval-bedrock, no external ID. Keep eu-west-1.",
       "tags": {
         "area": "models",
         "kind": "write"
@@ -800,7 +799,7 @@
     },
     {
       "id": 44,
-      "prompt": "Add claude-sonnet-4-5 to my existing Anthropic account `archit-random-testing`.",
+      "prompt": "Add gpt-4.1-mini to my existing OpenAI account `eval-openai`.",
       "expected_output": "Fetches the account with list_provider_accounts, deletes collaborators and every integration's authorized_subjects from the fetched manifest, keeps every existing integration, appends the new model, validates and applies once; does not re-send the stored collaborators list.",
       "files": [],
       "expectations": [
@@ -876,7 +875,7 @@
     },
     {
       "id": 48,
-      "prompt": "Our MCP server `docs-proxy` manifest still has a collaborators list from last year. Move it to the new access system.",
+      "prompt": "Our MCP server `eval-docs-proxy` manifest still has a collaborators list from last year. Move it to the new access system.",
       "expected_output": "Fetches the server and calls list_grants for it; explains the grants already exist and access checks use them, so nothing moves; calls apply_manifest with the manifest minus collaborators (force: false), which puts it to approval, and if that is denied says nothing changed; does not re-grant entries missing from list_grants unless the user confirms them; mentions role-binding only if the user keeps the manifest in Git.",
       "files": [],
       "expectations": [
@@ -921,7 +920,7 @@
       "expectations": [
         "Calls list_providers with providerType provider-account/aws-bedrock",
         {
-          "text": "Answers only from list_providers catalogue keys and their fields, never from memory or docs",
+          "text": "Takes the model list and each model's status from list_providers catalogue keys and their fields, never from memory or docs (doc links or general context alongside are fine)",
           "critical": true
         },
         "Does not dump the whole catalogue",
@@ -1036,7 +1035,7 @@
           "critical": true
         },
         "Prefers deactivate_user, or asks deactivate vs delete before deleting",
-        "Calls delete_user with the id, not the email, if deleting",
+        "If it deletes, calls delete_user with the id, not the email",
         "Does not use forceDelete without the user's confirmation"
       ],
       "tags": {
@@ -1142,7 +1141,7 @@
           "critical": true
         },
         "Filters get_audit_logs by delete action instead of listing every event for the name or checking which MCP servers exist now",
-        "Does not call the MCP server delete the only github-mcp deletion when the logs show another resource with that name deleted"
+        "If the logs show another resource named github-mcp deleted too, names it as a separate resource instead of calling the MCP server delete the only one"
       ],
       "tags": {
         "area": "audit",
@@ -1194,7 +1193,7 @@
         "Queries the default destination without asking the user to pick one",
         "Does not query every destination",
         "Reports the error message from the Model span and what the caller should change",
-        "On a 5xx from gateway_execute_sql, retries the same query once and then stops and reports instead of changing the query, destination or searching docs",
+        "If gateway_execute_sql returns a 5xx, retries the same query once and then stops and reports instead of changing the query, destination or searching docs",
         "The trace link's lm_lfsts/lm_lfets window covers {{trace.provider_400.time}} UTC (lm_lfsts about {{trace.provider_400.epoch_ms}}), not another date"
       ],
       "tags": {
@@ -1328,10 +1327,10 @@
     {
       "id": 74,
       "prompt": "Does the gateway record which client (user agent) sent each request in traces?",
-      "expected_output": "Checks live data (map_keys on SpanAttributesString, or a query on user_agent.original) instead of concluding from the docs. Answers yes: every head span (SpanKind Server) has SpanAttributesString['user_agent.original'] with the caller's User-Agent (e.g. claude-cli/..., ai-sdk/...), and client.address with the caller's IP. Notes that spans with a NULL TfyGatewaySpanType carry the gateway's own outbound user agent (node). Gives a query or examples from the data.",
+      "expected_output": "Answers from tables/traces.md, which documents the key, or checks live data (map_keys on SpanAttributesString, or a query on user_agent.original), instead of concluding from search_docs. Answers yes: every head span (SpanKind Server) has SpanAttributesString['user_agent.original'] with the caller's User-Agent (e.g. claude-cli/..., ai-sdk/...), and client.address with the caller's IP. Notes that spans with a NULL TfyGatewaySpanType carry the gateway's own outbound user agent (node). Gives a query or examples from the data.",
       "files": [],
       "expectations": [
-        "Checks the live traces data before answering",
+        "Answers from tables/traces.md or live traces data (map_keys or a query on user_agent.original), not from search_docs alone",
         {
           "text": "Says user_agent.original on head spans holds the calling client's user agent",
           "critical": true

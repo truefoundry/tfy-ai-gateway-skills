@@ -199,7 +199,7 @@ def build_parser() -> argparse.ArgumentParser:
                          help="TrueForge URL the judge runs on, including /trueforge")
     running.add_argument("--judge-token", default=os.environ.get("TRUEFORGE_TOKEN"), help="defaults to --token")
     running.add_argument("--judge-model", default=os.environ.get("TRUEFORGE_JUDGE_MODEL"))
-    running.add_argument("--judge-repeats", type=_positive(int), default=3, help="judge each answer N times, take the median")
+    running.add_argument("--judge-repeats", type=_positive(int), default=1, help="judge each answer N times, take the median")
     running.add_argument("--pass-threshold", type=float, default=0.7)
     running.add_argument("--numeric-tolerance", type=float, default=DEFAULT_NUMERIC_TOLERANCE)
     running.add_argument("--repeats", type=_positive(int), default=3,

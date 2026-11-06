@@ -27,6 +27,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from tfy_eval.dataset import Question, normalize_expectations
+from tfy_eval.judge import CONDITIONAL_CLAIM
 
 EVALS_PATHS = ("evals/evals.json", "skills/evals/evals.json")
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
@@ -71,6 +72,16 @@ def _tags(raw: object) -> list[str]:
     if isinstance(raw, dict):
         return [f"{key}:{value}" for key, value in sorted(raw.items())]
     return [str(tag) for tag in raw or []]
+
+
+def conditional_critical_claims(case: Question) -> list[str]:
+    """Critical claims written as a condition. The judge cannot rule a critical claim not
+    applicable, so one whose condition never occurs fails every run of its case. The selftest
+    rejects them in evals.json; loading does not, so older commits still run in an A/B."""
+    return [
+        e["claim"] for e in case.expectations
+        if e["importance"] == "critical" and CONDITIONAL_CLAIM.match(e["claim"])
+    ]
 
 
 def case_from_eval(entry: dict) -> Question:

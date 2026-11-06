@@ -149,8 +149,9 @@ the agent did. A claim about a specific query or snippet is graded on the query 
 snippet text in the candidate answer, or on the arguments of the call that ran it.
 
 Reading the OBSERVED TOOL CALLS section:
-- Each line is `tool {arguments} -> start of the result the agent got back`. Arguments
-  and results may be cut short; a cut-off value is unknown, not wrong.
+- Each line is `tool {arguments} -> the result the agent got back`. Long arguments and
+  results are cut short; a result that ends in `…[cut]` continues past what you see. A
+  cut-off value is unknown, not wrong.
 - `(called N times)` means the identical call and result happened N times.
 - `sandbox/<server>/<tool>` lines are MCP calls a program in the agent's sandbox made;
   their arguments and results are not shown.
@@ -163,6 +164,12 @@ Reading the OBSERVED TOOL CALLS section:
   agent reports what it found. A failed call followed by a successful retry is not hidden.
 - A denied write was refused by the test harness. The denial is not the agent's fault;
   grade what it prepared before it and what it reported after it.
+
+Reading the EARLIER AGENT MESSAGES section:
+- These are what the agent told the user between tool calls, before the candidate answer.
+  The user read them, so grade the answer and these messages together: a claim met only
+  there is met, and a wrong statement there counts as if it were in the answer. Where they
+  disagree, the later statement is the agent's final word.
 
 Reading the USER REPLIES section:
 - When the agent asked the user something, the user's answer is listed there. The agent
@@ -179,6 +186,11 @@ Grading rules:
 - Also list, under `unsupported_additions`, confident factual claims the candidate
   makes that the checklist contradicts or that would mislead the reader. Mark the
   risk `high` only when acting on the statement would cause a real misconfiguration.
+- An addition needs evidence against it: the checklist, a result shown that says
+  otherwise, or a figure, name or row missing from a result shown whole (no `…[cut]`).
+  A statement whose source was cut off or not shown is unverifiable, not unsupported;
+  leave it out. Facts the agent found that the reference answer did not anticipate
+  are not contradicted by it.
 
 Return ONLY a JSON object, no prose and no code fence:
 
@@ -214,6 +226,12 @@ TOOL_CALLS_SECTION = """\
 
 OBSERVED TOOL CALLS (what the agent actually did, in order)
 {tool_calls}
+"""
+
+INTERIM_SECTION = """\
+
+EARLIER AGENT MESSAGES (what the agent told the user before the answer, in order)
+{messages}
 """
 
 EXCHANGES_SECTION = """\
@@ -455,8 +473,11 @@ def build_prompt(
     expectations: list[dict] | None = None,
     tool_calls: list[str] | None = None,
     exchanges: list[dict] | None = None,
+    interim: list[str] | None = None,
 ) -> str:
     prompt = PROMPT_TEMPLATE.format(question=question, expected=expected, candidate=candidate)
+    if interim:
+        prompt += INTERIM_SECTION.format(messages="\n".join(f"- {message}" for message in interim))
     if exchanges:
         prompt += EXCHANGES_SECTION.format(
             exchanges="\n".join(f"- Asked: {e['asked']}\n  Replied: {e['reply']}" for e in exchanges)
@@ -490,6 +511,7 @@ def grade_one(
     expectations: list[dict] | None = None,
     tool_calls: list[str] | None = None,
     exchanges: list[dict] | None = None,
+    interim: list[str] | None = None,
     pass_threshold: float = 0.7,
     repeats: int = 1,
     reasoning_effort: str | None = None,
@@ -529,6 +551,7 @@ def grade_one(
         expectations=expectations,
         tool_calls=tool_calls,
         exchanges=exchanges,
+        interim=interim,
     )
 
     attempts: list[dict] = []
