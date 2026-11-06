@@ -1416,6 +1416,25 @@
         "kind": "query",
         "regression": "LangSmith Engine: Skill prescribes invalid list-tool arguments (Nov 5)"
       }
+    },
+    {
+      "id": 79,
+      "prompt": "Show me my recent failed Gateway requests from the customer-traces data routing destination",
+      "expected_output": "Queries traces on customer-traces, hits Delta table not found (that destination has no traces table), calls list_data_routing_destinations and asks which destination to query; does not change the SQL any other way, search docs to work around it, or abandon traces for provider-account guessing.",
+      "files": [],
+      "expectations": [
+        {
+          "text": "Says customer-traces has no traces table, calls list_data_routing_destinations and asks which destination to query",
+          "critical": true
+        },
+        "Does not work around the traces error by searching docs, renaming the table, or querying other destinations without asking",
+        "Does not abandon traces to guess at provider-account or credentials causes"
+      ],
+      "tags": {
+        "area": "traces",
+        "kind": "diagnose",
+        "regression": "Delta table not found dead-ends instead of listing destinations (Nov 5)"
+      }
     }
   ]
 }
