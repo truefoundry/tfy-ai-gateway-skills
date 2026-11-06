@@ -146,9 +146,13 @@ def grant_access(api: httpx.Client, account: str, kind: str, subject: str) -> No
 
 def seed_carol(api: httpx.Client, tenant: str) -> None:
     """A user holding read-only-member, for the role-change case (s58)."""
-    registered = api.post("/v1/users/register", json={"email": CAROL, "sendInviteEmail": False})
-    if registered.status_code != 409:
-        registered.raise_for_status()
+    # Register only when missing: with Manual provisioning off, registering an existing user is a
+    # 403, not a 409.
+    if find_user(api, CAROL) is None:
+        registered = api.post("/v1/users/register", json={"email": CAROL, "sendInviteEmail": False})
+        if registered.is_error and registered.status_code != 409:
+            raise SystemExit(f"registering {CAROL} failed: {registered.status_code} {registered.text[:300]}. "
+                             "Turn on Manual provisioning for the tenant, or add the user once by hand.")
     carol = user_id(api, CAROL)
     role = next(r["id"] for r in api.get("/v1/role").json() if r.get("name") == CAROL_ROLE)
     held = api.get("/v2/authorization/grants", params={"subjectType": "user", "subjectId": carol}).json()["data"]
@@ -243,9 +247,16 @@ def describe(trace: Trace, trace_id: str, spans: list[dict]) -> dict | None:
     }
 
 
+def find_user(api: httpx.Client, email: str) -> str | None:
+    return next((u["id"] for u in api.get("/v1/users", params={"query": email}).json()["data"]
+                 if u.get("email") == email), None)
+
+
 def user_id(api: httpx.Client, email: str) -> str:
-    return next(u["id"] for u in api.get("/v1/users", params={"query": email}).json()["data"]
-                if u.get("email") == email)
+    found = find_user(api, email)
+    if found is None:
+        raise SystemExit(f"user {email} not found on the tenant")
+    return found
 
 
 def find_account(api: httpx.Client, name: str) -> str:
