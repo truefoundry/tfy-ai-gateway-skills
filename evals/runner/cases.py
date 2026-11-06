@@ -76,7 +76,8 @@ def _tags(raw: object) -> list[str]:
 
 def conditional_critical_claims(case: Question) -> list[str]:
     """Critical claims written as a condition. The judge cannot rule a critical claim not
-    applicable, so one whose condition never occurs fails every run of its case."""
+    applicable, so one whose condition never occurs fails every run of its case. The selftest
+    rejects them in evals.json; loading does not, so older commits still run in an A/B."""
     return [
         e["claim"] for e in case.expectations
         if e["importance"] == "critical" and CONDITIONAL_CLAIM.match(e["claim"])
@@ -159,8 +160,4 @@ def load_cases(repo: Path, sha: str, only: set[str] | None = None) -> tuple[list
         entries = [entry for entry in entries if f"s{entry['id']}" in only]
     skipped = {f"s{entry['id']}": str(entry["skip"]) for entry in entries if entry.get("skip")}
     cases = [case_from_eval(entry) for entry in entries if not entry.get("skip")]
-    for case in cases:
-        if bad := conditional_critical_claims(case):
-            raise SystemExit(f"case {case.id} has a critical claim that starts with a condition; make it "
-                             f"normal or state what always applies: {bad[0]!r}")
     return cases, skipped
