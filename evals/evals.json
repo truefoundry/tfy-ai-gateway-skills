@@ -1424,7 +1424,7 @@
       "files": [],
       "expectations": [
         {
-          "text": "On Delta table not found, calls list_data_routing_destinations and asks which destination to query",
+          "text": "Says customer-traces has no traces table, calls list_data_routing_destinations and asks which destination to query",
           "critical": true
         },
         "Does not work around the traces error by searching docs, renaming the table, or querying other destinations without asking",
