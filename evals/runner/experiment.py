@@ -250,6 +250,7 @@ class Experiment:
             "clarifications_asked": run.clarifications_asked,
             "secrets_requested": run.secrets_requested,
             "exchanges": run.exchanges,
+            "interim_messages": run.interim_messages,
             "approvals": run.approvals_granted,
             "unapproved_writes": unasked,
             "answer_key_reads": key_reads,
@@ -288,6 +289,7 @@ class Experiment:
                 tool_calls=(out.get("tool_calls") or []) + [f"sandbox/{c}" for c in out.get("sandbox_tool_calls") or []]
                 or None,
                 exchanges=out.get("exchanges"),
+                interim=out.get("interim_messages"),
                 pass_threshold=s.pass_threshold,
                 repeats=s.judge_repeats,
                 numeric_tolerance=s.numeric_tolerance,

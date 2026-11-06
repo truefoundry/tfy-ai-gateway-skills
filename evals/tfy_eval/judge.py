@@ -165,6 +165,12 @@ Reading the OBSERVED TOOL CALLS section:
 - A denied write was refused by the test harness. The denial is not the agent's fault;
   grade what it prepared before it and what it reported after it.
 
+Reading the EARLIER AGENT MESSAGES section:
+- These are what the agent told the user between tool calls, before the candidate answer.
+  The user read them, so grade the answer and these messages together: a claim met only
+  there is met, and a wrong statement there counts as if it were in the answer. Where they
+  disagree, the later statement is the agent's final word.
+
 Reading the USER REPLIES section:
 - When the agent asked the user something, the user's answer is listed there. The agent
   did receive it, even where an ask_user_question result looks empty or cut short. A
@@ -220,6 +226,12 @@ TOOL_CALLS_SECTION = """\
 
 OBSERVED TOOL CALLS (what the agent actually did, in order)
 {tool_calls}
+"""
+
+INTERIM_SECTION = """\
+
+EARLIER AGENT MESSAGES (what the agent told the user before the answer, in order)
+{messages}
 """
 
 EXCHANGES_SECTION = """\
@@ -461,8 +473,11 @@ def build_prompt(
     expectations: list[dict] | None = None,
     tool_calls: list[str] | None = None,
     exchanges: list[dict] | None = None,
+    interim: list[str] | None = None,
 ) -> str:
     prompt = PROMPT_TEMPLATE.format(question=question, expected=expected, candidate=candidate)
+    if interim:
+        prompt += INTERIM_SECTION.format(messages="\n".join(f"- {message}" for message in interim))
     if exchanges:
         prompt += EXCHANGES_SECTION.format(
             exchanges="\n".join(f"- Asked: {e['asked']}\n  Replied: {e['reply']}" for e in exchanges)
@@ -496,6 +511,7 @@ def grade_one(
     expectations: list[dict] | None = None,
     tool_calls: list[str] | None = None,
     exchanges: list[dict] | None = None,
+    interim: list[str] | None = None,
     pass_threshold: float = 0.7,
     repeats: int = 1,
     reasoning_effort: str | None = None,
@@ -535,6 +551,7 @@ def grade_one(
         expectations=expectations,
         tool_calls=tool_calls,
         exchanges=exchanges,
+        interim=interim,
     )
 
     attempts: list[dict] = []

@@ -92,6 +92,9 @@ class AgentRun:
     # platform emits no tool.response for an answer we send, so without this the judge sees the
     # agent act on a reply it cannot find and calls it a guess.
     exchanges: list[dict] = field(default_factory=list)
+    # What the agent told the user before its final answer. The user reads these too, so a fact
+    # or a warning given only there still counts, and a wrong one is still wrong.
+    interim_messages: list[str] = field(default_factory=list)
     replies: dict[str, str] = field(default_factory=dict)
     approvals_granted: list[str] = field(default_factory=list)
     # Tool call ids that were put to the user, approved or denied.
@@ -123,6 +126,7 @@ class AgentRun:
             "clarifications_asked": self.clarifications_asked,
             "secrets_requested": self.secrets_requested,
             "exchanges": self.exchanges,
+            "interim_messages": self.interim_messages,
             "approvals_granted": self.approvals_granted,
             "earlier_attempts": [
                 {"status": a.status, "failure": a.failure, "error": a.error, "session_id": a.session_id,
@@ -175,6 +179,7 @@ TOOL_ARGS_LABEL_LIMIT = 2000
 MANIFEST_TOOLS = frozenset({"validate_manifest", "apply_manifest", "delete_manifest"})
 MANIFEST_ARGS_LABEL_LIMIT = 20000
 EXEC_LABEL_LIMIT = 4000
+INTERIM_MESSAGE_LIMIT = 2000
 # What each call returned, as much as the transcript keeps. Answers quote counts, costs and rows
 # from deep in a result, and the judge can only check a figure it is shown.
 TRANSCRIPT_RESULT_LIMIT = 4000
@@ -311,6 +316,19 @@ def asks_in_text(answer: str) -> str | None:
         return None
     lines = [line.strip() for line in tail.splitlines() if "?" in line]
     return lines[-1][:500]
+
+
+def interim_messages(transcript: list[dict], answer: str) -> list[str]:
+    """What the root agent said before its final answer, in order."""
+    said = [
+        entry["content"].strip()
+        for entry in transcript
+        if entry.get("type") == "model.message" and entry.get("thread_id") == "main"
+        and (entry.get("content") or "").strip()
+    ]
+    if said and said[-1] == answer.strip():
+        said.pop()
+    return [message[:INTERIM_MESSAGE_LIMIT] for message in said]
 
 
 def tool_labels(transcript: list[dict]) -> tuple[list[str], list[str]]:
@@ -529,6 +547,7 @@ def run_question(
         run.failure = "infra:exception"
         run.error = f"{type(exc).__name__}: {exc}"
 
+    run.interim_messages = interim_messages(run.transcript, run.answer)
     run.duration_s = time.monotonic() - started
     return run
 

@@ -423,6 +423,20 @@ cut_label = agent_mod.tool_labels([
 ])[0][0]
 check("a long result is kept far past its first rows", cut_label.count("12345") > 50, cut_label[:80])
 check("a result the transcript cut is marked as cut", cut_label.endswith(agent_mod.RESULT_CUT_MARKER))
+
+said = [
+    {"type": "model.message", "thread_id": "main", "content": "Checking the app first."},
+    {"type": "model.message", "thread_id": "sub", "content": "subagent notes"},
+    {"type": "model.message", "thread_id": "main", "content": "", "tool_calls": []},
+    {"type": "model.message", "thread_id": "main", "content": "It is paused, so no pods start."},
+    {"type": "model.message", "thread_id": "main", "content": "Final answer."},
+]
+check("interim messages are the root agent's, before the answer",
+      agent_mod.interim_messages(said, "Final answer.") == ["Checking the app first.", "It is paused, so no pods start."])
+interim_prompt = judge.build_prompt(question="q", expected="e", candidate="a", interim=["It is paused."])
+check("the judge sees interim messages", "EARLIER AGENT MESSAGES" in interim_prompt and "- It is paused." in interim_prompt)
+check("no interim section without messages", "EARLIER AGENT MESSAGES" not in judge.build_prompt(
+    question="q", expected="e", candidate="a"))
 check("sandbox MCP calls are extracted in order",
       sandbox == ["tfy-platform-mcp/list_users", "tfy-platform-mcp/apply_manifest"])
 check("tool_label_name strips args and result", agent_mod.tool_label_name(labels[0]) == "tfy-platform-mcp/create_grants")
