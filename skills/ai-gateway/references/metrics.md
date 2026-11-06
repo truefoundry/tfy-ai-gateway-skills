@@ -40,7 +40,7 @@ rows = r["data"]["dataPoints"]
 | Agent runs | `agentMetrics` |
 | Incoming requests by path, method, span type | `gatewayRequestMetrics` |
 
-Virtual model → real model breakdown: `realModelMetrics` grouped by `virtualModel` and `modelName` (only calls routed through a virtual model).
+Virtual model → real model breakdown: `realModelMetrics` grouped by `virtualModel` and `modelName` (only calls routed through one). Filter by virtual model with `virtualModelName`; `virtualModel` is group-by only.
 
 ### Request rules
 
@@ -111,6 +111,5 @@ Shown as `datasource` · `groupBy` · aggregations · filters.
 ### Checklist
 
 - [ ] "My"/"I"/"me" → `userEmail` on every query including totals; failure counts omit name `NOT_IN [""]`.
-- [ ] Grouped/timeseries from sandbox; no `get_tool_info`; nulls via `p.get`.
 - [ ] Request count from `total`; latency as percentiles; flags with `avg` only.
 - [ ] Numbers from program output; window stated; empty → data-access.
