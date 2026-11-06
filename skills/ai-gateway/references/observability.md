@@ -1,18 +1,18 @@
 ---
 name: observability
-description: Read for questions about individual Gateway requests and traces — find requests, see a request's spans, errors, prompt or response, metadata keys, feedback — and for trace links. Explains how to query traces and feedback with `gateway_execute_sql`. For counts, cost, latency or any aggregate, read `metrics.md` instead.
+description: Individual Gateway requests and traces — find requests, spans, errors, prompt/response, metadata, feedback, trace links — via `gateway_execute_sql`. For aggregates, read `metrics.md`.
 ---
 
 ## Traces and Feedback
 
-Gateway records every request as a trace of OTEL spans: one head span for the request, with child spans for each model call, MCP call, guardrail check and so on. All spans of a request share a `TraceId`.
+Every request is a trace of OTEL spans sharing a `TraceId`: one head span plus children for model, MCP, guardrail, etc.
 
-Use SQL on traces only for what the metrics API cannot do: listing or finding requests, one request's spans and attributes, request or response contents, metadata key discovery, feedback, and data in a routing destination other than `default`. Every aggregate (requests, cost, tokens, latency, errors, cache, guardrail, MCP, rate-limit, budget, agent numbers) comes from `query_llm_gateway_metrics`: read `metrics.md`. Don't query the `gateway_*_metrics` tables.
+Use SQL only for what metrics cannot do: listing/finding requests, one request's spans and attributes, contents, metadata keys, feedback, or a destination other than `default`. Every aggregate comes from `query_llm_gateway_metrics` (`metrics.md`). Don't query the `gateway_*_metrics` tables.
 
 ### Tables
 
-- The traces table — its name varies by tenant: take `tracesTable` from the session context; never assume `traces`. In this skill, "the `traces` table" means that table. Schema: `ai-gateway/references/tables/traces.md`.
-- `gateway_feedbacks` — feedback (ratings, comments) on spans. Schema: `ai-gateway/references/tables/gateway_feedbacks.md`.
+- Traces table — `tracesTable` from session context; never assume `traces`. Schema: `ai-gateway/references/tables/traces.md`.
+- `gateway_feedbacks` — ratings/comments on spans. Schema: `ai-gateway/references/tables/gateway_feedbacks.md`.
 
 ### Steps
 
@@ -28,7 +28,7 @@ python3 -c "import sys,time,datetime as d;i=sys.argv[1];m=int(i[:12],16);ok=i[12
 
 It prints day, next day and start minus 5 minutes, or `none` (the caller sent its own trace context). On `none`, or no rows, query the last 7 days once: `"Date" >= to_char(now() - INTERVAL '7 days', '%Y-%m-%d') AND "Timestamp" >= now() - INTERVAL '7 days'`. Never judge by the head span alone. An `MCP` span can fail under a head span that is `Ok` with HTTP 200: report that call as failed. A failed `Model` span under an `Ok` head is a retry or fallback that recovered: the request succeeded. Report the failing span's `tfy.error_type` and `tfy.error_message` (the `Model` span for model errors), `HttpStatusCode`, model, caller and time, what the message means for the caller, and the trace link. `tfy-model-not-found` means the model or provider account does not exist in the gateway: tell the caller to check the model name, never to get access. If no rows come back, stop: don't widen the window or try another destination. Ask the user roughly when the request was made and which destination it went to.
 
-**Errors from `gateway_execute_sql`.** A 400 or 404 names the problem: fix the query. `Delta table not found` means that destination has no traces table. A 504 means the query timed out: narrow the window. Any other 5xx means the query service failed, not the SQL: retry the same query once, and if it fails again, stop. Tell the user trace queries are failing right now, give the trace link (no time window), and offer a support ticket. Never change the query or destination, or search the docs, to work around a 5xx.
+**Errors from `gateway_execute_sql`.** `Delta table not found` means that destination has no traces table: the tenant's traces go to another destination. Call `list_data_routing_destinations` and ask the user which one to query; don't change the query any other way. Any other 400 or 404 names the problem: fix the query. A 504 means the query timed out: narrow the window. Any other 5xx means the query service failed, not the SQL: retry the same query once, and if it fails again, stop. Tell the user trace queries are failing right now, give the trace link (no time window), and offer a support ticket. Never change the query or destination, or search the docs, to work around a 5xx.
 
 ### Writing SQL
 
@@ -61,7 +61,7 @@ ORDER BY "Timestamp" DESC
 LIMIT 50
 ```
 
-- Failed model calls with their error. The head span of a failed model request has `StatusCode = 'Error'` and `tfy.error_message`, but `tfy.error_type` is on the `Model` span (only `client-disconnected` is on the head span; MCP and guardrail errors are on their own spans). Error type values: [span attributes](https://www.truefoundry.com/docs/ai-gateway/fetch-request-logs-span-attributes#core-span-attributes).
+- Failed model calls. `tfy.error_type` is on the `Model` span (head has `tfy.error_message`; only `client-disconnected` is on the head; MCP/guardrail errors on their own spans). Values: [span attributes](https://www.truefoundry.com/docs/ai-gateway/fetch-request-logs-span-attributes#core-span-attributes).
 
 ```sql
 SELECT "TraceId", "Timestamp", "GenAIRequestModel", "HttpStatusCode",
@@ -103,17 +103,16 @@ ORDER BY "Requests" DESC
 LIMIT 50
 ```
 
-- Span attribute keys in use: the same query on `map_keys("SpanAttributesString")` (or `SpanAttributesNumber`) with `LIMIT 200`; drop the head-span filter to include child spans. Use it for a key that neither `tables/traces.md` nor the span attributes docs name.
-
+- Span attribute keys: same query on `map_keys("SpanAttributesString")` (or `SpanAttributesNumber`), `LIMIT 200`; drop the head-span filter for child spans. Use for keys neither `tables/traces.md` nor the span attributes docs name.
 - Filter by team: `array_has("SpanAttributesStringList"['tfy.request.created_by_subject_teams'], '<team>')`.
-- Guardrail outcome of a request: the head span carries the worst result in `"SpanAttributesString"['tfy.guardrail.result']` only for some request types; see [triggered guardrails](https://www.truefoundry.com/docs/ai-gateway/fetch-request-logs-span-attributes#triggered-guardrails-on-request-spans), or query the `Guardrail` child spans.
-- Feedback on traces: see the sample join in `tables/gateway_feedbacks.md`. Deduplicate by `FeedbackId` before filtering `"IsDeleted" = false`.
+- Guardrail outcome: head span `"SpanAttributesString"['tfy.guardrail.result']` only for some request types; see [triggered guardrails](https://www.truefoundry.com/docs/ai-gateway/fetch-request-logs-span-attributes#triggered-guardrails-on-request-spans), or query `Guardrail` child spans.
+- Feedback: sample join in `tables/gateway_feedbacks.md`. Deduplicate by `FeedbackId` before `"IsDeleted" = false`.
 
 ### Getting a trace ID
 
-Find the `TraceId` by querying the traces table with filters (time, user, model, …).
+Find `TraceId` by querying traces (time, user, model, …).
 
-> **WARNING — response `id` ≠ trace ID.** The `id` in a chat completion response (e.g. `chatcmpl-xxx`) is the response ID, not the trace ID. Never use it in trace links.
+> **WARNING — response `id` ≠ trace ID.** A chat completion `id` (e.g. `chatcmpl-xxx`) is not the trace ID; never use it in trace links.
 
 ### Linking to traces
 
@@ -132,5 +131,5 @@ Always link the traces you show: `{controlPlaneUrl}/monitoring/request-traces?fi
 - [ ] `"Date"` literal range plus `"Timestamp"` range; `LIMIT` on non-aggregate queries.
 - [ ] Head-span filter when listing requests; only the needed columns.
 - [ ] Empty result → data-access rules mentioned.
-- [ ] Metrics vs traces: same filters; missing `default` spans → list destinations and ask.
+- [ ] Metrics vs traces: same filters; missing `default` spans or `Delta table not found` → list destinations and ask; don't rewrite the SQL.
 - [ ] 5xx → one retry of the same query, then stop and report.
