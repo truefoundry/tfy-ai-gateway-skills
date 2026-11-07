@@ -47,7 +47,13 @@ DEFAULT_CLARIFICATION_REPLY = (
 )
 
 # An answer whose last lines hold a question mark ended the turn by asking in plain text.
-TEXT_QUESTION_TAIL = 400
+TEXT_QUESTION_TAIL = 1200
+TEXT_REQUEST = re.compile(
+    r"\b(please (send|share|provide|confirm|tell me|let me know)|let me know (which|what|the|if|whether)"
+    r"|once (you|i) (answer|reply|confirm|share|send|have|get|know)|send (me )?(the|your)|share (the|your)"
+    r"|i need (a few|the|your|to know|some))\b",
+    re.IGNORECASE,
+)
 
 SECRET_TOOL = "ask_user_secret"
 # An eval never hands over a credential; how the agent carries on without one is the behaviour graded.
@@ -310,12 +316,11 @@ def _transcript(run: AgentRun, events: dict[str, Any], order: list[str]) -> list
 
 
 def asks_in_text(answer: str) -> str | None:
-    """The question an answer ends on, when the agent asked in prose instead of ask_user_question."""
+    """The question an answer ends on, when the agent asked in prose instead of ask_user_question.
+    Agents often ask without a question mark ("Please send the workspace", "Once you reply, I'll ...")."""
     tail = answer.strip()[-TEXT_QUESTION_TAIL:]
-    if "?" not in tail:
-        return None
-    lines = [line.strip() for line in tail.splitlines() if "?" in line]
-    return lines[-1][:500]
+    lines = [line.strip() for line in tail.splitlines() if "?" in line or TEXT_REQUEST.search(line)]
+    return lines[-1][:500] if lines else None
 
 
 def interim_messages(transcript: list[dict], answer: str) -> list[str]:

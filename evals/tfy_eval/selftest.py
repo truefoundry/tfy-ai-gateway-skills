@@ -472,7 +472,15 @@ check("an answer ending on a question asks in text",
       agent_mod.asks_in_text("I can retry it.\n\nWhich model and workspace is it?") == "Which model and workspace is it?")
 check("an answer with no question does not", agent_mod.asks_in_text("Done. The service is scaled.") is None)
 check("a question early in a long answer does not count",
-      agent_mod.asks_in_text("Why did it fail? " + "x" * 1000 + " Done.") is None)
+      agent_mod.asks_in_text("Why did it fail? " + "x" * 2000 + " Done.") is None)
+check("a request without a question mark asks in text",
+      agent_mod.asks_in_text("Steps below.\n\nPlease send the HF URL, the workspace, and the exact error text.")
+      == "Please send the HF URL, the workspace, and the exact error text.")
+check("questions listed before a closing plan still count",
+      agent_mod.asks_in_text("1. **The workspace.**\n2. **Gated?** If so, the HF token.\n\n" + "y" * 600
+                             + "\n\nOnce I have these, I'll retry the spec call.") is not None)
+check("an answer that only reports what it did does not ask",
+      agent_mod.asks_in_text("I sent the manifest to apply_manifest and it was denied, so nothing changed.") is None)
 
 # --- critical claims decide the verdict ---------------------------------------
 
