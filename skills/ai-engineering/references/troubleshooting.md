@@ -93,7 +93,7 @@ StatefulSet  my-cache-master
 pod          my-cache-master-0        # <set>-<ordinal>
 ```
 
-`my-cache-0` does not exist, and `get_logs` for it returns an empty list rather than an error. Deployment-backed pods carry a generated ReplicaSet hash (`my-api-7d4b9c8f2a-x4kqp`) and are equally unpredictable. Use only pod names a tool listed, never one built from a StatefulSet.
+`my-cache-0` does not exist; `get_logs` for it returns an empty list, not an error. Deployment pods carry a ReplicaSet hash. Use only pod names a tool listed, in tool calls and `kubectl` commands; with none listed, give `kubectl get pods -n <ns> -l app.kubernetes.io/instance=<release>`.
 
 ## Notebooks / SSH / RStudio
 
