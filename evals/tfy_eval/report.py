@@ -79,6 +79,7 @@ def build_summary(
 
     total_claims = sum(claim_counts.values())
     run_statuses = Counter(a.get("status", "unknown") for a in answers)
+    graded_runs = [g for g in grades if g["verdict"] != "ungraded"]
 
     summary = {
         "meta": meta or {},
@@ -101,6 +102,11 @@ def build_summary(
                 if per_question
                 else 0.0
             ),
+            # Per run: what one question asked once scores, without the worst-of-trials roll-up.
+            "graded_runs": len(graded_runs),
+            "runs_correct": sum(1 for g in graded_runs if g["verdict"] == "correct"),
+            "runs_contradicted": sum(1 for g in graded_runs if g.get("contradictions")),
+            "runs_asked_clarification": sum(1 for a in answers if a.get("clarifications_asked")),
             "verdicts": {v: verdict_counts.get(v, 0) for v in VERDICT_ORDER},
             "claims": dict(claim_counts),
             "claim_coverage": (
@@ -156,6 +162,10 @@ def _by_tag(per_question: list[dict]) -> dict:
     }
 
 
+def _share(part: int, whole: int) -> float:
+    return part / whole if whole else 0.0
+
+
 def _pct(value: float) -> str:
     return f"{value * 100:.0f}%"
 
@@ -191,17 +201,21 @@ def to_markdown(summary: dict) -> str:
             if totals["unanswered"]
             else "Every question produced an answer."
         ),
-        f"- **Pass rate**: {_pct(totals['pass_rate'])} "
-        f"({totals['verdicts']['correct']}/{totals['answered']} *answered* questions fully correct)",
-        f"- **Contradiction rate**: {_pct(totals['contradiction_rate'])} "
-        "(answers that assert the opposite of ground truth - the failures to fix first)",
+        f"- **Runs fully correct**: {_pct(_share(totals['runs_correct'], totals['graded_runs']))} "
+        f"({totals['runs_correct']}/{totals['graded_runs']} graded runs)",
         f"- **Mean score**: {totals['mean_score']:.2f}",
+        f"- **Runs with a contradiction**: {totals['runs_contradicted']}/{totals['graded_runs']} "
+        "(answers that assert the opposite of ground truth - the failures to fix first)",
+        f"- **Questions correct in every trial**: {_pct(totals['pass_rate'])} "
+        f"({totals['verdicts']['correct']}/{totals['answered']} answered questions)",
+        f"- **Questions contradicted in any trial**: {_pct(totals['contradiction_rate'])}",
         f"- **Claim coverage**: {_pct(totals['claim_coverage'])} of reference claims "
         f"covered ({totals['claims'].get('supported', 0)} supported, "
         f"{totals['claims'].get('partial', 0)} partial, "
         f"{totals['claims'].get('missing', 0)} missing, "
         f"{totals['claims'].get('contradicted', 0)} contradicted)",
-        f"- **Asked for clarification instead of answering**: {_pct(totals['clarification_rate'])}",
+        f"- **Runs that asked for clarification**: {totals['runs_asked_clarification']}/{totals['agent_runs']} "
+        "(some cases expect a question and script the reply)",
         f"- **Cost**: ${totals['total_cost_usd']:.2f} over {totals['agent_runs']} runs, "
         f"{totals['mean_duration_s']:.0f}s mean latency",
         "",

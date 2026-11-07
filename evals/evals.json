@@ -211,6 +211,7 @@
     {
       "id": 13,
       "prompt": "My vLLM service `qwen3-0-6b` in workspace `archit-ws` shows reason OOMKilled and restarts every few hours. Fix it.",
+      "clarification_reply": "Go ahead with what you recommend.",
       "expected_output": "Treats OOMKilled as the container hitting its memory limit: pulls memory metrics and the applied memory limit, distinguishes limit-too-low from a leak, and proposes raising memory resources from the live manifest — not lowering --gpu-memory-utilization.",
       "files": [],
       "expectations": [
@@ -355,6 +356,7 @@
     {
       "id": 20,
       "prompt": "Route simple prompts to a cheap model and hard ones to gpt-4o automatically.",
+      "clarification_reply": "Pick the cheapest chat model we have for simple, a mid-priced one for medium, and gpt-4o for complex.",
       "expected_output": "The agent proposes complexity-based-routing with at least one target in each of simple, medium and complex, no model in two tiers, and model_types limited to chat/completion/responses.",
       "files": [],
       "expectations": [
@@ -412,6 +414,7 @@
     {
       "id": 23,
       "prompt": "Add a tfy-prompt-injection guardrail on every MCP tool call to our existing 'bank-guardrails' guardrail group and turn it on for all MCP servers.",
+      "clarification_reply": "Enforce it: block the tool call when it flags a prompt injection.",
       "expected_output": "Reads the existing group with list_provider_accounts, keeps every existing integration and appends the new one, and sends no collaborators. Checks existing policies with list_gateway_config_instances, then applies a new named gateway-guardrails-config policy targeting MCP with a non-empty mcp_tool_pre_invoke_guardrails list. In eval the group apply is denied; then it applies no policy and says nothing changed, and the policy is graded only if it prepared one.",
       "files": [],
       "expectations": [
@@ -624,6 +627,7 @@
     {
       "id": 34,
       "prompt": "Deploy the bitnami redis chart from oci://registry-1.docker.io/bitnamicharts/redis version 20.1.0 into workspace onboarding-ws with password from my secret group hf-proxy key password.",
+      "clarification_reply": "Use the chart defaults: standalone, persistence on.",
       "expected_output": "Calls validate_oci_chart with chartUrl; builds a helm manifest with source.type oci-repo and oci_chart_url; references the password as tfy-secret://<tenant>:hf-proxy:password; validates then calls apply_manifest, which puts it to approval; if the apply goes through, confirms pods via get_application_state and prints the console link using data.applicationId; if it is denied, says nothing was deployed.",
       "files": [],
       "expectations": [
@@ -800,6 +804,7 @@
     {
       "id": 44,
       "prompt": "Add gpt-4.1-mini to my existing OpenAI account `eval-openai`.",
+      "clarification_reply": "Yes, add it even though it's deprecated.",
       "expected_output": "Fetches the account with list_provider_accounts, deletes collaborators and every integration's authorized_subjects from the fetched manifest, keeps every existing integration, appends the new model, validates and applies once; does not re-send the stored collaborators list.",
       "files": [],
       "expectations": [
@@ -1362,13 +1367,14 @@
     {
       "id": 76,
       "prompt": "I want my llm gateway usage grouped by provider and model in a clean csv",
-      "expected_output": "Reads metrics.md, filters every query (including totals) with userEmail EQUAL the session email, groups realModelMetrics by providerAccountType and modelName, writes CSV with null-safe reads (p.get(k) or \"\"), and explains any null provider/model rows via a second query grouped by errorDisplayLabel with isFailure EQUAL true — without guessing the cause.",
+      "clarification_reply": "Mine is test@example.com.",
+      "expected_output": "Reads metrics.md, filters every query (including totals) with userEmail EQUAL the session email (the eval session is a service account with no email, so it asks whose usage; reply: test@example.com), groups realModelMetrics by providerAccountType and modelName, writes CSV with null-safe reads (p.get(k) or \"\"), and explains any null provider/model rows via a second query grouped by errorDisplayLabel with isFailure EQUAL true — without guessing the cause.",
       "files": [],
       "expectations": [
         {
-          "text": "Filters with userEmail EQUAL the session email on every query including totals",
-          "critical": true
-        },
+      "text": "Filters with userEmail EQUAL the session email on every query including totals; when the session is a service account with no email, asks whose usage first and then filters by the email given",
+      "critical": true
+    },
         "Groups by providerAccountType and modelName",
         "Produces the CSV even when a row's provider or model is null, writing a blank or a clear placeholder such as (unresolved), without crashing",
         "If any row has a null provider or model, explains those rows from a second query grouped by errorDisplayLabel with isFailure EQUAL true (same userEmail filter and window); never names a likely cause without that query"
@@ -1381,6 +1387,7 @@
     {
       "id": 77,
       "prompt": "Debug my failed model requests this week",
+      "clarification_reply": "All failed requests in the tenant this week, not only mine, in the default destination.",
       "expected_output": "Counts failures from metrics without modelName NOT_IN [\"\"] so both routed and pre-routing failures are included, reports one total broken down by error type or model (same filters as any traces query), and when some failures appear in metrics but have no spans in default, calls list_data_routing_destinations and asks which destination to query — does not put a metrics count and a differently filtered traces count side by side as unexplained.",
       "files": [],
       "expectations": [
