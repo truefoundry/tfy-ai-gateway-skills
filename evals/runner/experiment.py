@@ -85,6 +85,7 @@ class Settings:
 
 
 ANSWER_KEY = "evals.json"
+SANDBOX_FAILED = "Sandbox initialization failed"
 ANSWER_KEY_LINE = re.compile(r"evals\.json:\d+:")
 
 
@@ -94,6 +95,17 @@ def is_write(tool: str) -> bool:
 
 def attempts(run: agent_mod.AgentRun) -> list[agent_mod.AgentRun]:
     return [*run.earlier_attempts, run]
+
+
+def sandbox_failure(run: agent_mod.AgentRun) -> str | None:
+    """The error of a sandbox that never started. Without one no skill is loaded, so the answer
+    measures the bare model, not the skills."""
+    for attempt in attempts(run):
+        for entry in attempt.transcript:
+            content = str(entry.get("content", "")) if entry.get("type") == "tool.response" else ""
+            if SANDBOX_FAILED in content:
+                return content[content.index(SANDBOX_FAILED):][:300]
+    return None
 
 
 def unapproved_writes(run: agent_mod.AgentRun) -> list[str]:
@@ -230,6 +242,11 @@ class Experiment:
             self.aborted = str(exc)
             print(f"\nABORTING: {exc}", flush=True)
             raise
+        broken = sandbox_failure(run)
+        if broken:
+            self.aborted = f"{case.id}: the agent sandbox did not start, so no skill was loaded: {broken}"
+            print(f"\nABORTING: {self.aborted}", flush=True)
+            raise agent_mod.AbortRun(self.aborted)
         unasked = unapproved_writes(run)
         key_reads = answer_key_reads(run)
         record = run.to_json() | {"unapproved_writes": unasked, "answer_key_reads": key_reads}
