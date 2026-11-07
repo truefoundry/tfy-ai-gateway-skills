@@ -257,17 +257,21 @@ def wait_for_sql(api: httpx.Client, found: dict[str, dict], timeout: float = 900
     """The traces `gateway_execute_sql` can see, polled until all of them are or the timeout passes."""
     if not found:
         return set()
-    table = api.get("/v1/session/context").raise_for_status().json()["tracesTable"]
     day = min(info["time"][:10] for info in found.values())
     ids = ", ".join(f"'{info['id']}'" for info in found.values())
-    query = (f'SELECT DISTINCT "TraceId" FROM "default"."{table}" '
-             f"WHERE \"Date\" >= '{day}' AND \"TraceId\" IN ({ids}) LIMIT 100")
     deadline = time.monotonic() + timeout
+    visible: set[str] = set()
     while True:
-        rows = api.post("/v1/llm-gateway/observability/execute-sql",
-                        json={"query": query}).raise_for_status().json()["data"]
-        seen = {row["TraceId"] for row in rows}
-        visible = {name for name, info in found.items() if info["id"] in seen}
+        try:
+            table = api.get("/v1/session/context").raise_for_status().json()["tracesTable"]
+            query = (f'SELECT DISTINCT "TraceId" FROM "default"."{table}" '
+                     f"WHERE \"Date\" >= '{day}' AND \"TraceId\" IN ({ids}) LIMIT 100")
+            rows = api.post("/v1/llm-gateway/observability/execute-sql",
+                            json={"query": query}).raise_for_status().json()["data"]
+            seen = {row["TraceId"] for row in rows}
+            visible = {name for name, info in found.items() if info["id"] in seen}
+        except httpx.HTTPError as exc:
+            print(f"warning: SQL trace check failed, retrying: {exc}", flush=True)
         if len(visible) == len(found) or time.monotonic() > deadline:
             return visible
         time.sleep(20)
