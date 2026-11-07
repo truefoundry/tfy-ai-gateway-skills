@@ -89,7 +89,7 @@ A subject can hold several tenant roles; their permissions add up.
 
 **Change or remove:** grant the new role first, then `revoke_grant` the old one with its `list_grants` row. The last `tenant-admin` grant and a user's `member` role cannot be revoked (422).
 
-**Who holds which tenant role:** `list_grants` with `resourceType: tenant` and `resourceId: <tenantName>`.
+**Who holds which tenant role:** `list_grants` with `resourceType: tenant`, `resourceId: <tenantName>` and a `roleId` filter, paging until a page is short. Name each holder by `subjectType`.
 
 In the UI: `{controlPlaneUrl}/access-management?tab=users` (or `tab=teams`, `tab=service-accounts`) → the row's menu → **Manage Permissions** → **Organisation Roles** → **Add Roles**.
 
