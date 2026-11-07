@@ -25,7 +25,9 @@ from .cases import (
     PLACEHOLDER, case_from_eval, case_hash, conditional_critical_claims, fill, load_cases, load_fixtures,
     skip_unseeded, unavailable_fixtures,
 )
-from .experiment import Experiment, Settings, answer_key_reads, example_id, is_write, unapproved_writes
+from .experiment import (
+    Experiment, Settings, answer_key_reads, example_id, is_write, sandbox_failure, unapproved_writes,
+)
 from .gate import GateError, compare, fisher_less, holm, sign_flip_p
 from .seed_fixtures import TRACES
 
@@ -201,6 +203,11 @@ check("a search that quotes the eval cases is a read", answer_key_reads(agent_ru
 check("a listing that shows the file name is not", answer_key_reads(agent_run(
     [call("c1", "exec", "truefoundry-system", {"command": "find /opt/tf/skills"})],
     results={"c1": "/opt/tf/skills/x/SKILL.md\n/opt/tf/skills/x/evals/evals.json\n"})) == 0)
+skill_read = [call("c1", "exec", "truefoundry-system", {"command": "cat /opt/tf/skills/x/SKILL.md"})]
+check("a sandbox that never started is caught", (sandbox_failure(agent_run(skill_read, results={
+    "c1": '{"error":[{"text":"Sandbox initialization failed: git -c failed (exit 128)"}]}'})) or "")
+      .startswith("Sandbox initialization failed: git -c failed"))
+check("a sandbox that started is not", sandbox_failure(agent_run(skill_read, results={"c1": "# Skill"})) is None)
 
 
 # --- grading failed trials, without LangSmith
