@@ -29,7 +29,7 @@ from .experiment import (
     Experiment, Settings, answer_key_reads, example_id, is_write, sandbox_failure, unapproved_writes,
 )
 from .gate import GateError, compare, fisher_less, holm, sign_flip_p
-from .seed_fixtures import TRACES
+from .seed_fixtures import TRACES, wait_for_sql
 
 SHA = "0235a3f0cb8af8913e628b3eaddb0f449a88be43"
 SESSIONS = "/api/svc/v1/ai-features/acme/sessions"
@@ -449,6 +449,34 @@ with tempfile.TemporaryDirectory() as tmp:
     kept, unseeded = skip_unseeded([on_y, on_x], unavailable_fixtures(path))
     check("a case naming an unseeded trace is skipped, with why",
           [c.id for c in kept] == ["s66"] and "trace.y" in unseeded["s65"] and "not queryable" in unseeded["s65"])
+def sql_api(pages: list) -> tuple[httpx.Client, list[str]]:
+    """A fake sfy whose execute-sql returns `pages` in turn (an int is an error status)."""
+    queries: list[str] = []
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/v1/session/context":
+            return httpx.Response(200, json={"tracesTable": "traces_v2"})
+        queries.append(json.loads(request.content)["query"])
+        page = pages[min(len(queries), len(pages)) - 1]
+        if isinstance(page, int):
+            return httpx.Response(page, json={})
+        return httpx.Response(200, json={"data": [{"TraceId": t} for t in page]})
+
+    return httpx.Client(base_url="http://sfy", transport=httpx.MockTransport(handle)), queries
+
+
+lagging = {"a": {"id": "aa", "time": "2026-11-07 13:40"}, "b": {"id": "bb", "time": "2026-11-06 23:59"}}
+with mock.patch("runner.seed_fixtures.time.sleep"):
+    client, queries = sql_api([[], 503, ["aa"], ["aa", "bb"]])
+    check("SQL wait polls through an error until every trace is visible",
+          wait_for_sql(client, lagging) == {"a", "b"} and len(queries) == 4)
+    check("SQL wait queries the tenant table in default, from the earliest trace's date",
+          '"default"."traces_v2"' in queries[0] and "\"Date\" >= '2026-11-06'" in queries[0]
+          and "'aa'" in queries[0] and "'bb'" in queries[0])
+    client, _ = sql_api([["aa"]])
+    check("a trace that never shows up is left out at the deadline", wait_for_sql(client, lagging, timeout=0) == {"a"})
+    check("nothing to wait for makes no call", wait_for_sql(sql_api([])[0], {}) == set())
+
 seeded = {f"trace.{trace.name}.{key}" for trace in TRACES for key in ("id", "time", "epoch_ms", "sender", "error")}
 used = set(PLACEHOLDER.findall((Path(__file__).resolve().parents[1] / "evals.json").read_text()))
 check("every placeholder in evals.json is a value seed_fixtures writes", used and used <= seeded)

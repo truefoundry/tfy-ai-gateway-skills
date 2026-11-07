@@ -122,6 +122,12 @@ def main() -> None:
     found = wait_for(api, sent, strict=False)
     unavailable |= {f"trace.{name}": f"trace {sent[name]} was not queryable with span error "
                     f"{TRACE_BY_NAME[name].error_type} after the wait" for name, info in found.items() if not info}
+    # The agent reads traces through SQL, which lags the spans API by minutes.
+    in_sql = wait_for_sql(api, {name: info for name, info in found.items() if info})
+    for name, info in list(found.items()):
+        if info and name not in in_sql:
+            unavailable[f"trace.{name}"] = f"trace {info['id']} never showed up in the SQL traces table"
+            found[name] = None
     values = {f"trace.{name}.{key}": value for name, trace in found.items() if trace
               for key, value in trace.items() if key != "subject"}
     FIXTURES_FILE.parent.mkdir(exist_ok=True)
@@ -245,6 +251,30 @@ def wait_for(api: httpx.Client, sent: dict[str, str], timeout: float = 600,
             raise SystemExit(f"traces not queryable or not failing as intended after {timeout:.0f}s: "
                              + ", ".join(f"{name} {sent[name]}" for name, info in found.items() if not info))
         time.sleep(15)
+
+
+def wait_for_sql(api: httpx.Client, found: dict[str, dict], timeout: float = 900) -> set[str]:
+    """The traces `gateway_execute_sql` can see, polled until all of them are or the timeout passes."""
+    if not found:
+        return set()
+    day = min(info["time"][:10] for info in found.values())
+    ids = ", ".join(f"'{info['id']}'" for info in found.values())
+    deadline = time.monotonic() + timeout
+    visible: set[str] = set()
+    while True:
+        try:
+            table = api.get("/v1/session/context").raise_for_status().json()["tracesTable"]
+            query = (f'SELECT DISTINCT "TraceId" FROM "default"."{table}" '
+                     f"WHERE \"Date\" >= '{day}' AND \"TraceId\" IN ({ids}) LIMIT 100")
+            rows = api.post("/v1/llm-gateway/observability/execute-sql",
+                            json={"query": query}).raise_for_status().json()["data"]
+            seen = {row["TraceId"] for row in rows}
+            visible = {name for name, info in found.items() if info["id"] in seen}
+        except httpx.HTTPError as exc:
+            print(f"warning: SQL trace check failed, retrying: {exc}", flush=True)
+        if len(visible) == len(found) or time.monotonic() > deadline:
+            return visible
+        time.sleep(20)
 
 
 def describe(trace: Trace, trace_id: str, spans: list[dict]) -> dict | None:

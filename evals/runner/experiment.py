@@ -459,8 +459,9 @@ def execute(experiment: Experiment, examples: list[Example]) -> Path:
     (run_dir / "report.md").write_text(report_mod.to_markdown(summary))
     totals = summary["totals"]
     print(
-        f"\nPass rate {totals['pass_rate'] * 100:.0f}% of {totals['graded_questions']} answered, "
-        f"{totals['unanswered']} unanswered, cost ${totals['total_cost_usd']:.2f}\n"
+        f"\nRuns fully correct {totals['runs_correct']}/{totals['graded_runs']}, mean score "
+        f"{totals['mean_score']:.2f}, questions correct in every trial {totals['pass_rate'] * 100:.0f}% of "
+        f"{totals['graded_questions']}, {totals['unanswered']} unanswered, cost ${totals['total_cost_usd']:.2f}\n"
         f"Experiment {results.experiment_name}\nRun        {run_dir}"
     )
     if summary["unapproved_writes"]:

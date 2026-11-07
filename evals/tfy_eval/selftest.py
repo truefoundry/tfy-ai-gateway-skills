@@ -159,6 +159,11 @@ check("ungraded excluded from pass rate", totals["graded_questions"] == 2, f"got
 check("pass rate is 1/2", abs(totals["pass_rate"] - 0.5) < 1e-9, f"got {totals['pass_rate']}")
 check("contradiction rate is 1/2", abs(totals["contradiction_rate"] - 0.5) < 1e-9)
 check("clarification rate is 1/3", abs(totals["clarification_rate"] - 1 / 3) < 1e-9)
+check("per-run counts skip ungraded runs",
+      (totals["graded_runs"], totals["runs_correct"], totals["runs_contradicted"],
+       totals["runs_asked_clarification"]) == (2, 1, 1, 1))
+check("headline leads with runs fully correct",
+      report.to_markdown(summary).split("## Headline")[1].split("- **")[2].startswith("Runs fully correct**: 50%"))
 check("cost summed", abs(totals["total_cost_usd"] - 0.03) < 1e-9)
 check("run statuses counted", totals["run_statuses"].get("error") == 1)
 check("tag breakdown present", bool(summary["by_tag"]))
@@ -186,7 +191,7 @@ check("empty candidate records why", "did not produce" in (empty_grade.error or 
 markdown = report.to_markdown(summary)
 check("markdown renders", "# Agent eval report" in markdown)
 check("never-answered section present", "## Never answered" in markdown)
-check("pass rate scoped to answered", "*answered*" in markdown)
+check("pass rate scoped to answered", "1/2 answered questions" in markdown)
 check(
     "unanswered row shows no score",
     any(line.startswith("| q3 |") and "no answer" in line for line in markdown.splitlines()),
