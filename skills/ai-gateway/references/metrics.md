@@ -24,7 +24,7 @@ rows = r["data"]["dataPoints"]
 
 - `filters` and `filterPredicate` are always lists of `{fieldName, operator, value}`. Batch independent queries with `asyncio.gather` (sandbox timeout 60s).
 - Build requests from this file; never call `get_tool_info` on this tool. A 400 names the wrong field.
-- Print the top 10–20 rows, sorted on what the question ranks by, plus an `other` row for the rest and the null-name row (failed before routing), so rows add up to the total.
+- Print the top 10–20 rows, sorted on what the question ranks by, plus an `other` row (count, sums) for the rest and the null-name row (failed before routing), so rows add up to the total.
 - **Totals.** Print headline totals (requests, cost, tokens, failures) from a `groupBy: []` query in the same program; grouped rows double count teams and virtual → real models. Quote only what the program printed — numbers, %, shares, rankings ("highest") and absences ("none": print the 0) — never estimates; add what's missing to the program.
 
 ### Datasources
@@ -45,7 +45,7 @@ Virtual model → real model breakdown: `realModelMetrics` grouped by `virtualMo
 ### Request rules
 
 - **Scope.** "My", "I" or "me" means filter `userEmail EQUAL <session email>` on every query, the totals query included. No session email (a virtual account): ask whose data first.
-- **Time.** `get_current_datetime` first, never in the query's batch. `startTs`/`endTs` are ISO 8601, both inclusive; without an offset they are UTC and must share the same offset. Default to the last 7 days when no window is given; state the window in the answer.
+- **Time.** `get_current_datetime` first, never in the query's batch. `startTs`/`endTs` are ISO 8601, both inclusive; without an offset they are UTC and must share the same offset. Default to the last 7 days when no window is given.
 - **`type`.** `distribution` returns one row per group over the window. `timeseries` adds buckets: set `interval` (`"1 hour"`, `"1 day"`, one unit) when asked for granularity; else the server picks from the window. Buckets start at `startTs` (UTC midnight/hour for daily/hourly). Empty buckets: `total: 0`, null groups.
 - **Counting requests.** Every row has `total` (row count = request count). `count` on a column skips NULLs (`count` of `costInUSD` skips calls without cost).
 - **Conditional counts.** A `filterPredicate` on an aggregation counts a subset in the same query (`failures` above). Aliases must be unique.
