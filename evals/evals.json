@@ -557,9 +557,10 @@
         "Prompt-cache tokens from sum cacheReadInputTokens on realModelMetrics, not traces/TfyGatewayOutput",
         "Keeps gateway caching and provider prompt caching separate",
         {
-          "text": "Every number in the reply appears in the program output; rates or shares worked out in the reply count as a failure",
+          "text": "Every number in the reply is right: printed by the program, or following exactly from numbers it printed",
           "critical": true
         },
+        "Rates and shares come from the program's output, not worked out in the reply",
         "If cacheMetrics has no semantic cache rows, says there were no semantic cache lookups in the window instead of reporting a 0% hit rate"
       ],
       "tags": {
@@ -1136,11 +1137,11 @@
     {
       "id": 62,
       "prompt": "Who deleted the MCP server github-mcp?",
-      "expected_output": "Calls get_audit_log_actions, then get_audit_logs for resourceName github-mcp filtered to the delete actions that can apply to an MCP server (DELETE_MCP_SERVER, and DELETE_PROVIDER_INTEGRATION for legacy remote MCP servers), with start and end set and widened if nothing is found. Reports who deleted it and when. If the logs show another resource named github-mcp deleted too (for example an application), mentions it as a separate resource.",
+      "expected_output": "Calls get_audit_log_actions, then get_audit_logs for resourceName github-mcp filtered to the delete actions that can apply to an MCP server (DELETE_MCP_SERVER, and DELETE_PROVIDER_INTEGRATION for legacy remote MCP servers), with start and end set; if that window has nothing, one retry with the same filters, end and no start, which searches all history. Reports who deleted it and when. If the logs show another resource named github-mcp deleted too (for example an application), mentions it as a separate resource.",
       "files": [],
       "expectations": [
         "Takes the action name from get_audit_log_actions instead of guessing",
-        "Sets start and end on every get_audit_logs call",
+        "Sets start and end on every get_audit_logs call, except one retry with only end after a window found nothing",
         {
           "text": "Reports the subject and time of the delete",
           "critical": true
@@ -1178,9 +1179,10 @@
       "expectations": [
         "Takes the total cost and failures from an ungrouped query, not from adding grouped rows",
         {
-          "text": "Every number in the reply appears in the program output; sums, shares or percentages worked out in the reply count as a failure",
+          "text": "Every number in the reply is right: printed by the program, or following exactly from numbers it printed",
           "critical": true
         },
+        "Sums, shares and percentages come from the program's output, not worked out in the reply",
         "Does not add realModelMetrics rows into virtual model totals",
         "States the window used; if 'last week' was read as the last 7 days, says so"
       ],
