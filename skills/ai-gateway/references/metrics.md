@@ -24,8 +24,8 @@ rows = r["data"]["dataPoints"]
 
 - `filters` and `filterPredicate` are always lists of `{fieldName, operator, value}`. Batch independent queries with `asyncio.gather` (sandbox timeout 60s).
 - Build requests from this file; never call `get_tool_info` on this tool. A 400 names the wrong field.
-- Print the top 10–20 rows.
-- **Totals.** Print headline totals (requests, cost, tokens, failures) from a `groupBy: []` query in the same program; grouped rows double count teams and virtual → real models. Quote only numbers the program printed, % and shares too; add a missing one to the program, never the reply.
+- Print the top 10–20 rows, sorted on what the question ranks by, plus an `other` row for the rest and the null-name row (failed before routing), so rows add up to the total.
+- **Totals.** Print headline totals (requests, cost, tokens, failures) from a `groupBy: []` query in the same program; grouped rows double count teams and virtual → real models. Quote only what the program printed — numbers, %, shares, rankings ("highest") and absences ("none": print the 0) — never estimates; add what's missing to the program.
 
 ### Datasources
 
@@ -45,7 +45,7 @@ Virtual model → real model breakdown: `realModelMetrics` grouped by `virtualMo
 ### Request rules
 
 - **Scope.** "My", "I" or "me" means filter `userEmail EQUAL <session email>` on every query, the totals query included. No session email (a virtual account): ask whose data first.
-- **Time.** Get `get_current_datetime` before building the window, never alongside the query. `startTs`/`endTs` are ISO 8601, both inclusive; without an offset they are UTC and must share the same offset. Default to the last 7 days when no window is given; state the window in the answer.
+- **Time.** `get_current_datetime` first, never in the query's batch. `startTs`/`endTs` are ISO 8601, both inclusive; without an offset they are UTC and must share the same offset. Default to the last 7 days when no window is given; state the window in the answer.
 - **`type`.** `distribution` returns one row per group over the window. `timeseries` adds buckets: set `interval` (`"1 hour"`, `"1 day"`, one unit) when asked for granularity; else the server picks from the window. Buckets start at `startTs` (UTC midnight/hour for daily/hourly). Empty buckets: `total: 0`, null groups.
 - **Counting requests.** Every row has `total` (row count = request count). `count` on a column skips NULLs (`count` of `costInUSD` skips calls without cost).
 - **Conditional counts.** A `filterPredicate` on an aggregation counts a subset in the same query (`failures` above). Aliases must be unique.
@@ -54,7 +54,6 @@ Virtual model → real model breakdown: `realModelMetrics` grouped by `virtualMo
 - **Rate types** (`ratePerMinute`, `rateSum`, `rateAvg`, `rateMin`, `rateMax`) need `type: timeseries`. `createdAt` takes only `min` and `max`.
 - **Present values.** "Has a value" is `NOT_IN [""]`. Add `modelName NOT_IN [""]` to model queries, `agentName NOT_IN [""]` to agent queries, `mcpServerName NOT_IN [""]` when grouping MCP by server — **except failure counts** (pre-routing failures have no name; the filter drops them).
 - **Operators.** `isFailure`, `traceId`, `configType`, `status`: only `EQUAL`. `cacheType`, `requestedModel`, `targetModel`, `ratelimitRuleId`, `budgetRuleId`: only `IN`/`NOT_IN`. OR groups on model datasources only.
-- Never send `exportFormat`.
 
 ### Who: users, keys, teams, metadata
 
@@ -95,10 +94,10 @@ Shown as `datasource` · `groupBy` · aggregations · filters.
 - **Provider prompt cache** — `realModelMetrics` · `sum cacheReadInputTokens`, `sum cacheCreationInputTokens`, `sum inputTokens`; print cached share = read / input.
 - **Gateway cache** — `cacheMetrics` · `["cacheType"]` (`exact-match`/`semantic`) · `avg cacheHitFlag` (hit %), `sum potentialCostSavings` ([how savings are computed](https://www.truefoundry.com/docs/ai-gateway/cost-savings#how-each-figure-is-calculated)). Group by `cacheLookupStatus` only to count `hit`/`miss`/`error`; it makes each row's hit % 0 or 100. No row for a type = no lookups, not 0%.
 - **MCP** — `mcpMetrics` · `["mcpServerName","toolName"]` · filter `method IN ["tools/call"]` · `p95 latencyMs`; failures = `count method` with `filterPredicate isToolCallFailure EQUAL true` (`isFailure` misses tool execution errors).
-- **Guardrails** — `guardrailMetrics` · `["guardrailName","guardrailResult"]` · `guardrailName NOT_EQUAL ""`. Per guardrail, report blocked (`flag`), flagged in audit mode (`audit_mode_flag`), mutated (`mutation`) and failed to run (`error`, `ignored_error`) separately, 0 when absent; say which you count as failed. Meanings: [guardrail result values](https://www.truefoundry.com/docs/ai-gateway/fetch-request-logs-span-attributes#guardrail-result-values). Not `guardrailResultCategory`: its `allowed` includes `error` and `ignored_error`. Per policy: `guardrailPolicyMetrics` · `["policyName"]`.
-- **Rate-limit and budget blocks** — `configMetrics` · filter `configType EQUAL ratelimit` (or `budget`) · `["ratelimitRuleId","configResultCategory"]` (or `budgetRuleId`); rule in `ruleId`, outcome `allowed`/`blocked`. Who was blocked: add `userEmail` and `virtualaccount`. `status` is `blocked` on blocked rows, `all_model_failed` when every load-balancing target failed, NULL otherwise.
-- **Load balancing** — `configMetrics` · filter `configType EQUAL loadbalance` · `["loadbalanceRuleId","requestedModel","targetModel"]` (target in `model`, NULL when all targets failed) · `p95 loadbalanceTargetAttemptCount`.
-- **Agents** — `agentMetrics` · `["agentName"]` · `agentName NOT_IN [""]` · `count isFailure` with `filterPredicate isFailure EQUAL true`, `p50`/`p95 latencyMs`. Null `agentName` = pre-routing.
+- **Guardrails** — `guardrailMetrics` · `["guardrailName","guardrailResult"]` · `guardrailName NOT_EQUAL ""`. Per guardrail, print and report blocked (`flag`), flagged in audit mode (`audit_mode_flag`), mutated (`mutation`) and failed to run (`error`, `ignored_error`) separately, 0 when absent; say which you count as failed. Meanings: [guardrail result values](https://www.truefoundry.com/docs/ai-gateway/fetch-request-logs-span-attributes#guardrail-result-values). Not `guardrailResultCategory`: its `allowed` includes `error` and `ignored_error`. Per policy: `guardrailPolicyMetrics` · `["policyName"]`.
+- **Rate-limit and budget blocks** — `configMetrics` · filter `configType EQUAL ratelimit` (or `budget`) · `["ratelimitRuleId","configResultCategory"]` (or `budgetRuleId`); rule in `ruleId`, outcome `allowed`/`blocked`. Who was blocked: add `userEmail` and `virtualaccount`.
+- **Load balancing** — `configMetrics` · filter `configType EQUAL loadbalance` · `["loadbalanceRuleId","requestedModel","targetModel"]` · `p95 loadbalanceTargetAttemptCount`.
+- **Agents** — `agentMetrics` · `["agentName"]` · `agentName NOT_IN [""]` · `count isFailure` with `filterPredicate isFailure EQUAL true`, `p50`/`p95 latencyMs`.
 
 ### Not here
 
@@ -113,4 +112,4 @@ Shown as `datasource` · `groupBy` · aggregations · filters.
 
 - [ ] "My"/"I"/"me" → `userEmail` on every query including totals; failure counts omit name `NOT_IN [""]`.
 - [ ] Request count from `total`; latency as percentiles; flags with `avg` only.
-- [ ] Numbers and % from program output; window stated; empty → data-access.
+- [ ] Numbers, %, rankings and "none" from program output; window stated; Metrics page linked; empty → data-access.
