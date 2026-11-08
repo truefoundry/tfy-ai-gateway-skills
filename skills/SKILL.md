@@ -47,7 +47,7 @@ Every create, update and delete goes through a manifest tool, which asks the use
 
 ## Ambiguous references
 
-- **"My", "I", "mine"** mean the current user, not the tenant. Filter by their identity: `userEmail` on gateway metrics, `TfyCreatedBySubjectSlug` on traces, owner filters for deployments.
+- **"My", "I", "mine"** mean the current user, not the tenant. Filter by their identity: `userEmail` on gateway metrics, `TfyCreatedBySubjectSlug` on traces, owner filters for deployments. Nothing found: say so; never drop the filter.
 - **Entity names** are often partial or misspelt. Look the entity up before saying it doesn't exist. If the one named doesn't exist, say so; never act on a similar one. If several match (an application is workspace plus name), list them and ask, then name the one chosen in your answer.
 - **"Application", "app", "use case"** in a Gateway context means a virtual account (occasionally an `x-tfy-metadata` key).
 - **"API key", "token"**: present both a personal access token (tied to a user) and a virtual account token (for production); see `ai-gateway/references/access-management.md`.
@@ -102,7 +102,7 @@ Files are under `ai-engineering/references/`. Read the file for what you are abo
 | **Anything about a deployed application** — logs, events, metrics, health, crashes, Pending pods, stuck rollout, broken model server, what changed | `troubleshooting.md` — before any read tool (empty ≠ healthy; the tool may not see) |
 | `volume`, `workflow`, `spark-job`, `application-set`, ML repos, model registry | No file — work from `get_manifest_json_schema` and `search_docs`, and say so |
 
-- `redis`, `postgres`, `kafka` and similar exist as both an image and a chart; they are not interchangeable (a chart brings persistence and replication). Ask which, never infer from the name.
+- `redis`, `postgres`, `kafka` and similar exist as both an image and a chart; they are not interchangeable. Ask which, never infer from the name.
 - Docs: [applications](https://www.truefoundry.com/docs/introduction-to-a-service) · [repositories](https://www.truefoundry.com/docs/platform/repositories) · [monitoring](https://www.truefoundry.com/docs/monitor-your-service)
 
 ## Before you respond

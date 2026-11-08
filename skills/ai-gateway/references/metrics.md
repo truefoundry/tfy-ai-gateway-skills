@@ -24,8 +24,8 @@ rows = r["data"]["dataPoints"]
 
 - `filters` and `filterPredicate` are always lists of `{fieldName, operator, value}`. Batch independent queries with `asyncio.gather` (sandbox timeout 60s).
 - Build requests from this file; never call `get_tool_info` on this tool. A 400 names the wrong field.
-- Print the top 10–20 rows, sorted on what the question ranks by, plus an `other` row (count, sums) for the rest and the null-name row (failed before routing), so rows add up to the total.
-- **Totals.** Print headline totals (requests, cost, tokens, failures) from a `groupBy: []` query in the same program; grouped rows double count teams and virtual → real models. Quote only what the program printed — numbers, %, shares, rankings ("highest") and absences ("none": print the 0) — never estimates; add what's missing to the program.
+- Print the top 10–20 rows, sorted on what the question ranks by, plus an `other` row (count, sums) for the rest and the null-name row (failed before routing).
+- **Totals.** Print headline totals (requests, cost, tokens, failures) from a `groupBy: []` query in the same program; grouped rows double count teams and virtual → real models. Quote only numbers the program printed, % and shares too; add a missing one to the program, never the reply.
 
 ### Datasources
 
@@ -112,4 +112,4 @@ Shown as `datasource` · `groupBy` · aggregations · filters.
 
 - [ ] "My"/"I"/"me" → `userEmail` on every query including totals; failure counts omit name `NOT_IN [""]`.
 - [ ] Request count from `total`; latency as percentiles; flags with `avg` only.
-- [ ] Numbers, %, rankings and "none" from program output; window stated; Metrics page linked; empty → data-access.
+- [ ] Numbers and % from program output; window stated; Metrics page linked; empty → data-access.
