@@ -1015,12 +1015,12 @@
     {
       "id": 55,
       "prompt": "Who are the tenant admins here?",
-      "expected_output": "Calls list_grants with resourceType tenant and resourceId the tenant name, and lists the subjects whose roleId is tenant-admin, with their subjectType.",
+      "expected_output": "Calls list_grants with resourceType tenant and resourceId the tenant name, pages through every row, and names the subjects whose roleId is tenant-admin by subjectType. A list over ~30 holders gives counts by type in the reply and the complete list in an attached sandbox file.",
       "files": [],
       "expectations": [
-        "Uses list_grants on the tenant",
+        "Uses list_grants on the tenant and pages until every row is read",
         {
-          "text": "Lists only tenant-admin holders, including teams or virtual accounts if any",
+          "text": "Names every tenant-admin holder, teams and virtual accounts included, and no one without the role: in the reply, or for a long list in an attached file whose writing command (in the transcript) includes every subject type; a few examples in place of the list is a fail",
           "critical": true
         }
       ],

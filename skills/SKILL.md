@@ -12,7 +12,7 @@ TrueFoundry has two independent products; a customer may use either alone.
 
 ## How to use this skill
 
-1. Read this whole file first (`cat`, never `head`): the intent tables run to its end. Decide which product the question is about.
+1. Read this whole file first: the intent tables run to its end. Decide which product the question is about.
 2. Find the intent in that product's table and read the named file(s). Read every needed file in **one batch** with your first other calls: one full `cat` each (never `head`/grep — rules are spread through). A result over 24,000 chars is saved to a file; keep a batch under ~35,000 chars.
 3. Follow that file. It says what to fetch, what to ask, and what to build.
 
@@ -26,6 +26,7 @@ Read an entity's file before any write or data query — it holds rules tool err
 - **Real URLs only.** Never show a placeholder like `{controlPlaneUrl}` or say you lack the URL: get it as above. `controlPlaneUrl` builds UI links. Gateway base URL (API calls, SDK `baseURL`, MCP endpoints): `manifest.url` from `list_gateway_installations`, of the `isDefault` one if `manifest.enabled`, else an enabled one, unless the user names another.
 - **Tool arguments.** Send only parameters in the tool's input schema; filters differ between list tools. `list_provider_accounts` has no name filter: list, then match `name` yourself. `list_mcp_servers`: filter per `mcp-servers.md`; `attributes` has no `manifest`. Never send a `null`, empty or guessed ID, or repeat a call whose result you have. If a few rounds haven't settled it, answer with what you found and what is unknown.
 - **Sandbox scripts.** Never name a sandbox file after a stdlib module (`csv.py`, `json.py`) — it shadows the import. Any field in tool data can be null: read `r.get(k) or ""` / `or 0`, never `r[k]`.
+- **Long lists.** Over ~30 items: counts in the reply, plus the full list in an attached sandbox file (`sandbox_artifacts`); never a few examples instead.
 - **Tool errors.** If a platform tool fails, tell the user the error and what it blocks. Never work around it via env vars, process files, the MCP client, raw HTTP, or other credentials.
 - **FQNs.** Never construct one. Tenant FQN is `tenantName`; otherwise list the entity and use its `fqn`. Grant wildcard `model-provider-accounts:*` is a fixed string.
 - **Can't answer** → read `references/support-tickets.md` and follow it, instead of suggesting the user contact someone.
@@ -107,6 +108,6 @@ Files are under `ai-engineering/references/`. Read the file for what you are abo
 ## Before you respond
 
 - [ ] Every URL uses real values from the session context or `list_gateway_installations`.
-- [ ] Every cause and number comes from tool output or a doc; when the data doesn't show the cause, I said it's unknown instead of naming a likely one.
+- [ ] Every cause and number comes from tool output or a doc; a cause the data doesn't show is "unknown", not a likely one.
 - [ ] Gateway writes: validated before applying, no `collaborators` in the manifest, access granted with `create_grants` after a create, UI link shown.
-- [ ] AI Engineering: identified app type; started a model from `get_model_deployment_specs`; read pod state and real logs/events instead of trusting `DEPLOY_SUCCESS`; edited from the live manifest; printed links per `ai-engineering/references/deployment-links.md`.
+- [ ] AI Engineering: identified app type; started a model from `get_model_deployment_specs`; read pod state and real logs/events instead of trusting `DEPLOY_SUCCESS`; edited from the live manifest; printed links per `deployment-links.md`.

@@ -27,9 +27,9 @@ For "who changed X" on a resource you can look up, call `get_resource_audit_logs
 
 These steps are for `get_audit_logs` (what someone did, a count, an action across the tenant, a deleted resource).
 
-"Who deleted X": `get_audit_log_actions`, then `get_audit_logs` with `resourceName` and only the `DELETE_` actions for X's type (an MCP server: the MCP server and provider integration deletes), `start` and `end` set. Don't list every event for the name instead, or check which resources exist now. Nothing in the window: widen it once and say so.
+"Who deleted X": `get_audit_log_actions`, then `get_audit_logs` with `resourceName` and only the `DELETE_` actions for X's type (an MCP server: the MCP server and provider integration deletes), `start` and `end` set. Don't list every event for the name instead, or check which resources exist now. Nothing in the window: the full-history retry in step 1.
 
-1. Get `get_current_datetime`'s result, then always set `start` and `end` (ISO 8601). If the user gave no range, use the last 7 days and say so. Do the same for `get_resource_audit_logs`.
+1. Get `get_current_datetime`'s result, then always set `start` and `end` (ISO 8601). If the user gave no range, use the last 7 days and say so. Do the same for `get_resource_audit_logs`. One exception: when you look for a single event on a named resource (who created, changed or deleted X) and the window has none, repeat the call once with the same filters, `end` and no `start`. That searches all history, which the narrow filters keep fast; say how far back the entry is.
 2. Filter with the most specific fields you have:
    - `resourceType` with `resourceName` (or `resourceFqn`, `resourceId`) when the resource tool does not apply. Virtual accounts and personal access tokens are `service-account`; ML repos are `mlf-project`. Legacy remote MCP servers are `provider-integration` (deleted with `DELETE_PROVIDER_INTEGRATION`), so for a deleted MCP server pass `resourceName` with both delete actions and no `resourceType`. If other resources with the same name show up, name them as separate resources. A grant or revoke is filed under the resource it is on (`tenant` for tenant roles).
    - `subjectSlug` for "what did Y do": an email, or a virtual account name.
