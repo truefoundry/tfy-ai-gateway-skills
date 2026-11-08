@@ -61,6 +61,11 @@ SECRET_REFUSAL = "No secret will be provided. Continue without it and tell the u
 
 # TrueForge ends a turn that hits its iteration cap with this text as the answer.
 STEP_LIMIT_MARKER = "you have reached iteration limit of"
+# The harness tells the agent to hand files over as ```sandbox_artifacts\n[label](/abs/path)\n```.
+ARTIFACTS_BLOCK = re.compile(r"```sandbox_artifacts\s*\n(.*?)```", re.DOTALL)
+ARTIFACT_LINK = re.compile(r"\[([^\]]*)\]\(([^)\s]+)\)")
+MAX_ATTACHMENTS = 3
+ATTACHMENT_MAX_CHARS = 15_000
 NOT_IN_TOOL_MAPPING = "not found in tool mapping"
 
 # `failure` says whose fault a run that did not finish cleanly was. `agent:*` is the agent's
@@ -101,6 +106,9 @@ class AgentRun:
     # What the agent told the user before its final answer. The user reads these too, so a fact
     # or a warning given only there still counts, and a wrong one is still wrong.
     interim_messages: list[str] = field(default_factory=list)
+    # Files the answer attached in a sandbox_artifacts block, downloaded when the run ended. The
+    # user gets their contents, so the judge must too.
+    attachments: list[dict] = field(default_factory=list)
     replies: dict[str, str] = field(default_factory=dict)
     approvals_granted: list[str] = field(default_factory=list)
     # Tool call ids that were put to the user, approved or denied.
@@ -133,6 +141,7 @@ class AgentRun:
             "secrets_requested": self.secrets_requested,
             "exchanges": self.exchanges,
             "interim_messages": self.interim_messages,
+            "attachments": self.attachments,
             "approvals_granted": self.approvals_granted,
             "earlier_attempts": [
                 {"status": a.status, "failure": a.failure, "error": a.error, "session_id": a.session_id,
@@ -553,8 +562,31 @@ def run_question(
         run.error = f"{type(exc).__name__}: {exc}"
 
     run.interim_messages = interim_messages(run.transcript, run.answer)
+    if run.status == "done" and run.session_id and run.turn_ids:
+        run.attachments = download_attachments(client, run.session_id, run.turn_ids[-1], run.answer)
     run.duration_s = time.monotonic() - started
     return run
+
+
+def attachment_links(answer: str) -> list[tuple[str, str]]:
+    """(label, path) for every file the answer attached in a sandbox_artifacts block."""
+    return [link for block in ARTIFACTS_BLOCK.findall(answer) for link in ARTIFACT_LINK.findall(block)]
+
+
+def download_attachments(client: TrueForge, session_id: str, turn_id: str, answer: str) -> list[dict]:
+    """The attached files' text, each cut to ATTACHMENT_MAX_CHARS; a failed download says why."""
+    files = []
+    for label, path in attachment_links(answer)[:MAX_ATTACHMENTS]:
+        entry: dict[str, Any] = {"label": label, "path": path}
+        try:
+            data = b"".join(client.sessions.download_sandbox_file(session_id=session_id, turn_id=turn_id, path=path))
+            text = data.decode("utf-8", errors="replace")
+            entry |= {"content": text[:ATTACHMENT_MAX_CHARS], "chars": len(text),
+                      "truncated": len(text) > ATTACHMENT_MAX_CHARS}
+        except Exception as exc:  # noqa: BLE001 - a file we cannot read is reported, not fatal
+            entry["error"] = f"{type(exc).__name__}: {str(exc)[:200]}"
+        files.append(entry)
+    return files
 
 
 def _stream_turn(
