@@ -32,7 +32,7 @@ rows = r["data"]["dataPoints"]
 | Question about | `datasource` |
 | --- | --- |
 | Model calls: cost, tokens, latency, TTFT, errors, prompt-cache, per real model | `realModelMetrics` |
-| Per virtual model (no real-model or gateway-cache columns) | `virtualModelMetrics` |
+| Per virtual model | `virtualModelMetrics` |
 | Gateway cache (exact-match / semantic): hit rate, savings | `cacheMetrics` |
 | MCP calls and tool calls | `mcpMetrics` |
 | Guardrail checks | `guardrailMetrics` (`guardrailPolicyMetrics` per policy) |
@@ -78,7 +78,7 @@ Each point has `total`, each aggregation under its `alias` (default `<type><Colu
 | `targetModel` | `model` |
 | `providerAccountType`, `modelName`, `providerModelName` | same name |
 
-Failures before routing leave group values null — models: `providerAccountType`/`modelName` (not found, forbidden, rate-limited); agents: `agentName`; load-balance: `targetModel` (key `model`) when every target failed. Read groups with `p.get(k) or ""` and numbers with `p.get(alias) or 0`. Explain with a second failure query — models/agents: `groupBy ["errorDisplayLabel"]` + `isFailure EQUAL true` (`errorType` is a filter only, never group-by); MCP tool failures: `toolErrorDisplayLabel` + `isToolCallFailure`. Run it; don't guess.
+Failures before routing leave group values null — models: `providerAccountType`/`modelName` (not found, forbidden, rate-limited); agents: `agentName`; load-balance: `targetModel` (key `model`) when every target failed. Explain with a second failure query — models/agents: `groupBy ["errorDisplayLabel"]` + `isFailure EQUAL true` (`errorType` is a filter only, never group-by); MCP tool failures: `toolErrorDisplayLabel` + `isToolCallFailure`. Run it; don't guess.
 
 Data-access rules filter every query; with no matching rule it returns nothing. An empty or small result can mean no access: say so and link `{controlPlaneUrl}/access-management?tab=data-access` ([data access](https://www.truefoundry.com/docs/ai-gateway/data-access)).
 
@@ -87,17 +87,18 @@ Data-access rules filter every query; with no matching rule it returns nothing. 
 Shown as `datasource` · `groupBy` · aggregations · filters.
 
 - **Spend, requests, tokens** — `realModelMetrics` · `[]` or `["modelName"]` · `sum costInUSD`, `sum inputTokens`, `sum outputTokens`; requests = `total` · `modelName NOT_IN [""]`. Cost: [cost tracking](https://www.truefoundry.com/docs/ai-gateway/cost-tracking#how-cost-is-calculated).
+- **Per virtual model** — `virtualModelMetrics` · `["virtualModel"]` · `sum costInUSD`; failures = `count modelName` with `filterPredicate isFailure EQUAL true`. Not `realModelMetrics`: it counts each real call (retries, fallbacks).
 - **By provider and model** — `realModelMetrics` · `["providerAccountType","modelName"]` · `sum costInUSD`, `sum inputTokens`, `sum outputTokens`; requests = `total`. Keys `providerAccountType`, `modelName` (nullable — see Reading results).
-- **Errors** — `realModelMetrics` · `["modelName"]` · `count modelName` with `filterPredicate isFailure EQUAL true`; print error % = failures / `total`. Reasons: `groupBy ["errorDisplayLabel"]` + `isFailure EQUAL true`. Not found vs forbidden: filter `errorType IN ["tfy-model-not-found"]` or `["tfy-forbidden"]`, never `errorCode` ([why](https://www.truefoundry.com/docs/ai-gateway/fetch-request-logs-span-attributes#authorization-vs-missing-model)).
+- **Errors** — `realModelMetrics` · `["modelName"]` · `count modelName` with `filterPredicate isFailure EQUAL true`; print error % = failures / `total`. Not found vs forbidden: filter `errorType IN ["tfy-model-not-found"]` or `["tfy-forbidden"]`, never `errorCode` ([why](https://www.truefoundry.com/docs/ai-gateway/fetch-request-logs-span-attributes#authorization-vs-missing-model)).
 - **Latency** — `realModelMetrics` · `["modelName"]` · `p50`/`p95`/`p99 latencyMs`, `p95 timeToFirstTokenMs` · `modelName NOT_IN [""]`.
 - **One request's totals** — `realModelMetrics` · `[]` · `sum costInUSD`, `sum inputTokens`, `sum outputTokens` · `traceId EQUAL <id>`, window from 5 minutes before the request to 5 minutes after it ends.
 - **Provider prompt cache** — `realModelMetrics` · `sum cacheReadInputTokens`, `sum cacheCreationInputTokens`, `sum inputTokens`; print cached share = read / input.
 - **Gateway cache** — `cacheMetrics` · `["cacheType"]` (`exact-match`/`semantic`) · `avg cacheHitFlag` (hit %), `sum potentialCostSavings` ([how savings are computed](https://www.truefoundry.com/docs/ai-gateway/cost-savings#how-each-figure-is-calculated)). Group by `cacheLookupStatus` only to count `hit`/`miss`/`error`; it makes each row's hit % 0 or 100. No row for a type = no lookups, not 0%.
-- **MCP** — `mcpMetrics` · `["mcpServerName","toolName"]` · filter `method IN ["tools/call"]` · `p95 latencyMs`; failures = `count method` with `filterPredicate isToolCallFailure EQUAL true` (`isFailure` misses tool execution errors). Reasons: `groupBy ["toolErrorDisplayLabel"]`.
+- **MCP** — `mcpMetrics` · `["mcpServerName","toolName"]` · filter `method IN ["tools/call"]` · `p95 latencyMs`; failures = `count method` with `filterPredicate isToolCallFailure EQUAL true` (`isFailure` misses tool execution errors).
 - **Guardrails** — `guardrailMetrics` · `["guardrailName","guardrailResult"]` · `guardrailName NOT_EQUAL ""`. Per guardrail, report blocked (`flag`), flagged in audit mode (`audit_mode_flag`), mutated (`mutation`) and failed to run (`error`, `ignored_error`) separately, 0 when absent; say which you count as failed. Meanings: [guardrail result values](https://www.truefoundry.com/docs/ai-gateway/fetch-request-logs-span-attributes#guardrail-result-values). Not `guardrailResultCategory`: its `allowed` includes `error` and `ignored_error`. Per policy: `guardrailPolicyMetrics` · `["policyName"]`.
 - **Rate-limit and budget blocks** — `configMetrics` · filter `configType EQUAL ratelimit` (or `budget`) · `["ratelimitRuleId","configResultCategory"]` (or `budgetRuleId`); rule in `ruleId`, outcome `allowed`/`blocked`. Who was blocked: add `userEmail` and `virtualaccount`. `status` is `blocked` on blocked rows, `all_model_failed` when every load-balancing target failed, NULL otherwise.
 - **Load balancing** — `configMetrics` · filter `configType EQUAL loadbalance` · `["loadbalanceRuleId","requestedModel","targetModel"]` (target in `model`, NULL when all targets failed) · `p95 loadbalanceTargetAttemptCount`.
-- **Agents** — `agentMetrics` · `["agentName"]` · `agentName NOT_IN [""]` · `count isFailure` with `filterPredicate isFailure EQUAL true`, `p50`/`p95 latencyMs`. Null `agentName` = pre-routing — see Reading results.
+- **Agents** — `agentMetrics` · `["agentName"]` · `agentName NOT_IN [""]` · `count isFailure` with `filterPredicate isFailure EQUAL true`, `p50`/`p95 latencyMs`. Null `agentName` = pre-routing.
 
 ### Not here
 
