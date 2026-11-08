@@ -20,13 +20,13 @@ Read an entity's file before any write or data query — it holds rules tool err
 
 ## Ground rules
 
-- **Live state over memory.** The platform outpaces your training data, and tenants differ. Fetch state with tools before answering; if the docs don't confirm something, say so. Dates too: call `get_current_datetime` before building a time range.
+- **Live state over memory.** The platform outpaces your training data. Fetch state with tools before answering; if the docs don't confirm something, say so. Dates too: call `get_current_datetime` before building a time range.
 - **Docs.** `search_docs` finds pages; `get_page_layout` shows headings; `get_section_content` returns a page or `#section`. Fetch only URLs/anchors from those tools or this skill. Search before saying a topic is uncovered. Link the doc and summarize only what the question needs; don't volunteer best practices.
 - **Session context** (identity, tenant, `controlPlaneUrl`, `tracesTable`): from "Session context" in your instructions, else call `get_session_context` once and reuse it.
 - **Real URLs only.** Never show a placeholder like `{controlPlaneUrl}` or say you lack the URL: get it as above. `controlPlaneUrl` builds UI links. Gateway base URL (API calls, SDK `baseURL`, MCP endpoints): `manifest.url` from `list_gateway_installations`, of the `isDefault` one if `manifest.enabled`, else an enabled one, unless the user names another.
 - **Tool arguments.** Send only parameters in the tool's input schema; filters differ between list tools. `list_provider_accounts` has no name filter: list, then match `name` yourself. `list_mcp_servers`: filter per `mcp-servers.md`; `attributes` has no `manifest`. Never send a `null`, empty or guessed ID, or repeat a call whose result you have. If a few rounds haven't settled it, answer with what you found and what is unknown.
 - **Sandbox scripts.** Never name a sandbox file after a stdlib module (`csv.py`, `json.py`) — it shadows the import. Any field in tool data can be null: read `r.get(k) or ""` / `or 0`, never `r[k]`.
-- **Long lists.** Over ~30 items: counts in the reply, plus the full list in an attached sandbox file (`sandbox_artifacts`); never a few examples instead.
+- **Long lists.** Over ~30 items: attach the full list as a file (see "File outputs"); the reply gives totals, by type if the items have one. Never a few examples instead.
 - **Tool errors.** If a platform tool fails, tell the user the error and what it blocks. Never work around it via env vars, process files, the MCP client, raw HTTP, or other credentials.
 - **FQNs.** Never construct one. Tenant FQN is `tenantName`; otherwise list the entity and use its `fqn`. Grant wildcard `model-provider-accounts:*` is a fixed string.
 - **Can't answer** → read `references/support-tickets.md` and follow it, instead of suggesting the user contact someone.
@@ -37,7 +37,7 @@ Every create, update and delete goes through a manifest tool, which asks the use
 
 - The reference file and `get_manifest_json_schema` are a write's contract: don't `search_docs` during it. Cite a doc page in the reply only.
 - `validate_manifest`, `apply_manifest` and `delete_manifest` take `{"manifest": {...}}`. Reference files show YAML; send JSON.
-- Call `validate_manifest` directly; for a manifest too large to write inline, validate it from a sandbox file. Fix and re-validate until `valid: true`, then call `apply_manifest` once, directly, with the validated JSON — never in the same batch as validation.
+- Call `validate_manifest` directly; for a manifest too large to write inline, validate it from a sandbox file. Fix and re-validate until `valid: true`, then call `apply_manifest` once with the validated JSON — never in the same batch as validation.
 - `delete_manifest` needs `type` and `name`, plus `workspace_fqn` for applications and `cluster_fqn` for workspaces. Legacy singletons need only `type`.
 - Applying an existing identity **replaces the whole entity**, and several list fields replace everything on update (team members, integrations, rules). Change a live entity by fetching its current manifest and editing it, never by rebuilding it.
 - Grant access only with the grant tools (`list_grants`, `create_grants`, `revoke_grant`), never in a manifest: remove `collaborators`, `authorized_subjects` and a VA's `permissions` before every apply, on create too.
@@ -61,7 +61,7 @@ Files are under `ai-gateway/references/`. **For any create, update or delete, al
 
 | The user wants to… | Read |
 | --- | --- |
-| Create or add a provider account (OpenAI, Bedrock, Azure, Vertex, …), add all or some models, add or remove models, ask whether a model or provider is supported, set model pricing | `models.md` |
+| Create or add a provider account (OpenAI, Bedrock, Azure, Vertex, …), add or remove some or all models, ask whether a model or provider is supported, set model pricing | `models.md` |
 | Route, fall back or load-balance across models | `virtual-models.md` (`load-balancing.md` only for the deprecated policy) |
 | Add, connect or troubleshoot an MCP server or virtual MCP server | `mcp-servers.md` |
 | Guardrails — PII, content safety, prompt injection; guardrail groups or policies | `guardrails.md` |
@@ -109,5 +109,5 @@ Files are under `ai-engineering/references/`. Read the file for what you are abo
 
 - [ ] Every URL uses real values from the session context or `list_gateway_installations`.
 - [ ] Every cause and number comes from tool output or a doc; a cause the data doesn't show is "unknown", not a likely one.
-- [ ] Gateway writes: validated before applying, no `collaborators` in the manifest, access granted with `create_grants` after a create, UI link shown.
+- [ ] Gateway writes: validated before applying, no grant fields in the manifest, grants created after a create, UI link shown.
 - [ ] AI Engineering: identified app type; started a model from `get_model_deployment_specs`; read pod state and real logs/events instead of trusting `DEPLOY_SUCCESS`; edited from the live manifest; printed links per `deployment-links.md`.

@@ -171,6 +171,12 @@ Reading the EARLIER AGENT MESSAGES section:
   there is met, and a wrong statement there counts as if it were in the answer. Where they
   disagree, the later statement is the agent's final word.
 
+Reading the FILES ATTACHED TO THE ANSWER section:
+- These are the files the answer handed to the user, as downloaded. Their contents are part
+  of the answer: a list or table the claims ask for is met if the file has it complete, and
+  wrong data in a file counts as if it were in the reply. A file that is cut or could not be
+  downloaded proves only what is shown; don't assume the rest.
+
 Reading the USER REPLIES section:
 - When the agent asked the user something, the user's answer is listed there. The agent
   did receive it, even where an ask_user_question result looks empty or cut short. A
@@ -232,6 +238,13 @@ INTERIM_SECTION = """\
 
 EARLIER AGENT MESSAGES (what the agent told the user before the answer, in order)
 {messages}
+"""
+
+ATTACHMENTS_SECTION = """\
+
+FILES ATTACHED TO THE ANSWER (the user downloads these, so their contents are part of the answer; \
+grade a list or table in a file as if it were in the reply)
+{files}
 """
 
 EXCHANGES_SECTION = """\
@@ -465,6 +478,14 @@ def decide_verdict(
     return "incorrect"
 
 
+def _attachment_text(file: dict) -> str:
+    head = f"--- {file.get('label') or file['path']} ({file['path']})"
+    if file.get("error"):
+        return f"{head}: could not be downloaded ({file['error']}), so its contents are unknown"
+    cut = f"\n[cut: first {len(file['content'])} of {file['chars']} characters]" if file.get("truncated") else ""
+    return f"{head}\n{file['content']}{cut}"
+
+
 def build_prompt(
     *,
     question: str,
@@ -474,10 +495,13 @@ def build_prompt(
     tool_calls: list[str] | None = None,
     exchanges: list[dict] | None = None,
     interim: list[str] | None = None,
+    attachments: list[dict] | None = None,
 ) -> str:
     prompt = PROMPT_TEMPLATE.format(question=question, expected=expected, candidate=candidate)
     if interim:
         prompt += INTERIM_SECTION.format(messages="\n".join(f"- {message}" for message in interim))
+    if attachments:
+        prompt += ATTACHMENTS_SECTION.format(files="\n\n".join(_attachment_text(f) for f in attachments))
     if exchanges:
         prompt += EXCHANGES_SECTION.format(
             exchanges="\n".join(f"- Asked: {e['asked']}\n  Replied: {e['reply']}" for e in exchanges)
@@ -512,6 +536,7 @@ def grade_one(
     tool_calls: list[str] | None = None,
     exchanges: list[dict] | None = None,
     interim: list[str] | None = None,
+    attachments: list[dict] | None = None,
     pass_threshold: float = 0.7,
     repeats: int = 1,
     reasoning_effort: str | None = None,
@@ -552,6 +577,7 @@ def grade_one(
         tool_calls=tool_calls,
         exchanges=exchanges,
         interim=interim,
+        attachments=attachments,
     )
 
     attempts: list[dict] = []

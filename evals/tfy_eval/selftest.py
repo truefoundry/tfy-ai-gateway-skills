@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import sys
+import types
 from pathlib import Path
 
 from tfy_eval import agent as agent_mod
@@ -442,6 +443,43 @@ interim_prompt = judge.build_prompt(question="q", expected="e", candidate="a", i
 check("the judge sees interim messages", "EARLIER AGENT MESSAGES" in interim_prompt and "- It is paused." in interim_prompt)
 check("no interim section without messages", "EARLIER AGENT MESSAGES" not in judge.build_prompt(
     question="q", expected="e", candidate="a"))
+
+attached_answer = ("170 users hold tenant-admin.\n\n```sandbox_artifacts\n[Tenant admins](/opt/tf/admins.tsv)\n"
+                   "[Big](/opt/tf/big.csv)\n[Gone](/opt/tf/gone.txt)\n```\nAsk if you need more.")
+check("attachment links come from sandbox_artifacts blocks only",
+      agent_mod.attachment_links(attached_answer + "\n[docs](https://x.y)")
+      == [("Tenant admins", "/opt/tf/admins.tsv"), ("Big", "/opt/tf/big.csv"), ("Gone", "/opt/tf/gone.txt")])
+
+
+class _FileSessions:
+    def __init__(self):
+        self.calls: list[tuple[str, str, str]] = []
+
+    def download_sandbox_file(self, *, session_id: str, turn_id: str, path: str):
+        self.calls.append((session_id, turn_id, path))
+        if path.endswith("gone.txt"):
+            raise RuntimeError("404 file not found")
+        body = b"user\ta@x.io\nteam\teng\n" if path.endswith(".tsv") else b"x" * (agent_mod.ATTACHMENT_MAX_CHARS + 5)
+        return iter([body[:7], body[7:]])
+
+
+file_client = types.SimpleNamespace(sessions=_FileSessions())
+files = agent_mod.download_attachments(file_client, "sess", "turn-2", attached_answer)
+check("attached files are downloaded from the answer's turn",
+      file_client.sessions.calls[0] == ("sess", "turn-2", "/opt/tf/admins.tsv") and len(files) == 3)
+check("a file's text is kept whole when short", files[0]["content"] == "user\ta@x.io\nteam\teng\n"
+      and not files[0]["truncated"])
+check("a long file is cut and says so", files[1]["truncated"] and files[1]["chars"] == agent_mod.ATTACHMENT_MAX_CHARS + 5
+      and len(files[1]["content"]) == agent_mod.ATTACHMENT_MAX_CHARS)
+check("a failed download is recorded, not raised", "404" in files[2]["error"] and "content" not in files[2])
+check("no block, no downloads", agent_mod.download_attachments(file_client, "s", "t", "plain answer") == [])
+files_prompt = judge.build_prompt(question="q", expected="e", candidate="a", attachments=files)
+check("the judge sees attached files' contents",
+      "FILES ATTACHED TO THE ANSWER" in files_prompt and "team\teng" in files_prompt)
+check("the judge is told a file was cut or unreadable",
+      f"[cut: first {agent_mod.ATTACHMENT_MAX_CHARS} of" in files_prompt and "could not be downloaded" in files_prompt)
+check("no files section without attachments", "FILES ATTACHED" not in judge.build_prompt(
+    question="q", expected="e", candidate="a", attachments=[]))
 check("sandbox MCP calls are extracted in order",
       sandbox == ["tfy-platform-mcp/list_users", "tfy-platform-mcp/apply_manifest"])
 check("tool_label_name strips args and result", agent_mod.tool_label_name(labels[0]) == "tfy-platform-mcp/create_grants")
