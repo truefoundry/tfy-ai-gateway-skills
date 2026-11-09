@@ -41,7 +41,7 @@ pagination:
 
 Steps 1 and 2 are independent: call `list_mcp_servers` (filtered as above) and `list_mcp_catalogue` in one batch.
 
-- **Match found** (the name, or the same `manifest.url`; call without `attributes` so the URL is there): show it and ask whether to use it as is, update it, or create a new server under a different name, recommending none. If that choice is no longer in the conversation, ask again before applying.
+- **Match found** (the name, or the same `manifest.url`; call without `attributes` so the URL is there): show it and ask whether to use it as is, update it, or create a new server under a different name, recommending none. The catalogue (Step 2) only shapes a new server, so it does not decide this choice. If that choice is no longer in the conversation, ask again before applying.
 - **No match:** continue.
 
 ### Step 2: Check the MCP catalogue
@@ -52,7 +52,7 @@ Steps 1 and 2 are independent: call `list_mcp_servers` (filtered as above) and `
 2. **`integrations`** — known remote servers with a `url` and, optionally, an `auth_data` showing the auth type (`oauth2`, `header` or none). Use Path B.
 3. **Not in the catalogue** — search online. Prefer a remote (HTTP/SSE/streamable) endpoint; fall back to stdio only if none exists. Use Path C. If the user has an OpenAPI spec, use Path D. To combine or subset tools of existing servers, use Path E.
 
-A `tfyManaged` entry wins even when the user gives a URL or an auth method (OAuth, API key): register it with Path A, not as `mcp-server/remote`.
+For a new server, a `tfyManaged` entry wins even when the user gives a URL or an auth method (OAuth, API key): register it with Path A, not as `mcp-server/remote`.
 
 ### Step 3: Build the manifest
 
