@@ -14,6 +14,8 @@ import sys
 import types
 from pathlib import Path
 
+from trueforge_sdk.core.api_error import ApiError
+
 from tfy_eval import agent as agent_mod
 from tfy_eval import dataset as dataset_mod
 from tfy_eval import judge, report
@@ -616,6 +618,100 @@ try:
     check("no scripted reply, no follow-up", len(sent) == 1 and not r.exchanges)
 finally:
     agent_mod._stream_turn = real_stream
+
+
+def _paused(event_id, cost):
+    return _Event(type="turn.update", id=event_id, thread_id=None,
+                  state=_Event(status="paused", metrics={"total_cost_in_usd": cost}))
+
+
+class _PausingSessions(_Sessions):
+    """A turn that pauses on a question, then on an approval, then finishes. Like the server, a
+    subscribe replays the whole turn unless told which event to follow on from."""
+
+    approve = _Call("w1", "apply_manifest", "{}")
+    turn = [
+        _Event(type="turn.created", id="e1", turn_id="t1", thread_id=None),
+        _Event(type="model.message", id="m1", thread_id="main", content="", tool_calls=[ask]),
+        _Event(type="tool.response_required", id="e3", thread_id="main",
+               tool_calls=[_Event(id="q1", source_event_id="m1")]),
+        _paused("e4", 0.01),
+        _Event(type="turn.update", id="e5", thread_id=None, state=_Event(status="running")),
+        _Event(type="model.message", id="m2", thread_id="main", content="", tool_calls=[approve]),
+        _Event(type="tool.approval_required", id="e7", thread_id="main",
+               tool_calls=[_Event(id="w1", source_event_id="m2")]),
+        _paused("e8", 0.02),
+        _Event(type="turn.update", id="e9", thread_id=None, state=_Event(status="running")),
+        _Event(type="turn.done", id="e10", thread_id=None, state=_Event(
+            status="done", output=_Event(content="10 RPS per replica."), metrics={"total_cost_in_usd": 0.03})),
+    ]
+
+    def __init__(self):
+        self.calls = []
+        self.answered = set()
+
+    waits_on = {"e4": "q1", "e8": "w1"}
+
+    def _from(self, after_event_id):
+        ids = [event.id for event in self.turn]
+        start = ids.index(after_event_id) + 1 if after_event_id else 0
+        for event in self.turn[start:]:
+            yield event
+            if self.waits_on.get(event.id, "-") not in self.answered | {"-"}:
+                raise AssertionError("read past a pause")
+
+    def create_turn_stream(self, session_id, input):
+        self.calls.append(("create_turn", input))
+        return self._from(None)
+
+    def create_turn_events(self, session_id, turn_id, events):
+        self.calls.append(("events", turn_id, events))
+        for event in events:
+            if event["tool_call_id"] in self.answered:
+                raise ApiError(status_code=400, body=f"no pending approval for {event['tool_call_id']}")
+            self.answered.add(event["tool_call_id"])
+
+    def subscribe_to_turn(self, session_id, turn_id, after_event_id=None):
+        self.calls.append(("subscribe", turn_id, after_event_id))
+        return self._from(after_event_id)
+
+
+class _PausingClient:
+    def __init__(self):
+        self.sessions = _PausingSessions()
+
+
+print("\npaused turns")
+c = _PausingClient()
+r = agent_mod.run_question(c, {}, "q", question_id="q", clarification_reply="10 per replica")
+kinds = [call[0] for call in c.sessions.calls]
+check("a paused turn is answered on the same turn, not a new one",
+      kinds == ["create_turn", "events", "subscribe", "events", "subscribe"], str(kinds))
+check("each pause's answers go to the turn's events, once",
+      [[e["type"] for e in call[2]] for call in c.sessions.calls if call[0] == "events"]
+      == [["user.tool_response"], ["user.tool_approval"]], str(c.sessions.calls))
+check("and the turn is followed on from its pause",
+      [call[1:] for call in c.sessions.calls if call[0] == "subscribe"] == [("t1", "e4"), ("t1", "e8")])
+check("the resumed turn's answer is the run's answer", r.status == "done" and r.answer == "10 RPS per replica.",
+      f"{r.status} {r.error}")
+check("a turn's cost is counted once across its pauses", abs(r.metrics.get("total_cost_in_usd", 0) - 0.03) < 1e-9,
+      str(r.metrics))
+
+
+class _RejectingSessions(_Sessions):
+    def create_turn_stream(self, session_id, input):
+        raise ApiError(status_code=400, body={"message": 'Invalid input: expected "user.message"'})
+
+
+class _RejectingClient:
+    sessions = _RejectingSessions()
+
+
+try:
+    agent_mod.run_question(_RejectingClient(), {}, "q", question_id="q")
+    check("a 400 from TrueForge aborts the run", False)
+except agent_mod.AbortRun:
+    check("a 400 from TrueForge aborts the run", True)
 
 
 class _AbortingSessions:
