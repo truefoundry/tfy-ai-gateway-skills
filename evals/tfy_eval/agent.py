@@ -636,15 +636,16 @@ def _stream_turn(
     started = time.monotonic()
 
     def open_initial() -> Any:
-        if resume is not None:
-            client.sessions.create_turn_events(session_id=session_id, turn_id=turn_id, events=resume)
-            return open_resume()
         return client.sessions.create_turn_stream(session_id=session_id, input=turn_input)
 
     def open_resume() -> Any:
         return client.sessions.subscribe_to_turn(session_id=session_id, turn_id=turn_id, after_event_id=after_event_id)
 
     open_stream = open_initial
+    if resume is not None:
+        # Outside the re-attach loop: a re-attach must not skip answers that were never posted.
+        client.sessions.create_turn_events(session_id=session_id, turn_id=turn_id, events=resume)
+        open_stream = open_resume
 
     while True:
         try:
