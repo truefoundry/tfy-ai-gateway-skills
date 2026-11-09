@@ -439,7 +439,7 @@ def run_question(
         order: list[str] = []
         turn_input: list[dict] | None = [{"type": "user.message", "content": question}]
         resume: list[dict] | None = None
-        cursor: dict[str, Any] = {"turn_id": None, "sequence": None}
+        cursor: dict[str, Any] = {"turn_id": None, "after_event_id": None}
         turn_metrics: dict[str, dict] = {}
 
         for round_index in range(max_rounds):
@@ -629,9 +629,9 @@ def _stream_turn(
     pending_responses: list[Any] = []
     final_state: Any = None
     if resume is None:
-        cursor["turn_id"] = cursor["sequence"] = None
+        cursor["turn_id"] = cursor["after_event_id"] = None
     turn_id: str | None = cursor["turn_id"]
-    last_sequence: int | None = cursor["sequence"]
+    after_event_id: str | None = cursor["after_event_id"]
     reconnects = 0
     started = time.monotonic()
 
@@ -642,22 +642,13 @@ def _stream_turn(
         return client.sessions.create_turn_stream(session_id=session_id, input=turn_input)
 
     def open_resume() -> Any:
-        return client.sessions.subscribe_to_turn(
-            session_id=session_id, turn_id=turn_id, after_sequence_number=last_sequence
-        )
+        return client.sessions.subscribe_to_turn(session_id=session_id, turn_id=turn_id, after_event_id=after_event_id)
 
     open_stream = open_initial
 
     while True:
         try:
-            for meta in open_stream().with_metadata():
-                if meta.id is not None:
-                    try:
-                        last_sequence = int(meta.id)
-                    except (TypeError, ValueError):
-                        pass
-                event = meta.data
-
+            for event in open_stream():
                 if is_event_delta(event):
                     base = events.get(event.id)
                     if base is not None:
@@ -667,6 +658,10 @@ def _stream_turn(
                 if event.id not in events:
                     order.append(event.id)
                 events[event.id] = event
+                # The server keeps a model.message only once it completes, and resumes only after
+                # an event it kept.
+                if event.type != "model.message":
+                    after_event_id = event.id
 
                 if event.type == "turn.created":
                     turn_id = event.turn_id
@@ -718,7 +713,7 @@ def _stream_turn(
         # buffer had no turn.done left to replay. Ask for the state directly.
         final_state = _poll_turn_state(client, session_id, turn_id)
 
-    cursor["turn_id"], cursor["sequence"] = turn_id, last_sequence
+    cursor["turn_id"], cursor["after_event_id"] = turn_id, after_event_id
     return final_state, pending_approvals, pending_responses
 
 

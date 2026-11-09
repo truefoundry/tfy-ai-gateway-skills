@@ -620,46 +620,60 @@ finally:
     agent_mod._stream_turn = real_stream
 
 
-class _Stream:
-    def __init__(self, events):
-        self.events = events
-
-    def with_metadata(self):
-        for seq, event in self.events:
-            if event is None:
-                raise AssertionError("read past a pause")
-            yield _Event(id=str(seq), data=event)
+def _paused(event_id, cost):
+    return _Event(type="turn.update", id=event_id, thread_id=None,
+                  state=_Event(status="paused", metrics={"total_cost_in_usd": cost}))
 
 
 class _PausingSessions(_Sessions):
-    """A turn that pauses on a question, then finishes once it is answered."""
+    """A turn that pauses on a question, then on an approval, then finishes. Like the server, a
+    subscribe replays the whole turn unless told which event to follow on from."""
+
+    approve = _Call("w1", "apply_manifest", "{}")
+    turn = [
+        _Event(type="turn.created", id="e1", turn_id="t1", thread_id=None),
+        _Event(type="model.message", id="m1", thread_id="main", content="", tool_calls=[ask]),
+        _Event(type="tool.response_required", id="e3", thread_id="main",
+               tool_calls=[_Event(id="q1", source_event_id="m1")]),
+        _paused("e4", 0.01),
+        _Event(type="turn.update", id="e5", thread_id=None, state=_Event(status="running")),
+        _Event(type="model.message", id="m2", thread_id="main", content="", tool_calls=[approve]),
+        _Event(type="tool.approval_required", id="e7", thread_id="main",
+               tool_calls=[_Event(id="w1", source_event_id="m2")]),
+        _paused("e8", 0.02),
+        _Event(type="turn.update", id="e9", thread_id=None, state=_Event(status="running")),
+        _Event(type="turn.done", id="e10", thread_id=None, state=_Event(
+            status="done", output=_Event(content="10 RPS per replica."), metrics={"total_cost_in_usd": 0.03})),
+    ]
 
     def __init__(self):
         self.calls = []
+        self.answered = set()
+
+    waits_on = {"e4": "q1", "e8": "w1"}
+
+    def _from(self, after_event_id):
+        ids = [event.id for event in self.turn]
+        start = ids.index(after_event_id) + 1 if after_event_id else 0
+        for event in self.turn[start:]:
+            yield event
+            if self.waits_on.get(event.id, "-") not in self.answered | {"-"}:
+                raise AssertionError("read past a pause")
 
     def create_turn_stream(self, session_id, input):
         self.calls.append(("create_turn", input))
-        return _Stream([
-            (1, _Event(type="turn.created", id="e1", turn_id="t1", thread_id=None)),
-            (2, _Event(type="model.message", id="m1", thread_id="main", content="", tool_calls=[ask])),
-            (3, _Event(type="tool.response_required", id="e3", thread_id="main",
-                       tool_calls=[_Event(id="q1", source_event_id="m1")])),
-            (4, _Event(type="turn.update", id="e4", thread_id=None,
-                       state=_Event(status="paused", metrics={"total_cost_in_usd": 0.01}))),
-            (5, None),
-        ])
+        return self._from(None)
 
     def create_turn_events(self, session_id, turn_id, events):
         self.calls.append(("events", turn_id, events))
+        for event in events:
+            if event["tool_call_id"] in self.answered:
+                raise ApiError(status_code=400, body=f"no pending approval for {event['tool_call_id']}")
+            self.answered.add(event["tool_call_id"])
 
-    def subscribe_to_turn(self, session_id, turn_id, after_sequence_number):
-        self.calls.append(("subscribe", turn_id, after_sequence_number))
-        return _Stream([
-            (5, _Event(type="turn.update", id="e5", thread_id=None, state=_Event(status="running"))),
-            (6, _Event(type="turn.done", id="e6", thread_id=None, state=_Event(
-                status="done", output=_Event(content="10 RPS per replica."),
-                metrics={"total_cost_in_usd": 0.03}))),
-        ])
+    def subscribe_to_turn(self, session_id, turn_id, after_event_id=None):
+        self.calls.append(("subscribe", turn_id, after_event_id))
+        return self._from(after_event_id)
 
 
 class _PausingClient:
@@ -671,13 +685,16 @@ print("\npaused turns")
 c = _PausingClient()
 r = agent_mod.run_question(c, {}, "q", question_id="q", clarification_reply="10 per replica")
 kinds = [call[0] for call in c.sessions.calls]
-check("a paused turn is answered on the same turn, not a new one", kinds == ["create_turn", "events", "subscribe"],
-      str(kinds))
-check("the answer goes to the turn's events",
-      c.sessions.calls[1][1] == "t1" and c.sessions.calls[1][2][0]["type"] == "user.tool_response")
-check("and the turn is followed on from the last event seen", c.sessions.calls[2][1:] == ("t1", 4))
-check("the resumed turn's answer is the run's answer", r.status == "done" and r.answer == "10 RPS per replica.")
-check("a turn's cost is counted once across its pause", abs(r.metrics["total_cost_in_usd"] - 0.03) < 1e-9,
+check("a paused turn is answered on the same turn, not a new one",
+      kinds == ["create_turn", "events", "subscribe", "events", "subscribe"], str(kinds))
+check("each pause's answers go to the turn's events, once",
+      [[e["type"] for e in call[2]] for call in c.sessions.calls if call[0] == "events"]
+      == [["user.tool_response"], ["user.tool_approval"]], str(c.sessions.calls))
+check("and the turn is followed on from its pause",
+      [call[1:] for call in c.sessions.calls if call[0] == "subscribe"] == [("t1", "e4"), ("t1", "e8")])
+check("the resumed turn's answer is the run's answer", r.status == "done" and r.answer == "10 RPS per replica.",
+      f"{r.status} {r.error}")
+check("a turn's cost is counted once across its pauses", abs(r.metrics.get("total_cost_in_usd", 0) - 0.03) < 1e-9,
       str(r.metrics))
 
 
