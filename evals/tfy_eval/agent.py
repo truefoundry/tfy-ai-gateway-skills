@@ -24,6 +24,7 @@ from typing import Any, Callable
 
 import httpx
 from trueforge_sdk import TrueForge
+from trueforge_sdk.core.api_error import ApiError
 from trueforge_sdk.events import is_event_delta, merge_event_delta
 
 TERMINAL_STATUSES = ("done", "error", "cancelled")
@@ -436,7 +437,10 @@ def run_question(
 
         events: dict[str, Any] = {}
         order: list[str] = []
-        turn_input: list[dict] = [{"type": "user.message", "content": question}]
+        turn_input: list[dict] | None = [{"type": "user.message", "content": question}]
+        resume: list[dict] | None = None
+        cursor: dict[str, Any] = {"turn_id": None, "sequence": None}
+        turn_metrics: dict[str, dict] = {}
 
         for round_index in range(max_rounds):
             run.rounds = round_index + 1
@@ -444,11 +448,13 @@ def run_question(
                 client,
                 session.data.id,
                 turn_input,
+                cursor=cursor,
                 run=run,
                 events=events,
                 order=order,
                 max_reconnects=max_reconnects,
                 on_progress=on_progress,
+                resume=resume,
             )
 
             run.transcript = _transcript(run, events, order)
@@ -457,12 +463,15 @@ def run_question(
             status = getattr(final_state, "status", None)
             metrics = getattr(final_state, "metrics", None)
             if metrics is not None:
-                # turn.done reports one turn, so a resumed run must accumulate.
-                for key, value in (
+                # A turn's metrics are its running total across pauses; a run sums its turns.
+                turn_metrics[str(cursor["turn_id"])] = (
                     metrics.dict() if hasattr(metrics, "dict") else dict(metrics)
-                ).items():
-                    if isinstance(value, (int, float)):
-                        run.metrics[key] = (run.metrics.get(key) or 0) + value
+                )
+                run.metrics = {}
+                for totals in turn_metrics.values():
+                    for key, value in totals.items():
+                        if isinstance(value, (int, float)):
+                            run.metrics[key] = (run.metrics.get(key) or 0) + value
 
             if status == "running":
                 run.status = "timeout"
@@ -521,16 +530,16 @@ def run_question(
                 if question_asked and round_index + 1 < max_rounds:
                     run.clarifications_asked.append(question_asked)
                     run.exchanges.append({"asked": question_asked, "reply": follow_up, "via": "message"})
-                    turn_input = [{"type": "user.message", "content": follow_up}]
+                    turn_input, resume = [{"type": "user.message", "content": follow_up}], None
                     if on_progress:
                         on_progress(f"{question_id}: answered a question asked in text (round {run.rounds})")
                     continue
                 break
 
-            turn_input = _resume_input(
+            turn_input, resume = None, _resume_input(
                 run, events, pending_approvals, pending_responses, on_approval, clarification_reply
             )
-            if not turn_input:
+            if not resume:
                 run.status = "paused"
                 run.failure = "infra:unresumable"
                 run.error = "turn paused but no resumable action could be built"
@@ -556,6 +565,14 @@ def run_question(
 
     except AbortRun:
         raise
+    except ApiError as exc:
+        if exc.status_code == 400:
+            # The API rejected the request's shape: every case will fail the same way.
+            raise AbortRun(f"{question_id}: TrueForge rejected the runner's request (400), "
+                           f"so the runner no longer matches the API: {str(exc.body)[:300]}") from exc
+        run.status = "error"
+        run.failure = "infra:exception"
+        run.error = f"{type(exc).__name__}: {exc}"
     except Exception as exc:  # noqa: BLE001 - one bad question must not kill the suite
         run.status = "error"
         run.failure = "infra:exception"
@@ -592,27 +609,36 @@ def download_attachments(client: TrueForge, session_id: str, turn_id: str, answe
 def _stream_turn(
     client: TrueForge,
     session_id: str,
-    turn_input: list[dict],
+    turn_input: list[dict] | None,
     *,
+    cursor: dict[str, Any],
     run: AgentRun,
     events: dict[str, Any],
     order: list[str],
     max_reconnects: int,
     on_progress: Callable[[str], None] | None,
+    resume: list[dict] | None = None,
 ) -> tuple[Any, list[Any], list[Any]]:
-    """Stream one turn to completion, re-attaching if the connection drops.
+    """Run one round of a turn until it ends or pauses, re-attaching if the connection drops.
 
-    Returns the terminal turn state plus any pauses that need a response.
+    `turn_input` starts a new turn. `resume` instead answers the paused turn in `cursor` and
+    follows it on from the last event seen. Returns the turn's state (terminal or paused) plus
+    any pauses that need a response; `cursor` is left on the turn and its last event.
     """
     pending_approvals: list[Any] = []
     pending_responses: list[Any] = []
     final_state: Any = None
-    turn_id: str | None = None
-    last_sequence: int | None = None
+    if resume is None:
+        cursor["turn_id"] = cursor["sequence"] = None
+    turn_id: str | None = cursor["turn_id"]
+    last_sequence: int | None = cursor["sequence"]
     reconnects = 0
     started = time.monotonic()
 
     def open_initial() -> Any:
+        if resume is not None:
+            client.sessions.create_turn_events(session_id=session_id, turn_id=turn_id, events=resume)
+            return open_resume()
         return client.sessions.create_turn_stream(session_id=session_id, input=turn_input)
 
     def open_resume() -> Any:
@@ -659,6 +685,10 @@ def _stream_turn(
                     )
                 elif event.type == "turn.done":
                     final_state = event.state
+                elif event.type == "turn.update" and getattr(event.state, "status", None) == "paused":
+                    # A paused turn stays open for the answers, so stop reading here.
+                    final_state = event.state
+                    break
             break
         except httpx.TransportError as exc:
             # Without a turn id there is nothing to re-attach to, and an exhausted
@@ -688,6 +718,7 @@ def _stream_turn(
         # buffer had no turn.done left to replay. Ask for the state directly.
         final_state = _poll_turn_state(client, session_id, turn_id)
 
+    cursor["turn_id"], cursor["sequence"] = turn_id, last_sequence
     return final_state, pending_approvals, pending_responses
 
 
