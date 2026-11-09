@@ -56,7 +56,7 @@ From the schema, extract with one `jq`:
 Turn the user's answer into an exact selection with one `jq` over the saved `list_providers` file:
 
 - **"All"** or **modes** ("all chat and embedding models"): nothing to resolve; the program selects them.
-- **Named models:** match each name to a catalogue key (`model_id`): an exact key first, else keys containing the name, ignoring case. One match: use it. Several: ask the user to pick (show at most 10). None: the model is not in the catalogue. Ask for its exact `model_id` and model types, and add it without `cost` (public cost exists only for catalogue models; any other gets a 400).
+- **Named models:** match each name to a catalogue key (`model_id`): an exact key first, else keys containing the name, ignoring case. One match: use it. Several: ask the user to pick (show at most 10). None: the model is not in the catalogue. Ask for its model types, even when its name suggests them, and add it without `cost` (only catalogue models have public cost).
 
 ### Step 4 — build the manifest in the sandbox with one program
 
