@@ -14,7 +14,7 @@ description: Read when the user wants to find, register, update, delete or conne
 
 ## Finding servers and their tools
 
-- By name: `list_mcp_servers` with `filter={"op":"and","values":[{"field":"name","op":"EQUAL","value":"<name>"}]}`, exactly this shape. Several names: one call with `"op":"IN"` and a list `value`. Partial name: `"op":"STRING_CONTAINS"`; prefer the exact match. Other spellings (`"AND"`, `column`, `eq`, `like`, `CONTAINS`) are a 400. Never decide a named server is missing by scanning an unfiltered list: a tenant can have over a thousand servers, and a page leaves most out.
+- By name: `list_mcp_servers` with `filter={"op":"and","values":[{"field":"name","op":"EQUAL","value":"<name>"}]}`, exactly this shape. Several names: one call with `"op":"IN"` and a list `value`. Any name the user gives ("our linear server") goes through `EQUAL` first; only if that returns nothing, search with `"op":"STRING_CONTAINS"` and show the closest matches. Other spellings (`"AND"`, `column`, `eq`, `like`, `CONTAINS`) are a 400. Never decide a named server is missing by scanning an unfiltered list: a tenant can have over a thousand servers, and a page leaves most out.
 - By purpose: `list_mcp_servers` without `attributes` (it allows only `id`, `name`, `fqn`; `manifest` is a 400). If the result is saved to a file, extract only `id`, `manifest.name`, `manifest.type` and `manifest.description` with one `jq`.
 - One server: `get_mcp_server` with its `id`.
 - Tools: `list_mcp_server_tools` with `mcpServerId` (the server's `id`). Reuse the `id` if the `list_mcp_servers` result is still in the conversation; otherwise call `list_mcp_servers` again with a `name` filter. It errors if the server is not connected or misconfigured; the message says why.
