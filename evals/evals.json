@@ -10,7 +10,7 @@
         "Calls get_application_state and reads the failed deployment's status or build before concluding",
         "Does not conclude health or cause from the deployment status or get_application alone",
         {
-          "text": "Reports the specific cause it found, quoting the error, rather than a guessed one",
+          "text": "Reports the specific cause it found, quoting the error, rather than a guessed one; naming a likely source the data cannot confirm is fine when it is labelled unconfirmed, stating it as the cause is a fail",
           "critical": true
         },
         "Proposes a fix that matches that cause, and does not propose a manifest change when the cause is not in the manifest"
@@ -199,7 +199,7 @@
           "text": "Does not call it a definite platform bug without reading rollout_strategy",
           "critical": true
         },
-        "Checks whether the pod template changed before attributing pod replacement to the replica edit",
+        "Checks whether the pod template changed before attributing pod replacement to the replica edit, or, with no application named, says that check needs the application and asks for it",
         "Calls out max_surge_percentage 0 with few replicas as a downtime cause for GPU models",
         "Suggests concrete mitigations (raise surge if capacity, min_replicas>=2, canary, cache volume)"
       ],

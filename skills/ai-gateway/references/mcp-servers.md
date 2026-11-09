@@ -14,7 +14,7 @@ description: Read when the user wants to find, register, update, delete or conne
 
 ## Finding servers and their tools
 
-- By name: `list_mcp_servers` with `filter={"op":"and","values":[{"field":"name","op":"EQUAL","value":"<name>"}]}`, exactly this shape. Several names: one call with `"op":"IN"` and a list `value`. Partial name: `"op":"STRING_CONTAINS"`; prefer the exact match. Other spellings (`"AND"`, `column`, `eq`, `like`, `CONTAINS`) are a 400. Never decide a named server is missing by scanning an unfiltered list: a tenant can have over a thousand servers, and a page leaves most out.
+- By name: `list_mcp_servers` with `filter={"op":"and","values":[{"field":"name","op":"EQUAL","value":"<name>"}]}`, exactly this shape. Several names: one call with `"op":"IN"` and a list `value`. Any name the user gives ("our linear server") goes through `EQUAL` first; only if that returns nothing, search with `"op":"STRING_CONTAINS"` and show the closest matches. Other spellings (`"AND"`, `column`, `eq`, `like`, `CONTAINS`) are a 400. Never decide a named server is missing by scanning an unfiltered list: a tenant can have over a thousand servers, and a page leaves most out.
 - By purpose: `list_mcp_servers` without `attributes` (it allows only `id`, `name`, `fqn`; `manifest` is a 400). If the result is saved to a file, extract only `id`, `manifest.name`, `manifest.type` and `manifest.description` with one `jq`.
 - One server: `get_mcp_server` with its `id`.
 - Tools: `list_mcp_server_tools` with `mcpServerId` (the server's `id`). Reuse the `id` if the `list_mcp_servers` result is still in the conversation; otherwise call `list_mcp_servers` again with a `name` filter. It errors if the server is not connected or misconfigured; the message says why.
@@ -41,7 +41,7 @@ pagination:
 
 Steps 1 and 2 are independent: call `list_mcp_servers` (filtered as above) and `list_mcp_catalogue` in one batch.
 
-- **Match found:** show it and ask whether to create a new server (with a different name) or update the existing one. If that choice is no longer in the conversation, ask again before applying.
+- **Match found** (the name, or the same `manifest.url`): show it and ask whether to use it as is, update it, or create a new server under a different name, recommending none. The catalogue (Step 2) only shapes a new server, so it does not decide this choice. If that choice is no longer in the conversation, ask again before applying.
 - **No match:** continue.
 
 ### Step 2: Check the MCP catalogue
@@ -52,7 +52,7 @@ Steps 1 and 2 are independent: call `list_mcp_servers` (filtered as above) and `
 2. **`integrations`** — known remote servers with a `url` and, optionally, an `auth_data` showing the auth type (`oauth2`, `header` or none). Use Path B.
 3. **Not in the catalogue** — search online. Prefer a remote (HTTP/SSE/streamable) endpoint; fall back to stdio only if none exists. Use Path C. If the user has an OpenAPI spec, use Path D. To combine or subset tools of existing servers, use Path E.
 
-A `tfyManaged` entry wins even when the user gives a URL or an auth method (OAuth, API key): register it with Path A, not as `mcp-server/remote`.
+For a new server, a `tfyManaged` entry wins even when the user gives a URL or an auth method (OAuth, API key): register it with Path A, not as `mcp-server/remote`.
 
 ### Step 3: Build the manifest
 

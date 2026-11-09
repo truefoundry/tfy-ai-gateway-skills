@@ -52,7 +52,7 @@ TEXT_QUESTION_TAIL = 1200
 TEXT_REQUEST = re.compile(
     r"\b(please (send|share|provide|confirm|tell me|let me know)|let me know (which|what|the|if|whether)"
     r"|once (you|i) (answer|reply|confirm|share|send|have|get|know)|send (me )?(the|your)|share (the|your)"
-    r"|i need (a few|the|your|to know|some))\b",
+    r"|i need (a few|the|your|to know|some)|reply with)\b",
     re.IGNORECASE,
 )
 

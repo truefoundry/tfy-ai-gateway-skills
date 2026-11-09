@@ -9,7 +9,7 @@ Read `tools.md` for parameter-level detail of any tool named below, or when the 
 
 ## Phase 1: Identify the application
 
-Call `list_applications` filtered by the name. **A name is not an identifier — the same name can exist in several workspaces.** If more than one comes back, do NOT pick one: show the user the matches with their workspaces and ask which they mean. Diagnosing the wrong one produces a thorough, confident answer about an application they were not asking about, and nothing in that answer reveals the mistake.
+Call `list_applications` with `applicationName` (exact; `nameSearchQuery` is substring). **A name is not an identifier — the same name can exist in several workspaces.** If more than one comes back, do NOT pick one: show the user the matches with their workspaces and ask which they mean. Diagnosing the wrong one gives a confident answer about the wrong app, and nothing in it reveals the mistake.
 
 Once you have the right application, record the fields below. If they are no longer in the conversation later, look them up again (`get_application`, `get_application_state`).
 
