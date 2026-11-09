@@ -41,7 +41,7 @@ pagination:
 
 Steps 1 and 2 are independent: call `list_mcp_servers` (filtered as above) and `list_mcp_catalogue` in one batch.
 
-- **Match found:** show it and ask whether to use it as is, update it, or create a new server under a different name. If that choice is no longer in the conversation, ask again before applying.
+- **Match found** (the name, or the same `manifest.url`; call without `attributes` so the URL is there): show it and ask whether to use it as is, update it, or create a new server under a different name, recommending none. If that choice is no longer in the conversation, ask again before applying.
 - **No match:** continue.
 
 ### Step 2: Check the MCP catalogue
