@@ -527,6 +527,8 @@ check("questions listed before a closing plan still count",
 check("a question above a long table still counts through its closing request",
       agent_mod.asks_in_text("Which workspace do you mean?\n\n" + "| 1 | ws | id |\n" * 100
                              + "\nReply with the workspace FQN (or the number) and I'll diagnose it.") is not None)
+check("a report of what the data says does not ask",
+      agent_mod.asks_in_text("The events tell me the pod was OOM-killed, so raise its memory limit.") is None)
 check("an answer that only reports what it did does not ask",
       agent_mod.asks_in_text("I sent the manifest to apply_manifest and it was denied, so nothing changed.") is None)
 
