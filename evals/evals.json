@@ -1454,7 +1454,7 @@
         },
         "Says use access alone (provider-integration-access on the model, or provider-account-access / User on the parent account) still gets the 403",
         "Does not say making the user tenant admin is the only fix",
-        "Does not call it a bug or tell the user to file a ticket"
+        "Does not call the behaviour a bug"
       ],
       "tags": {
         "area": "access",
@@ -1501,7 +1501,7 @@
         },
         "Says validation checks every permission FQN in the whole manifest, so an unchanged re-apply or a tag-only edit fails the same way",
         "Does not say the error is transient or tell the user to retry",
-        "Does not call it a bug or tell the user to file a ticket"
+        "Does not call the behaviour a bug"
       ],
       "tags": {
         "area": "access",
@@ -1524,7 +1524,7 @@
           "critical": true
         },
         "Does not say x-tfy-agent-authorization restricts or is enforced on LLM gateway calls",
-        "Does not call it a bug or tell the user to file a ticket"
+        "Does not call the behaviour a bug"
       ],
       "tags": {
         "area": "access",
@@ -1535,7 +1535,7 @@
     {
       "id": 84,
       "prompt": "A virtual account owned by a team cannot see an MCP server that I granted to that team through a role binding: GET /api/svc/v1/mcp with the account's token returns 200 with an empty list. Is the owning team's access supposed to apply to the account, and what is the simplest way to declare the access once?",
-      "expected_output": "Explains a team-owned virtual account does not inherit the team's grants; add the account as a second subject of the same role binding with mcp-server-user.",
+      "expected_output": "Explains a team-owned virtual account does not inherit the team's grants; give the account its own subject in a role binding with mcp-server-user, simplest as a second subject of the team's binding.",
       "files": [],
       "expectations": [
         {
@@ -1543,7 +1543,7 @@
           "critical": true
         },
         {
-          "text": "Fix: add the virtual account as a second subject (virtualaccount) of the same role binding as the team",
+          "text": "Fix: give the virtual account itself a role binding subject (virtualaccount), in the team's binding or its own",
           "critical": true
         },
         "Says the role is mcp-server-user on the mcp-server resource, declared once in that binding",
@@ -1581,7 +1581,7 @@
       "files": [],
       "expectations": [
         {
-          "text": "Says the 500 comes from the gateway itself because it could not get a token from the configured token endpoint, and the call is not sent upstream",
+          "text": "Says the 500 comes from the gateway itself because it could not get a token from the configured token endpoint, not from the MCP server",
           "critical": true
         },
         {
@@ -1611,7 +1611,7 @@
           "critical": true
         },
         "Says listing servers does not create or change an auth record for the account",
-        "Does not call it a bug or tell the user to file a ticket"
+        "Does not call the behaviour a bug"
       ],
       "tags": {
         "area": "mcp",
@@ -1634,7 +1634,7 @@
           "critical": true
         },
         "Does not say the agent's token expired or must be regenerated",
-        "Does not call it a bug or tell the user to file a ticket"
+        "Does not call the behaviour a bug"
       ],
       "tags": {
         "area": "mcp",
@@ -1658,7 +1658,7 @@
         },
         "Says applies_to cannot be changed on an existing budget rule; a different type needs a new rule",
         "Does not tell the user to switch the existing rule's applies_to to per-user",
-        "Does not call it a bug or tell the user to file a ticket"
+        "Does not call the behaviour a bug"
       ],
       "tags": {
         "area": "budgets",
@@ -1697,11 +1697,11 @@
           "critical": true
         },
         {
-          "text": "Fix: a per-virtual-account budget rule with the same filters",
+          "text": "Fix: a per-virtual-account budget rule that covers the agent's virtual account",
           "critical": true
         },
         "Does not say the per-user rule applies and just needs time or a lower limit",
-        "Does not call it a bug or tell the user to file a ticket"
+        "Does not call the behaviour a bug"
       ],
       "tags": {
         "area": "budgets",
@@ -1856,7 +1856,7 @@
           "critical": true
         },
         "Does not say the query, groupBy or body is wrong, or that the account has no traffic",
-        "Does not call it a bug or tell the user to file a ticket"
+        "Does not call the behaviour a bug"
       ],
       "tags": {
         "area": "metrics",
@@ -1871,7 +1871,7 @@
       "files": [],
       "expectations": [
         {
-          "text": "Says the model reasons by default and the provider rejects function tools with reasoning on plain Chat Completions; the gateway passes that 400 through and does not add reasoning_effort",
+          "text": "Says the model reasons by default and function tools with reasoning are rejected on plain Chat Completions; does not say the gateway adds reasoning_effort itself",
           "critical": true
         },
         {
@@ -1925,7 +1925,7 @@
           "critical": true
         },
         "Does not say the guardrail timeout can be configured per guardrail",
-        "Does not call it a bug or tell the user to file a ticket"
+        "Does not call the behaviour a bug"
       ],
       "tags": {
         "area": "guardrails",
