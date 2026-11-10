@@ -160,7 +160,7 @@
         "Does not call application container logs as the primary signal for a Pending pod",
         "Reads the Unschedulable condition / FailedScheduling events and the applied manifest (get_applied_k8s_manifest) for GPU requests/tolerations",
         {
-          "text": "Calls get_cluster_autoscaler_logs on Azure/GCP, or on AWS reads whatever Karpenter events are still visible and asks the user for kubectl NodeClaim/NodePool output",
+          "text": "On Azure/GCP calls get_cluster_autoscaler_logs; on AWS asks the user for kubectl NodeClaim/NodePool output, using any Karpenter events the application events show (none visible is fine)",
           "critical": true
         },
         "Does not treat get_cluster_autoscaler_logs as the provisioning evidence on aws-eks (it returns 501 there); uses Karpenter events and NodeClaim output instead"
