@@ -291,7 +291,7 @@
     {
       "id": 17,
       "prompt": "Add a rate limit of 100 requests per minute for the team tfy-ai-team across all models.",
-      "expected_output": "Reads rate-limiting-v2.md and write-rules.md, calls list_gateway_config_instances for both rate-limit families and get_manifest_json_schema for tenant-rate-limit-config/model in one batch, builds one named manifest with when.subjects.teams.in: [tfy-ai-team], limits.requests_per_minute: 100 and applies_to.type: aggregate, validates until valid and applies once. On success it links {controlPlaneUrl}/llm-gateway/policies/rate-limiting-v2; in eval the apply is denied, so it shows the manifest and gives no link.",
+      "expected_output": "Reads rate-limiting-v2.md and write-rules.md, calls list_gateway_config_instances for both rate-limit families and get_manifest_json_schema for tenant-rate-limit-config/model in one batch, builds one named manifest with when.subjects.teams.in: [tfy-ai-team], limits.requests_per_minute: 100 and applies_to.type: aggregate, validates until valid and applies once. On success it links {controlPlaneUrl}/llm-gateway/policies/rate-limiting-v2; in eval the apply is denied, so it shows the manifest, and any link it gives is the real URL and does not present the limit as created.",
       "files": [],
       "expectations": [
         "Reads ai-gateway/references/rate-limiting-v2.md before building anything",
@@ -301,7 +301,7 @@
           "critical": true
         },
         "Calls validate_manifest until valid: true, then apply_manifest once in a separate batch; does not merge into gateway-rate-limiting-config",
-        "If apply_manifest succeeds, links {controlPlaneUrl}/llm-gateway/policies/rate-limiting-v2 with the real controlPlaneUrl; after a denied apply it gives no link"
+        "Any link uses the real controlPlaneUrl, never a {controlPlaneUrl} or <controlPlaneUrl> placeholder; after a denied apply it presents no link as if the limit exists"
       ],
       "tags": {
         "area": "config",

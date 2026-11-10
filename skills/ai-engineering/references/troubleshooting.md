@@ -80,7 +80,7 @@ Call `get_logs` with `applicationId`, `podName` (from `get_application_state`), 
 
 Logs need a pod filter: `get_logs` on a Helm app without `podName`, `podNames` or `podNamesRegex` returns 400.
 
-1. Get real pod names from `get_application_state`. If it lists none, use `get_application_argocd_resources`, which also shows sync/health. If neither lists a pod, there are no logs: say so, and don't call `get_logs`.
+1. Get real pod names from `get_application_state`. Else `get_application_argocd_resources` (also shows sync/health). If neither lists a `Pod` (a StatefulSet is not one), there are no logs: say so, and don't call `get_logs`.
 2. `get_logs` with `applicationId`, that `podName` (or `podNamesRegex="^<release>-.*"`), `direction: "desc"`, `limit` ~200.
 
 `list_application_events` keeps live events only for objects named like the release, so subchart pods get lifecycle events only. For their full events give the user `kubectl get events -n <namespace> --field-selector involvedObject.name=<pod>`.
@@ -93,7 +93,7 @@ StatefulSet  my-cache-master
 pod          my-cache-master-0        # <set>-<ordinal>
 ```
 
-`my-cache-0` does not exist; `get_logs` for it returns an empty list, not an error. Deployment pods carry a ReplicaSet hash. Use only pod names a tool listed, in tool calls and `kubectl` commands; with none listed, give `kubectl get pods -n <ns> -l app.kubernetes.io/instance=<release>`.
+`my-cache-0` does not exist; `get_logs` for it returns an empty list, not an error. Deployment pods carry a ReplicaSet hash. Use only pod names a tool listed, in tool calls and `kubectl` commands; with none listed, give `kubectl get pods -n <ns> -l app.kubernetes.io/instance=<release>` and `<pod>` in follow-ups.
 
 ## Notebooks / SSH / RStudio
 
@@ -115,7 +115,7 @@ State what you could not see rather than reporting health: "no events" and "noth
 ## How to answer
 
 - Lead with one root cause, then the evidence (pod, event reason, log line, metric); add other issues only if they block the fix.
-- Propose a concrete fix (manifest field change, registry fix, wait for node, sync, regenerated specs), not a Kubernetes tutorial.
+- Propose a concrete fix (manifest field, registry fix, sync, regenerated specs), not a K8s tutorial.
 - When the cause sits where no tool can see (nodes, NodeClaims, PVCs, system namespaces), give the exact `kubectl` command to confirm it.
 - For write fixes, use `validate_manifest` → `apply_manifest` (or `sync_application` / `redeploy_application` / regenerated specs from `get_model_deployment_specs`) with approval. Do not run `tfy apply` in the terminal.
 - For a model server, read `model-debug.md` and research recipes/GitHub issues before inventing engine flags.
