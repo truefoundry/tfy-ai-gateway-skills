@@ -557,7 +557,7 @@
         "Prompt-cache tokens from sum cacheReadInputTokens on realModelMetrics, not traces/TfyGatewayOutput",
         "Keeps gateway caching and provider prompt caching separate",
         {
-          "text": "Every number in the reply is right: printed by the program, or worked out correctly (to the precision shown) from numbers it printed; a rate, share or sum that does not follow from the printed numbers is a fail",
+          "text": "Every number in the reply is right: printed by the program, or worked out correctly (to the precision shown) from numbers it printed; a rate, share or sum that does not follow from the printed numbers is a fail; a hedged remark that states no number is judged by the other claims, not this one",
           "critical": true
         },
         "If cacheMetrics has no semantic cache rows, says there were no semantic cache lookups in the window instead of reporting a 0% hit rate"
@@ -576,7 +576,7 @@
         "Uses datasource guardrailMetrics, not guardrailPolicyMetrics or SQL",
         "startTs and endTs cover exactly yesterday",
         {
-          "text": "Per guardrail, reports checks that failed to run (error, ignored_error) separately from blocked (flag), audit-mode flags and mutations, and says which of these it counts as failed",
+          "text": "Per guardrail, reports checks that failed to run (error, ignored_error) separately from blocked (flag), audit-mode flags and mutations, each as a number (0 included) or by saying no other results occurred, and says which of these it counts as failed; counting error alone or error with ignored_error is fine when stated",
           "critical": true
         },
         "Gives a link under /monitoring/metrics"
@@ -1001,10 +1001,10 @@
       "expectations": [
         "Uses register_user, not a manifest or a raw API call",
         {
-          "text": "Gives the role with create_grants on resourceType tenant, not by editing the user",
-          "critical": true
-        },
-        "Uses the role id from list_roles, not the name read-only-member, as roleId",
+   "text": "Gives the role as a tenant-role grant (create_grants on resourceType tenant), not by editing the user; when the invite was denied, saying the read-only-member tenant role would be granted after she is added is enough",
+   "critical": true
+  },
+  "Looks up the role id with list_roles; if it makes the grant, uses that id, not the name read-only-member, as roleId",
         "Does not claim a role can be set while inviting"
       ],
       "tags": {
@@ -1178,7 +1178,7 @@
       "expectations": [
         "Takes the total cost and failures from an ungrouped query, not from adding grouped rows",
         {
-          "text": "Every number in the reply is right: printed by the program, or worked out correctly (to the precision shown) from numbers it printed; a rate, share or sum that does not follow from the printed numbers is a fail",
+          "text": "Every number in the reply is right: printed by the program, or worked out correctly (to the precision shown) from numbers it printed; a rate, share or sum that does not follow from the printed numbers is a fail; a hedged remark that states no number is judged by the other claims, not this one",
           "critical": true
         },
         "Does not add realModelMetrics rows into virtual model totals",
@@ -1372,7 +1372,7 @@
       "files": [],
       "expectations": [
         {
-      "text": "Filters with userEmail EQUAL the session email on every query including totals; when the session is a service account with no email, asks whose usage first and then filters by the email given",
+      "text": "Filters with userEmail EQUAL the session email on every query including totals; when the session is a service account with no email, asks whose usage first and then filters by the email given. An unfiltered check used only to explain an empty result is fine; a CSV or usage figures for anyone else delivered as the answer is a fail",
       "critical": true
     },
         "Groups by providerAccountType and modelName",

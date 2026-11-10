@@ -10,7 +10,7 @@ description: Read for questions about who can access what — identity types, PA
 - **Users** — people who log in. Each user can create Personal Access Tokens (PATs). See `users.md`.
 - **Teams** — groups of users; access granted to a team applies to every member. See `teams.md`.
 - **Virtual accounts** — non-human identities for applications, with their own token (VAT). See `virtual-accounts.md`.
-- **Identity Providers** — validates JWTs from your IdP (Okta, Azure AD, any OIDC) and resolves them to an existing user, team or virtual account; they never create one. Settings > Security & Access > Identity Providers. Docs: https://www.truefoundry.com/docs/platform/identity-providers
+- **Identity Providers** — validates JWTs from your IdP (Okta, Azure AD, any OIDC) and resolves them to an existing user, team or virtual account; they never create one. Docs: https://www.truefoundry.com/docs/platform/identity-providers
 
 ## Authentication
 
@@ -89,7 +89,7 @@ A subject can hold several tenant roles; their permissions add up.
 
 **Change or remove:** grant the new role first, then `revoke_grant` the old one with its `list_grants` row. The last `tenant-admin` grant and a user's `member` role cannot be revoked (422).
 
-**Who holds which tenant role:** `list_grants` with `resourceType: tenant`, `resourceId: <tenantName>` and a `roleId` filter, paging until a page is short. Name each holder by `subjectType`.
+**Who holds which tenant role:** `list_grants` with `resourceType: tenant`, `resourceId: <tenantName>` and a `roleId` filter, paging until a page is short. Name every holder by `subjectType` — users, teams, virtual accounts and agents; leave none out.
 
 In the UI: `{controlPlaneUrl}/access-management?tab=users` (or `tab=teams`, `tab=service-accounts`) → the row's menu → **Manage Permissions** → **Organisation Roles** → **Add Roles**.
 
@@ -97,7 +97,7 @@ In the UI: `{controlPlaneUrl}/access-management?tab=users` (or `tab=teams`, `tab
 
 A `role-binding` manifest grants roles as code. Use one only when the user asks for access as code (to keep in Git, or to apply with their other manifests).
 
-- **Read:** `list_role_bindings` (filter by `name` or `id`). To export current access as bindings, `get_role_binding_manifests` with `resourceType`+`resourceId` or `subjectType`+`subjectId`. Covers `AUTH_API` only; one manifest per role (per subject when called for a subject); random name suffix, so generating twice differs.
+- **Read:** `list_role_bindings` (filter by `name` or `id`). To export current access as bindings, `get_role_binding_manifests` with `resourceType`+`resourceId` or `subjectType`+`subjectId`. Covers `AUTH_API` only; one manifest per role (per subject when called for a subject).
 - **Write:** `apply_manifest` creates or updates (by `name`); `delete_manifest` with type `role-binding` and the name deletes it. Tenant admins only (else 403). Follow `write-rules.md`; schema from `get_manifest_json_schema` (type `role-binding`).
 - Applying a binding takes over matching `AUTH_API` grants. Deleting it later removes that access.
 
