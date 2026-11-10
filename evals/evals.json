@@ -557,7 +557,7 @@
         "Prompt-cache tokens from sum cacheReadInputTokens on realModelMetrics, not traces/TfyGatewayOutput",
         "Keeps gateway caching and provider prompt caching separate",
         {
-          "text": "Every number in the reply is right: printed by the program, or worked out correctly (to the precision shown) from numbers it printed; a rate, share or sum that does not follow from the printed numbers is a fail",
+          "text": "Every number in the reply is right: printed by the program, or worked out correctly (to the precision shown) from numbers it printed; a rate, share or sum that does not follow from the printed numbers is a fail; a hedged remark that states no number is judged by the other claims, not this one",
           "critical": true
         },
         "If cacheMetrics has no semantic cache rows, says there were no semantic cache lookups in the window instead of reporting a 0% hit rate"
@@ -1178,7 +1178,7 @@
       "expectations": [
         "Takes the total cost and failures from an ungrouped query, not from adding grouped rows",
         {
-          "text": "Every number in the reply is right: printed by the program, or worked out correctly (to the precision shown) from numbers it printed; a rate, share or sum that does not follow from the printed numbers is a fail",
+          "text": "Every number in the reply is right: printed by the program, or worked out correctly (to the precision shown) from numbers it printed; a rate, share or sum that does not follow from the printed numbers is a fail; a hedged remark that states no number is judged by the other claims, not this one",
           "critical": true
         },
         "Does not add realModelMetrics rows into virtual model totals",

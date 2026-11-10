@@ -45,7 +45,7 @@ Virtual model → real model breakdown: `realModelMetrics` grouped by `virtualMo
 
 ### Request rules
 
-- **Scope.** "My", "I" or "me" means filter `userEmail EQUAL <session email>` on every query, the totals query included. No session email (a virtual account): ask whose data before any query.
+- **Scope.** "My", "I" or "me" means filter `userEmail EQUAL <session email>` on every query, the totals query included. No session email (a virtual account): ask whose data before querying. None for them is the answer; never widen to all.
 - **Time.** `get_current_datetime` first, never in the query's batch. `startTs`/`endTs` are ISO 8601, both inclusive; without an offset they are UTC and must share the same offset. Default to the last 7 days when no window is given.
 - **`type`.** `distribution` returns one row per group over the window. `timeseries` adds buckets: set `interval` (`"1 hour"`, `"1 day"`, one unit) when asked for granularity; else the server picks from the window. Buckets start at `startTs` (UTC midnight/hour for daily/hourly). Empty buckets: `total: 0`, null groups.
 - **Counting requests.** Every row has `total` (row count = request count). `count` on a column skips NULLs (`count` of `costInUSD` skips calls without cost).
@@ -80,7 +80,7 @@ Each point has `total`, each aggregation under its `alias` (default `<type><Colu
 
 Failures before routing leave group values null — models: `providerAccountType`/`modelName` (not found, forbidden, rate-limited); agents: `agentName`; load-balance: `targetModel` (key `model`) when every target failed. Explain with a second failure query — models/agents: `groupBy ["errorDisplayLabel"]` + `isFailure EQUAL true` (`errorType` is a filter only, never group-by); MCP tool failures: `toolErrorDisplayLabel` + `isToolCallFailure`. Run it; don't guess.
 
-Data-access rules filter every query; with no matching rule it returns nothing. An empty result is the answer, never a reason to drop the user's filters; it can mean no access: say so and link `{controlPlaneUrl}/access-management?tab=data-access` ([data access](https://www.truefoundry.com/docs/ai-gateway/data-access)).
+Data-access rules filter every query; with no matching rule it returns nothing. An empty or small result can mean no access: say so and link `{controlPlaneUrl}/access-management?tab=data-access` ([data access](https://www.truefoundry.com/docs/ai-gateway/data-access)).
 
 ### Recipes
 
