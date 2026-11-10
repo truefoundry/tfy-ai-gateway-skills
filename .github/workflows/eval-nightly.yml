@@ -97,12 +97,17 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.EVAL_SLACK_WEBHOOK_URL }}
         run: |
           prev=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow eval-nightly.yml \
-            --status success --limit 1 --json databaseId --jq '.[0].databaseId')
+            --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')
           if [ -z "$prev" ]; then echo "No earlier successful nightly to compare with." >> "$GITHUB_STEP_SUMMARY"; exit 0; fi
           mkdir -p previous
-          gh run download "$prev" --repo "$GITHUB_REPOSITORY" --name ask-tfy-baseline --dir previous
-          openssl enc -d -aes-256-cbc -pbkdf2 -pass env:EVAL_ARTIFACT_KEY -in previous/baseline.tar.gz.enc \
-            | tar -xzf - -C previous
+          # A run from before a key rotation cannot be opened; tonight's run becomes the next baseline.
+          if ! { gh run download "$prev" --repo "$GITHUB_REPOSITORY" --name ask-tfy-baseline --dir previous \
+              && openssl enc -d -aes-256-cbc -pbkdf2 -pass env:EVAL_ARTIFACT_KEY -in previous/baseline.tar.gz.enc \
+              | tar -xzf - -C previous; }; then
+            echo "::warning::Could not open the previous nightly (run $prev); not compared"
+            echo "Could not open the previous nightly (run $prev); not compared." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           accept=$(jq -rs '[.[] | (.all_case_hashes // .case_hashes) | keys[]] | unique | join(",")' \
             previous/nightly/config.json runner/runs/nightly/config.json)
           status=0
