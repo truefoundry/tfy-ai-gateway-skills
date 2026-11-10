@@ -1464,53 +1464,6 @@
     },
     {
       "id": 81,
-      "prompt": "A virtual account token gets every model of one provider account from GET /models, not just the two models of that account I scoped it to. Is that an authorization leak, and how do I restrict the list?",
-      "expected_output": "Explains an account-level grant lists every model of that one provider account, not a leak, and that revoking it leaves only the per-model grants.",
-      "files": [],
-      "expectations": [
-        {
-          "text": "Says an account-level grant (provider-account-access on the parent provider account) makes /models list every model of that account, whatever the narrower per-model grants say",
-          "critical": true
-        },
-        {
-          "text": "Says revoking only the account-level grant restricts the list to the per-model grants",
-          "critical": true
-        },
-        "Says the extra models are only that provider account's models, not every model in the tenant",
-        "Does not call it an authorization leak or a security bug"
-      ],
-      "tags": {
-        "area": "access",
-        "kind": "troubleshoot",
-        "source": "askbench R02, verified 2026-10-17"
-      }
-    },
-    {
-      "id": 82,
-      "prompt": "Re-applying a virtual account manifest returns 422 \"Invalid Resource FQN: my-tenant:virtual-model:my-acct:model:old-model for resource type provider-integration\". The file is identical to the one that applied fine last week, and adding a tag to it does not help. What causes this and how do I get it applied?",
-      "expected_output": "Finds a permission entry that still names a model since removed from its provider account; remove it and re-apply.",
-      "files": [],
-      "expectations": [
-        {
-          "text": "Says the manifest still has a permission on a provider-integration FQN of a model that has since been removed from its provider account",
-          "critical": true
-        },
-        {
-          "text": "Fix: remove the stale permission entry for the deleted model and re-apply",
-          "critical": true
-        },
-        "Says validation checks every permission FQN in the whole manifest, so an unchanged re-apply or a tag-only edit fails the same way",
-        "Does not say the error is transient or tell the user to retry",
-        "Does not call the behaviour a bug"
-      ],
-      "tags": {
-        "area": "access",
-        "kind": "troubleshoot",
-        "source": "askbench R03, verified 2026-10-17"
-      }
-    },
-    {
-      "id": 83,
       "prompt": "I call /chat/completions on the gateway with the user's token in Authorization and an agent's identity token in x-tfy-agent-authorization. When the agent has been granted the model I still get 403 \"User <me> is not authorized to access model my-vm/chat or model does not exist\", and when the agent has not been granted it, the call returns 200. Why does the agent token make no difference?",
       "expected_output": "Explains the LLM gateway authorises only the Authorization bearer; x-tfy-agent-authorization does not change the outcome, so the agent token must be the bearer.",
       "files": [],
@@ -1533,7 +1486,7 @@
       }
     },
     {
-      "id": 84,
+      "id": 82,
       "prompt": "A virtual account owned by a team cannot see an MCP server that I granted to that team through a role binding: GET /api/svc/v1/mcp with the account's token returns 200 with an empty list. Is the owning team's access supposed to apply to the account, and what is the simplest way to declare the access once?",
       "expected_output": "Explains a team-owned virtual account does not inherit the team's grants; give the account its own subject in a role binding with mcp-server-user, simplest as a second subject of the team's binding.",
       "files": [],
@@ -1556,138 +1509,7 @@
       }
     },
     {
-      "id": 85,
-      "prompt": "In MCP Gateway > Add Server > Connect Official Remote MCP Servers, searching for Figma shows \"No matching result found\", although the docs list Figma next to GitHub and Sentry, which do appear. Is this a plan or version issue on our side, or something else?",
-      "expected_output": "Says Figma is not in the tenant's official remote MCP catalogue, so it cannot be found there; it is not a search, plan or cache issue.",
-      "files": [],
-      "expectations": [
-        {
-          "text": "Says Figma has no entry in the official remote MCP server catalogue the console searches, so the search cannot find it",
-          "critical": true
-        },
-        "Does not tell the user to try other spellings, clear caches or filters, or upgrade their plan to make Figma appear",
-        "Does not say Figma is in the official catalogue and should be found"
-      ],
-      "tags": {
-        "area": "mcp",
-        "kind": "troubleshoot",
-        "source": "askbench R06, verified 2026-10-17"
-      }
-    },
-    {
-      "id": 86,
-      "prompt": "A tools/list call through the MCP gateway to a server registered with OAuth2 client credentials fails with HTTP 500 \"OAuth2 client_credentials auth failed for MCP server my-org:mcp-server:my-mcp: client_credentials token acquisition failed\". The client secret reference looks right, and GET /api/svc/v1/mcp/<id>/auth/status for the server says authentication_not_required, which makes no sense. Where do I look?",
-      "expected_output": "Explains the gateway itself returned the 500 because its token request to the configured token endpoint failed; the auth/status reason carries that endpoint's status.",
-      "files": [],
-      "expectations": [
-        {
-          "text": "Says the 500 comes from the gateway itself because it could not get a token from the configured token endpoint, not from the MCP server",
-          "critical": true
-        },
-        {
-          "text": "Says to look at the token endpoint's response (its HTTP status, shown in the auth/status reason) and the client credentials it was sent; authentication_not_required there does not mean the server needs no auth",
-          "critical": true
-        },
-        "Does not say the gateway forwards the call without a token and the upstream's 401 reaches the caller"
-      ],
-      "tags": {
-        "area": "mcp",
-        "kind": "troubleshoot",
-        "source": "askbench R07, verified 2026-10-17"
-      }
-    },
-    {
-      "id": 87,
-      "prompt": "Listing MCP servers with a virtual account key (GET /api/svc/mcp-registry/v0.1/servers and GET /api/svc/v1/mcp) returns only one of our three servers, while an admin token returns all three. Is the key missing something, and does listing create an auth record for the account?",
-      "expected_output": "Explains the lists show only servers the caller holds a role on; grant the virtual account mcp-server-user by role binding; listing creates no auth record.",
-      "files": [],
-      "expectations": [
-        {
-          "text": "Says the list endpoints return only the MCP servers the caller holds a role on, so the virtual account sees only the server it was granted",
-          "critical": true
-        },
-        {
-          "text": "Fix: a role binding with subject virtualaccount and role mcp-server-user on each mcp-server",
-          "critical": true
-        },
-        "Says listing servers does not create or change an auth record for the account",
-        "Does not call the behaviour a bug"
-      ],
-      "tags": {
-        "area": "mcp",
-        "kind": "troubleshoot",
-        "source": "askbench R08, verified 2026-10-17"
-      }
-    },
-    {
-      "id": 88,
-      "prompt": "After our pipeline re-registers an MCP server with PUT /api/svc/v1/apply (it returns 200, the pipeline sends its own fixed manifest for the server), an agent that used the server gets 403 \"User my-agent is not authorized to access MCP server: my-mcp\" on its next tools/list. What happened?",
-      "expected_output": "Explains re-applying the manifest with an empty collaborators list cleared the agent's collaborator grant; role bindings survive, so grant that way.",
-      "files": [],
-      "expectations": [
-        {
-          "text": "Says re-applying the MCP server manifest with the pipeline's collaborators list (empty, or without the agent) removed the agent's collaborator grant, hence the 403",
-          "critical": true
-        },
-        {
-          "text": "Says a role binding grant (mcp-server-user) survives the re-apply, so it is the durable way to grant the agent, or the pipeline must keep the agent in collaborators",
-          "critical": true
-        },
-        "Does not say the agent's token expired or must be regenerated",
-        "Does not call the behaviour a bug"
-      ],
-      "tags": {
-        "area": "mcp",
-        "kind": "troubleshoot",
-        "source": "askbench R09, verified 2026-10-17"
-      }
-    },
-    {
-      "id": 89,
-      "prompt": "Editing a Budget Limiting v2 rule that applies per virtual account, I added another virtual account to when.subjects. Saving returns HTTP 400 \"Budget validation failed: per-virtual-account applies is not allowed when when.subjects includes\" (the console toast cuts off there). Switching the rule's applies_to type to per-user gets a 403 as well. What is the rule violating and how do I fix it?",
-      "expected_output": "Explains a per-virtual-account budget rule cannot have users or teams in when.subjects; keep only virtual accounts. applies_to cannot change after creation, so another type needs a new rule.",
-      "files": [],
-      "expectations": [
-        {
-          "text": "Says a per-virtual-account budget rule cannot have users or teams in when.subjects (in or not_in)",
-          "critical": true
-        },
-        {
-          "text": "Fix: remove the users and teams from when.subjects, keeping only virtual accounts",
-          "critical": true
-        },
-        "Says applies_to cannot be changed on an existing budget rule; a different type needs a new rule",
-        "Does not tell the user to switch the existing rule's applies_to to per-user",
-        "Does not call the behaviour a bug"
-      ],
-      "tags": {
-        "area": "budgets",
-        "kind": "troubleshoot",
-        "source": "askbench R10, verified 2026-10-17"
-      }
-    },
-    {
-      "id": 90,
-      "prompt": "Developers using Claude Code through the gateway hit their virtual account's daily budget (enforce mode) and the client then keeps retrying for minutes instead of stopping. What does the gateway send back when the budget is exceeded, and is it telling the client to stop?",
-      "expected_output": "Says the budget-exceeded 429 carries x-should-retry: false (no Retry-After) and names the violated budget rule in x-tfy-applied-rules.",
-      "files": [],
-      "expectations": [
-        {
-          "text": "Says the budget-exceeded response carries the header x-should-retry: false",
-          "critical": true
-        },
-        "Says the response is HTTP 429 and x-tfy-applied-rules names the budget rule as violated",
-        "Says no Retry-After header is sent",
-        "Does not say the gateway gives the client no signal to stop retrying"
-      ],
-      "tags": {
-        "area": "budgets",
-        "kind": "troubleshoot",
-        "source": "askbench R11, verified 2026-10-17"
-      }
-    },
-    {
-      "id": 91,
+      "id": 83,
       "prompt": "A per-user daily budget in enforce mode never blocks our coding agent, which calls the gateway with a virtual account token: spend is well over the limit and every call still returns 200. Why does the rule not fire for the agent, and what should the budget be keyed on?",
       "expected_output": "Explains a per-user rule does not match calls made with a virtual account token; key the budget per virtual account.",
       "files": [],
@@ -1710,29 +1532,7 @@
       }
     },
     {
-      "id": 92,
-      "prompt": "Disabling a gateway endpoint (gateway installation) fails with HTTP 422 \"Manifest validation failed\", detail \"GatewayInstallationManifest : must have required property 'isDefault'\". The edit only flips enabled to false. How do I disable it?",
-      "expected_output": "Explains the installations API requires isDefault on every update; PUT the full manifest with enabled false and isDefault set.",
-      "files": [],
-      "expectations": [
-        {
-          "text": "Says the gateway installation manifest must include isDefault on every apply, including an update that only sets enabled false",
-          "critical": true
-        },
-        {
-          "text": "Fix: send the full manifest with enabled: false and isDefault set (false for a non-default installation, otherwise its current value)",
-          "critical": true
-        },
-        "Does not say the failure is transient, or tell the user to delete and recreate the installation"
-      ],
-      "tags": {
-        "area": "routing",
-        "kind": "troubleshoot",
-        "source": "askbench R13, verified 2026-10-17"
-      }
-    },
-    {
-      "id": 93,
+      "id": 84,
       "prompt": "My priority virtual model has two targets. When the first provider answers HTTP 400 (it rejects a strict json_schema response_format), the client gets that 400 instead of the second target serving the request. Is there a setting to fail over on that, does it change what fails over today, and would those 400s mark the first target unhealthy?",
       "expected_output": "Explains 400 is returned by default; add it to the target's fallback_status_codes, which replaces the default list, so keep the other codes.",
       "files": [],
@@ -1755,26 +1555,7 @@
       }
     },
     {
-      "id": 94,
-      "prompt": "Claude Code pointed at the gateway with a gpt-x model on /v1/messages fails on every tool call with 400 \"Function tools with reasoning_effort are not supported for gpt-x in /v1/chat/completions\". Putting reasoning_effort none in the request body and enabling thinking both changed nothing. What actually works?",
-      "expected_output": "Says the 400 is the provider's validation passed through; send x-tfy-openai-use-responses-api: true or output_config {effort: low} on /v1/messages.",
-      "files": [],
-      "expectations": [
-        {
-          "text": "Gives a working fix: the header x-tfy-openai-use-responses-api: true, or output_config {effort: low} in the /v1/messages body",
-          "critical": true
-        },
-        "Says the 400 is the provider's own validation passed through, not a gateway rule",
-        "Does not say reasoning_effort none or enabling thinking in the /v1/messages body fixes it"
-      ],
-      "tags": {
-        "area": "clients",
-        "kind": "troubleshoot",
-        "source": "askbench R16, verified 2026-10-17"
-      }
-    },
-    {
-      "id": 95,
+      "id": 85,
       "prompt": "Claude Code through the gateway uses a virtual model named like a Sonnet model that has a Haiku target as one route. Requests that land on the Haiku route fail with 400 \"adaptive thinking is not supported on this model\" and \"This model does not support the effort parameter.\"; the same requests to the Sonnet target are fine. Setting override_params temperature on the Haiku target changed nothing. How can I make the Haiku route work?",
       "expected_output": "Explains the Haiku target rejects adaptive thinking and effort; override_params {thinking: null, output_config: null} on that target strips them.",
       "files": [],
@@ -1797,29 +1578,7 @@
       }
     },
     {
-      "id": 96,
-      "prompt": "tfy apply --dir ./virtual-accounts --dry-run prints \"[Dry Run] Skipped manifest my-va of type virtual-account because it has dependencies.\" for some virtual accounts, so they are not validated, and we use this as a CI check. Is this a bug, and how do we validate them?",
-      "expected_output": "Explains dry-run skips a virtual account whose permissions depend on a manifest in the same directory; validate once that dependency is live and not in the directory. There is no force flag.",
-      "files": [],
-      "expectations": [
-        {
-          "text": "Says dry-run skips a virtual account whose permissions depend on another manifest in the same directory (such as its provider account), so it is not validated",
-          "critical": true
-        },
-        {
-          "text": "Says the same virtual account is validated in dry-run when the provider account is already live and its manifest is not in the directory",
-          "critical": true
-        },
-        "Does not suggest a --force or --validate flag, or say the skipped manifests were validated"
-      ],
-      "tags": {
-        "area": "clients",
-        "kind": "troubleshoot",
-        "source": "askbench R18, verified 2026-10-17"
-      }
-    },
-    {
-      "id": 97,
+      "id": 86,
       "prompt": "Our chat UI uses one shared gateway key. It forwards the signed-in user in X-OpenWebUI-User-Email and X-OpenWebUI-User-Name headers and in the OpenAI user field. Requests return 200, but cost in the gateway metrics grouped by user shows only the app, never the people. How do we get per-person cost attribution and per-person limits?",
       "expected_output": "Explains the UI headers and the user field are not used for attribution; send the person in X-TFY-METADATA and group metrics or key a metadata budget on it.",
       "files": [],
@@ -1842,30 +1601,7 @@
       }
     },
     {
-      "id": 98,
-      "prompt": "POST /api/svc/v1/llm-gateway/metrics/query (modelMetrics, grouped by virtualaccount and modelName, last 7 days) returns HTTP 200 with an empty dataPoints list when I call it with a virtual account token. The same query with an admin key returns rows, and the account's own requests show in the console. Why no 403, and why is it empty?",
-      "expected_output": "Explains a virtual account with no tenant role gets 200 with no rows rather than 403; the query is fine; use an admin key or grant the account access to the data.",
-      "files": [],
-      "expectations": [
-        {
-          "text": "Says the query is valid and the caller only sees rows it is allowed to see, so a virtual account with no access to the data gets 200 with no data points instead of 403",
-          "critical": true
-        },
-        {
-          "text": "Fix: run it with an admin key or give the account access to the metrics data",
-          "critical": true
-        },
-        "Does not say the query, groupBy or body is wrong, or that the account has no traffic",
-        "Does not call the behaviour a bug"
-      ],
-      "tags": {
-        "area": "metrics",
-        "kind": "troubleshoot",
-        "source": "askbench R20, verified 2026-10-17"
-      }
-    },
-    {
-      "id": 99,
+      "id": 87,
       "prompt": "A chat completions request through the gateway to my-openai/gpt-x with a function tool fails with 400 \"Function tools with reasoning_effort are not supported for gpt-x in /v1/chat/completions\". I never set reasoning_effort, and the same code works against other models. Why does it fail, and what are my options to keep the tool and get a 200?",
       "expected_output": "Explains the model reasons by default and the provider rejects function tools on plain Chat Completions; send x-tfy-openai-use-responses-api: true, or set a reasoning effort, to be served via Responses.",
       "files": [],
@@ -1888,7 +1624,7 @@
       }
     },
     {
-      "id": 100,
+      "id": 88,
       "prompt": "A POST /v1/messages through the gateway to my-anthropic/claude-x with thinking {type: adaptive, display: \"updates\"} returns 400 \"anthropic error: thinking.adaptive.display: Input should be 'summarized', 'omitted'\". The client library documents the updates display. Is the gateway rejecting it, and how do I enable it?",
       "expected_output": "Says the 400 is Anthropic's validation; the updates display needs the beta thinking-display-updates-2026-08-18 in anthropic-beta or x-tfy-anthropic-beta, which replaces rather than merges.",
       "files": [],
@@ -1911,7 +1647,7 @@
       }
     },
     {
-      "id": 101,
+      "id": 89,
       "prompt": "My custom webhook guardrail (Enforce) takes 6 to 8 seconds on some inputs and those requests fail with HTTP 400 \"Input Guardrail checks failed ... Details: Guardrail API execution failed: Request timed out after 5000ms\". Adding timeout and timeout_ms of 10000 to the guardrail config was accepted but made no difference. How can I get these requests through?",
       "expected_output": "Explains the custom guardrail timeout is about 5 s and not configurable (timeout keys are ignored); use enforce_but_ignore_on_error to fail open, or make the webhook answer within 5 s.",
       "files": [],
