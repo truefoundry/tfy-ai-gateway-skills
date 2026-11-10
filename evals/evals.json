@@ -160,7 +160,7 @@
         "Does not call application container logs as the primary signal for a Pending pod",
         "Reads the Unschedulable condition / FailedScheduling events and the applied manifest (get_applied_k8s_manifest) for GPU requests/tolerations",
         {
-          "text": "Calls get_cluster_autoscaler_logs on Azure/GCP, or reads Karpenter events and asks the user for kubectl NodeClaim/NodePool output on AWS",
+          "text": "Calls get_cluster_autoscaler_logs on Azure/GCP, or on AWS reads whatever Karpenter events are still visible and asks the user for kubectl NodeClaim/NodePool output",
           "critical": true
         },
         "Does not treat get_cluster_autoscaler_logs as the provisioning evidence on aws-eks (it returns 501 there); uses Karpenter events and NodeClaim output instead"
@@ -356,7 +356,7 @@
     {
       "id": 20,
       "prompt": "Route simple prompts to a cheap model and hard ones to gpt-4o automatically.",
-      "clarification_reply": "Pick the cheapest chat model we have for simple, a mid-priced one for medium, and gpt-4o for complex.",
+      "clarification_reply": "Pick the cheapest chat model we have for simple, a mid-priced one for medium, and gpt-4o for complex. Create it in a new group named smart-router.",
       "expected_output": "The agent proposes complexity-based-routing with at least one target in each of simple, medium and complex, no model in two tiers, and model_types limited to chat/completion/responses.",
       "files": [],
       "expectations": [
@@ -942,7 +942,7 @@
       "expected_output": "Uses the given key as auth_data.api_key without looking for a way to create a secret, builds every non-retired catalogue model into the manifest with a program, validates it, and calls apply_manifest once with the full list.",
       "files": [],
       "expectations": [
-        "Uses the given key in auth_data as given, without searching for how to create a secret or asking the user to store it as one",
+        "Uses the given key in auth_data as given, without first searching for how to create a secret or asking the user to store it as one; offering a secret reference afterwards as an option is fine",
         "Does not ask which models; the user said all",
         {
           "text": "Calls apply_manifest once with every integration, never a partial list",
