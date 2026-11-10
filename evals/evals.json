@@ -1372,7 +1372,7 @@
       "files": [],
       "expectations": [
         {
-      "text": "Filters with userEmail EQUAL the session email on every query including totals; when the session is a service account with no email, asks whose usage first and then filters by the email given",
+      "text": "Filters with userEmail EQUAL the session email on every query including totals; when the session is a service account with no email, asks whose usage first and then filters by the email given. An unfiltered check used only to explain an empty result is fine; a CSV or usage figures for anyone else delivered as the answer is a fail",
       "critical": true
     },
         "Groups by providerAccountType and modelName",
