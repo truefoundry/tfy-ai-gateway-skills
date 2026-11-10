@@ -9,7 +9,7 @@ description: Aggregate Gateway questions — requests, cost, tokens, latency, er
 
 ### Running a query
 
-Group-by and timeseries can return hundreds of rows and it can't sort or limit, so query from the sandbox in one program that sorts and prints only what's needed:
+Group-by and timeseries can return hundreds of rows the tool can't sort or limit: query from the sandbox in one program that prints what's needed:
 
 ```python
 r = await call_tool("<server>", "query_llm_gateway_metrics", body={
@@ -23,10 +23,10 @@ rows = r["data"]["dataPoints"]
 ```
 
 - `filters` and `filterPredicate` are always lists of `{fieldName, operator, value}`. Batch independent queries with `asyncio.gather` (sandbox timeout 60s).
-- Build requests from this file; never call `get_tool_info` on this tool. A 400 names the wrong field.
-- Print the top 10–20 rows, sorted by what the question ranks, plus an `other` row (count, sums, max; the only source on rows not shown) and the null-name row (failed before routing).
+- Build requests from this file, never `get_tool_info`; a 400 names the wrong field.
+- Print the top 10–20 rows, sorted by what the question ranks, plus an `other` row (count, sums, max) for the rest and the null-name row (failed before routing).
 - **Totals.** Print headline totals (requests, cost, tokens, failures) from a `groupBy: []` query in the same program; grouped rows double count teams and virtual → real models.
-- **Every number in the reply is copied from program output**, %, shares and "about" figures too. Missing one? Print it.
+- **Every number in the reply is copied from program output**, %, shares and "about" figures too; claims about unshown rows ("most had none") come only from the `other` row. Missing one? Print it.
 
 ### Datasources
 
@@ -102,8 +102,8 @@ Shown as `datasource` · `groupBy` · aggregations · filters.
 
 ### Not here
 
-- Budget vs limit: `get_budget_usage` / `get_my_budget_usage` (`budget-limiting-v2.md`).
-- Joins across datasources: not possible; say so.
+- Budget vs limit: `get_budget_usage`/`get_my_budget_usage` (`budget-limiting-v2.md`).
+- No joins across datasources; say so.
 
 ### Linking to the Metrics page
 
