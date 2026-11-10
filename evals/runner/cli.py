@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import replace
@@ -48,6 +49,12 @@ def _positive(kind: type):
             raise argparse.ArgumentTypeError(f"must be positive, got {text}")
         return value
     return parse
+
+
+def _kind(text: str) -> str:
+    if not re.fullmatch(r"nightly|local|pr-\d+", text):
+        raise argparse.ArgumentTypeError(f"must be nightly, local or pr-<number>, got {text}")
+    return text
 
 
 def _writes_allowed() -> frozenset[str]:
@@ -118,6 +125,7 @@ def _settings(args: argparse.Namespace, ref: str, run_dir: Path | None = None) -
         case_ids=tuple(case.id for case in cases),
         skipped=skipped,
         allow_dirty=args.allow_dirty,
+        kind=args.kind,
         all_case_hashes={case.id: case_hash(case) for case in all_cases},
         fixtures=load_fixtures(),
     )
@@ -213,6 +221,8 @@ def build_parser() -> argparse.ArgumentParser:
                          help="pause/resume rounds per trial; each question and each approval is one")
     running.add_argument("--retries", type=int, default=2, help="fresh-session retries on infrastructure failure")
     running.add_argument("--max-reconnects", type=int, default=8)
+    running.add_argument("--kind", type=_kind, default="local",
+                         help="what started the run: nightly, pr-<number> or local; names the LangSmith experiment")
     running.add_argument("--allow-dirty", action="store_true",
                          help="run with uncommitted harness or runner changes (not reproducible; for trying things)")
 

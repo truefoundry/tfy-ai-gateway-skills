@@ -340,6 +340,12 @@ check("repeated tool calls folded with a count", prompt.count("- get_me") == 1 a
 bare = judge.build_prompt(question="q", expected="e", candidate="a")
 check("no checklist section without expectations", "REQUIRED CLAIMS" not in bare)
 check("no tool section without tool calls", "OBSERVED TOOL CALLS" not in bare)
+check("with a checklist the reference is context, not ground truth",
+      judge.REFERENCE_AS_CONTEXT in prompt and "ground truth)" not in prompt)
+check("without a checklist the reference is the ground truth", judge.REFERENCE_AS_TRUTH in bare)
+check("judge turn cost read from metrics",
+      judge._turn_cost(types.SimpleNamespace(metrics={"total_cost_in_usd": 0.004})) == 0.004
+      and judge._turn_cost(types.SimpleNamespace(metrics=None)) == 0.0)
 
 # --- tool-call unwrapping ----------------------------------------------------
 # An agent that reaches its MCP tools through a generic wrapper would otherwise

@@ -1,9 +1,11 @@
 """Check the judge against a human: grade a blind sample of trials by hand, then measure agreement.
 
+    python -m runner.handgrade export "<langsmith experiment>" runner/runs/<run>
     python -m runner.handgrade sample runner/runs/<run> runner/handgrade/<name> [--n 24]
     python -m runner.handgrade agree runner/handgrade/<name>
 
-`sample` writes grading.md (what to read), grades.csv (what to fill in) and key.json (the judge's
+`export` rebuilds a run directory from a LangSmith experiment, for runs whose artifact you can't
+decrypt; the answers are the redacted ones LangSmith holds. `sample` writes grading.md (what to read), grades.csv (what to fill in) and key.json (the judge's
 verdicts; don't open it before grading). The sample is stratified by judge verdict and takes at most
 one trial per case. Trials that never produced an answer are left out: there is nothing to grade.
 """
@@ -14,14 +16,48 @@ import argparse
 import csv
 import json
 import random
-from collections import Counter
+from collections import Counter, defaultdict
 from pathlib import Path
+
+from langsmith import Client
 
 VERDICTS = ("correct", "partially_correct", "incorrect")
 
 
 def _jsonl(path: Path) -> list[dict]:
     return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+
+
+def _tool_line(call: str, room: int = 300) -> str:
+    """One call with the start of its result; the session link has the rest."""
+    name, _, result = call.partition(" -> ")
+    result = " ".join(result.split())
+    return f"- `{name[:200]}`" + (f" → {result[:room]}{'…' if len(result) > room else ''}" if result else "")
+
+
+def export(experiment: str, run_dir: Path) -> None:
+    client = Client()
+    runs = [r for r in client.list_runs(project_name=experiment, is_root=True) if r.outputs]
+    feedback: dict[str, dict] = defaultdict(dict)
+    for start in range(0, len(runs), 50):
+        for fb in client.list_feedback(run_ids=[r.id for r in runs[start:start + 50]]):
+            feedback[str(fb.run_id)][fb.key] = fb
+    cases, answers, grades = {}, [], []
+    for run in runs:
+        case_id, out = run.inputs["case_id"], run.outputs
+        if case_id not in cases:
+            example = client.read_example(run.reference_example_id)
+            cases[case_id] = {"id": case_id, "question": example.inputs["question"], **example.outputs}
+        answers.append({"question_id": case_id, **out, "approvals_granted": out.get("approvals")})
+        marks = feedback[str(run.id)]
+        if "correct" in marks:
+            score = marks.get("expectation_score")
+            grades.append({"question_id": case_id, "trial": out["trial"], "verdict": marks["correct"].value,
+                           "summary": score.comment if score else ""})
+    run_dir.mkdir(parents=True, exist_ok=False)
+    for name, rows in (("dataset", cases.values()), ("answers", answers), ("grades", grades)):
+        (run_dir / f"{name}.jsonl").write_text("".join(json.dumps(row) + "\n" for row in rows))
+    print(f"{len(cases)} cases, {len(answers)} answers, {len(grades)} graded -> {run_dir}")
 
 
 def sample(run_dir: Path, out: Path, n: int, seed: int) -> None:
@@ -74,7 +110,7 @@ def sample(run_dir: Path, out: Path, n: int, seed: int) -> None:
             f"{n}. {'**[critical]** ' if item.get('importance') == 'critical' else ''}{item['claim']}"
             for n, item in enumerate(case["expectations"], 1)
         ]
-        tools = ", ".join(answer.get("tool_calls", [])[:40]) or "none"
+        tools = [_tool_line(call) for call in answer.get("tool_calls") or []]
         lines += [
             f"## {hid}: case {case['id']}, trial {grade['trial']}",
             "",
@@ -86,7 +122,9 @@ def sample(run_dir: Path, out: Path, n: int, seed: int) -> None:
             "",
             *checklist,
             "",
-            f"**Tools called ({len(answer.get('tool_calls', []))}):** {tools}",
+            f"**Tools called ({len(tools)}):**",
+            "",
+            *(tools or ["none"]),
             "",
             f"**Approvals:** {', '.join(answer.get('approvals_granted') or []) or 'none'}"
             f" · **Questions asked:** {len(answer.get('clarifications_asked') or [])}"
@@ -143,6 +181,9 @@ def agree(out: Path) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(prog="python -m runner.handgrade")
     sub = parser.add_subparsers(dest="command", required=True)
+    e = sub.add_parser("export")
+    e.add_argument("experiment")
+    e.add_argument("run_dir", type=Path)
     s = sub.add_parser("sample")
     s.add_argument("run_dir", type=Path)
     s.add_argument("out", type=Path)
@@ -151,7 +192,9 @@ def main() -> None:
     a = sub.add_parser("agree")
     a.add_argument("out", type=Path)
     args = parser.parse_args()
-    if args.command == "sample":
+    if args.command == "export":
+        export(args.experiment, args.run_dir)
+    elif args.command == "sample":
         sample(args.run_dir, args.out, args.n, args.seed)
     else:
         agree(args.out)
