@@ -80,7 +80,7 @@ Call `get_logs` with `applicationId`, `podName` (from `get_application_state`), 
 
 Logs need a pod filter: `get_logs` on a Helm app without `podName`, `podNames` or `podNamesRegex` returns 400.
 
-1. Get real pod names from `get_application_state`. If it lists none, use `get_application_argocd_resources`, which also shows sync/health. If neither lists a pod, there are no logs: say so, and don't call `get_logs`.
+1. Get real pod names from `get_application_state`. Else `get_application_argocd_resources` (also shows sync/health). If neither lists a `Pod` (a StatefulSet is not one), there are no logs: say so, and don't call `get_logs`.
 2. `get_logs` with `applicationId`, that `podName` (or `podNamesRegex="^<release>-.*"`), `direction: "desc"`, `limit` ~200.
 
 `list_application_events` keeps live events only for objects named like the release, so subchart pods get lifecycle events only. For their full events give the user `kubectl get events -n <namespace> --field-selector involvedObject.name=<pod>`.
