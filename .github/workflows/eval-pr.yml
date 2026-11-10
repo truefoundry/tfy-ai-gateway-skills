@@ -1,10 +1,15 @@
 name: Ask TFY eval (PR gate)
 
-# Runs with devtest credentials, so only for PRs from this repo and only once a maintainer adds
-# the `eval` label; fork PRs never get here.
+# Runs with devtest credentials, so only for PRs from this repo; fork PRs never get here. A change
+# to cases or reference files runs the affected cases on its own; one that needs every case or both
+# sides (SKILL.md, the runner, the harness) waits for a maintainer to add the `eval` label.
 on:
   pull_request:
-    types: [labeled, synchronize, reopened]
+    types: [opened, labeled, synchronize, reopened]
+    paths:
+      - "skills/**"
+      - "evals/**"
+      - ".github/workflows/eval-*.yml"
 
 permissions:
   contents: read
@@ -12,16 +17,17 @@ permissions:
   pull-requests: write
   id-token: write
 
+# Adding any other label starts a run that skips the job; it must not cancel a gate in progress.
 concurrency:
-  group: ask-tfy-eval-pr-${{ github.event.pull_request.number }}
+  group: ask-tfy-eval-pr-${{ github.event.pull_request.number }}-${{ github.event.action == 'labeled' && github.event.label.name != 'eval' && github.run_id || 'gate' }}
   cancel-in-progress: true
 
 jobs:
   gate:
     name: Gate against the nightly baseline
     if: >-
-      contains(github.event.pull_request.labels.*.name, 'eval') &&
-      github.event.pull_request.head.repo.full_name == github.repository
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (github.event.action != 'labeled' || github.event.label.name == 'eval')
     runs-on: ubuntu-latest
     timeout-minutes: 330
     defaults:
@@ -40,6 +46,7 @@ jobs:
       HEAD_SHA: ${{ github.event.pull_request.head.sha }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
       PR_BODY: ${{ github.event.pull_request.body }}
+      LABELLED: ${{ contains(github.event.pull_request.labels.*.name, 'eval') }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -72,7 +79,9 @@ jobs:
         id: affected
         run: |
           python -m runner affected --baseline runner/runs/baseline --skills-ref "$HEAD_SHA" | tee affected.json
-          echo "mode=$(jq -r .mode affected.json)" >> "$GITHUB_OUTPUT"
+          mode=$(jq -r .mode affected.json)
+          if { [ "$mode" = all ] || [ "$mode" = ab ]; } && [ "$LABELLED" != true ]; then mode=needs-label; fi
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
           echo "only=$(jq -r .only affected.json)" >> "$GITHUB_OUTPUT"
           accept=$(printf '%s\n' "$PR_BODY" | sed -n 's/^Eval-Accept:[[:space:]]*//p' | head -1 | tr -d '[:space:]')
           if [ -n "$accept" ] && ! printf '%s' "$accept" | grep -Eq '^s[0-9]+(,s[0-9]+)*$'; then
@@ -84,6 +93,12 @@ jobs:
         if: steps.affected.outputs.mode == 'none'
         run: |
           printf '## Ask TFY eval gate: SKIPPED\n' > gate.md
+
+      - name: Needs the eval label
+        if: steps.affected.outputs.mode == 'needs-label'
+        run: |
+          printf '## Ask TFY eval gate: NOT RUN\n\nThis change runs every case or both sides (about $8-15, up to 2 hours). Add the `eval` label to run it.\n' > gate.md
+          exit 1
 
       - name: Stale branch
         if: steps.affected.outputs.mode == 'stale'
@@ -110,7 +125,7 @@ jobs:
           ONLY: ${{ steps.affected.outputs.mode == 'cases' && steps.affected.outputs.only || '' }}
           ACCEPT: ${{ steps.affected.outputs.accept }}
         run: |
-          python -m runner run --skills-ref "$HEAD_SHA" ${ONLY:+--only "$ONLY"} --run runner/runs/pr
+          python -m runner run --kind "pr-$PR_NUMBER" --skills-ref "$HEAD_SHA" ${ONLY:+--only "$ONLY"} --run runner/runs/pr
           python -m runner gate --baseline runner/runs/baseline --candidate runner/runs/pr ${ACCEPT:+--accept "$ACCEPT"} \
             | tee gate.md
 
@@ -119,7 +134,7 @@ jobs:
         env:
           ACCEPT: ${{ steps.affected.outputs.accept }}
         run: |
-          python -m runner ab --baseline-ref origin/platform --skills-ref "$HEAD_SHA" ${ACCEPT:+--accept "$ACCEPT"} \
+          python -m runner ab --kind "pr-$PR_NUMBER" --baseline-ref origin/platform --skills-ref "$HEAD_SHA" ${ACCEPT:+--accept "$ACCEPT"} \
             | tee ab.log
           sed -n '/^## Ask TFY eval gate/,$p' ab.log > gate.md
 

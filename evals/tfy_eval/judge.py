@@ -130,7 +130,9 @@ were given, in the same order, with the same `importance`, and add a verdict to 
 
 The tool results may show skill or reference files the agent read. They are the agent's
 guidance, not your rubric: a rule in them that no claim states is not a requirement here,
-so never lower a verdict for breaking it.
+so never lower a verdict for breaking it. The same holds for WHAT A GOOD ANSWER DOES: it
+describes one good path and helps you read the claims, but a step, tool or detail it names
+that no claim states is not required.
 
 Rule on each claim:
   supported    - the candidate satisfies this, in any wording. Semantics matter, not phrasing.
@@ -219,12 +221,15 @@ PROMPT_TEMPLATE = """\
 QUESTION
 {question}
 
-REFERENCE ANSWER (ground truth)
+{reference_heading}
 {expected}
 
 CANDIDATE ANSWER (to grade)
 {candidate}
 """
+
+REFERENCE_AS_TRUTH = "REFERENCE ANSWER (ground truth)"
+REFERENCE_AS_CONTEXT = "WHAT A GOOD ANSWER DOES (context for the checklist; grade only the checklist)"
 
 CHECKLIST_SECTION = """\
 
@@ -271,6 +276,7 @@ class Grade:
     contradictions: int = 0
     high_risk_additions: int = 0
     judge_runs: int = 1
+    cost_usd: float = 0.0
     error: str | None = None
 
     def to_json(self) -> dict:
@@ -286,6 +292,7 @@ class Grade:
             "claims": self.claims,
             "unsupported_additions": self.unsupported_additions,
             "judge_runs": self.judge_runs,
+            "cost_usd": round(self.cost_usd, 6),
             "error": self.error,
         }
 
@@ -482,6 +489,14 @@ def decide_verdict(
     return "incorrect"
 
 
+def _turn_cost(state: Any) -> float:
+    metrics = getattr(state, "metrics", None)
+    if metrics is None:
+        return 0.0
+    values = metrics.dict() if hasattr(metrics, "dict") else dict(metrics)
+    return float(values.get("total_cost_in_usd") or 0.0)
+
+
 def _attachment_text(file: dict) -> str:
     head = f"--- {file.get('label') or file['path']} ({file['path']})"
     if file.get("error"):
@@ -501,7 +516,8 @@ def build_prompt(
     interim: list[str] | None = None,
     attachments: list[dict] | None = None,
 ) -> str:
-    prompt = PROMPT_TEMPLATE.format(question=question, expected=expected, candidate=candidate)
+    heading = REFERENCE_AS_CONTEXT if expectations else REFERENCE_AS_TRUTH
+    prompt = PROMPT_TEMPLATE.format(reference_heading=heading, question=question, expected=expected, candidate=candidate)
     if interim:
         prompt += INTERIM_SECTION.format(messages="\n".join(f"- {message}" for message in interim))
     if attachments:
@@ -607,6 +623,7 @@ def grade_one(
                 input=[{"type": "user.message", "content": prompt}],
             ):
                 if event.type == "turn.done":
+                    grade.cost_usd += _turn_cost(event.state)
                     if getattr(event.state, "status", None) != "done":
                         raise RuntimeError(
                             getattr(event.state, "message", None)

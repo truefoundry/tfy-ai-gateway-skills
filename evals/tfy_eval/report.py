@@ -119,6 +119,7 @@ def build_summary(
             "total_cost_usd": sum(
                 (a.get("metrics") or {}).get("total_cost_in_usd") or 0.0 for a in answers
             ),
+            "judge_cost_usd": sum(g.get("cost_usd") or 0.0 for g in grades),
             "total_tokens": sum(
                 (a.get("metrics") or {}).get("total_tokens") or 0 for a in answers
             ),
@@ -216,8 +217,8 @@ def to_markdown(summary: dict) -> str:
         f"{totals['claims'].get('contradicted', 0)} contradicted)",
         f"- **Runs that asked for clarification**: {totals['runs_asked_clarification']}/{totals['agent_runs']} "
         "(some cases expect a question and script the reply)",
-        f"- **Cost**: ${totals['total_cost_usd']:.2f} over {totals['agent_runs']} runs, "
-        f"{totals['mean_duration_s']:.0f}s mean latency",
+        f"- **Cost**: agent ${totals['total_cost_usd']:.2f} over {totals['agent_runs']} runs, "
+        f"judge ${totals.get('judge_cost_usd', 0.0):.2f}; {totals['mean_duration_s']:.0f}s mean latency",
         "",
     ]
 

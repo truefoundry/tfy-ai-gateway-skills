@@ -6,6 +6,7 @@ grading of failed trials, the gate, affected-case selection and fixture placehol
 
 from __future__ import annotations
 
+import argparse
 import json
 import subprocess
 import tempfile
@@ -20,6 +21,8 @@ from tfy_eval import agent as agent_mod
 
 from . import asktfy
 from .affected import affected
+from .cli import _kind
+from .handgrade import _tool_line
 from .asktfy import AGENT, DeadlineStream, PinMismatch, PinnedAskTfy, SfyTransport, check_pinned, sfy_raw_path
 from .cases import (
     PLACEHOLDER, case_from_eval, case_hash, conditional_critical_claims, fill, load_cases, load_fixtures,
@@ -480,6 +483,16 @@ with mock.patch("runner.seed_fixtures.time.sleep"):
 seeded = {f"trace.{trace.name}.{key}" for trace in TRACES for key in ("id", "time", "epoch_ms", "sender", "error")}
 used = set(PLACEHOLDER.findall((Path(__file__).resolve().parents[1] / "evals.json").read_text()))
 check("every placeholder in evals.json is a value seed_fixtures writes", used and used <= seeded)
+
+line = _tool_line("exec: cat SKILL.md -> " + "x\n" * 400)
+check("hand grading shows a call with the start of its result", line.startswith("- `exec: cat SKILL.md` → x x") and len(line) < 400)
+check("a call with no result shows just the call", _tool_line("get_me") == "- `get_me`")
+check("run kinds name the experiment", _kind("nightly") == "nightly" and _kind("pr-133") == "pr-133")
+try:
+    _kind("pr-abc")
+    check("an unknown run kind is refused", False)
+except argparse.ArgumentTypeError:
+    check("an unknown run kind is refused", True)
 
 print(f"\n{len(failures)} failure(s)" if failures else "\nall checks passed")
 raise SystemExit(1 if failures else 0)

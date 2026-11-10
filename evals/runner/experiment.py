@@ -78,6 +78,8 @@ class Settings:
     skipped: dict[str, str]
     case_ids: tuple[str, ...] = ()
     allow_dirty: bool = False
+    # What started the run (nightly, pr-<number>, local); names the LangSmith experiment.
+    kind: str = "local"
     # Every runnable case at the commit, so a run of a few cases is not read as deleting the rest.
     all_case_hashes: dict[str, str] | None = None
     # Values for the cases' {{...}} placeholders, from seed_fixtures.
@@ -327,6 +329,8 @@ class Experiment:
                 {"key": "contradictions", "score": grade.contradictions},
                 {"key": "high_risk_additions", "score": grade.high_risk_additions},
             ]
+        if grade.cost_usd:
+            results.append({"key": "judge_cost_usd", "score": grade.cost_usd})
         return {"results": _redact_comments(results)}
 
     def behaviour(self, run: Run, example: Example) -> dict:
@@ -389,6 +393,7 @@ def start_experiment(settings: Settings, cases: list[Question]) -> Experiment:
         "run_id": run_dir.name,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "source": "ask-tfy",
+        "kind": settings.kind,
         "agent": f"Ask TFY via {settings.host} ({settings.tenant})",
         "base_url": settings.host,
         "tenant": settings.tenant,
@@ -433,7 +438,7 @@ def execute(experiment: Experiment, examples: list[Example]) -> Path:
         experiment.target,
         data=examples,
         evaluators=[experiment.grade, experiment.behaviour],
-        experiment_prefix=f"ask-tfy {settings.skills_sha[:8]}",
+        experiment_prefix=f"ask-tfy {settings.kind} {settings.skills_sha[:8]}",
         description=f"skills {settings.skills_sha} ({settings.skills_ref}) on {settings.host}",
         metadata={key: value for key, value in config.items()
                   if key not in ("run_id", "dataset", "created_at", "case_hashes", "all_case_hashes")},
@@ -463,7 +468,8 @@ def execute(experiment: Experiment, examples: list[Example]) -> Path:
     print(
         f"\nRuns fully correct {totals['runs_correct']}/{totals['graded_runs']}, mean score "
         f"{totals['mean_score']:.2f}, questions correct in every trial {totals['pass_rate'] * 100:.0f}% of "
-        f"{totals['graded_questions']}, {totals['unanswered']} unanswered, cost ${totals['total_cost_usd']:.2f}\n"
+        f"{totals['graded_questions']}, {totals['unanswered']} unanswered, cost ${totals['total_cost_usd']:.2f} "
+        f"+ judge ${totals['judge_cost_usd']:.2f}\n"
         f"Experiment {results.experiment_name}\nRun        {run_dir}"
     )
     if summary["unapproved_writes"]:

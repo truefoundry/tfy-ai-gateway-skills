@@ -73,8 +73,10 @@ python -m runner gate --baseline runs/<base> [runs/<base2>] --candidate runs/<ca
 `ab` runs both commits at the same time, so they see the same devtest data and deployments, then
 gates. A baseline from last week is confounded by everything that changed on devtest since.
 
-A full run is about 200 agent turns: budget about an hour at `--concurrency 4`, and roughly $0.10
-to $1.50 a turn. Use `--only` while iterating.
+A full run is about 220 trials: budget one to two hours at `--concurrency 4`. With Claude Haiku
+on low reasoning a trial costs about $0.03 to $0.04, about $8 a night; the report adds what the
+judge cost. Use `--only` while iterating. `--kind` (`nightly`, `pr-<number>`, default `local`)
+goes into the experiment name, `ask-tfy <kind> <sha>`, so LangSmith can tell runs apart.
 
 ## In CI
 
@@ -82,9 +84,13 @@ to $1.50 a turn. Use `--only` while iterating.
   schedules workflows from the default branch, so it also lives on `develop`. The run
   directory is the artifact `ask-tfy-baseline`, encrypted because the repo is public and runs hold
   devtest data: `openssl enc -d -aes-256-cbc -pbkdf2 -pass env:EVAL_ARTIFACT_KEY -in baseline.tar.gz.enc | tar -xz`.
-  Job summaries show only the headline numbers; the redacted traces are in LangSmith.
-- `eval-pr.yml` runs when a PR from this repo carries the `eval` label. `affected` compares the PR
-  with the latest nightly baseline and picks what to run:
+  Job summaries show only the headline numbers; the redacted traces are in LangSmith. Last, it
+  gates the run against the previous successful night (cases changed since are accepted) and
+  fails the job on a regression; a runner, judge or model change between nights only warns. With
+  an `EVAL_SLACK_WEBHOOK_URL` secret it posts the verdict and headline to Slack.
+- `eval-pr.yml` runs on every PR from this repo that touches `skills/`, `evals/` or these
+  workflows. `affected` compares the PR with the latest nightly baseline and picks what to run;
+  `all` and `ab` cost $8 to $15, so they wait for a maintainer to add the `eval` label:
 
   | Mode | When | Runs |
   |---|---|---|
@@ -123,6 +129,7 @@ of up to a day of devtest drift; fixtures are re-seeded before every run to keep
 | `secret_requested` | Asked for a secret through the masked form; the runner refuses it |
 | `clarification_asked` | Asked a clarifying question, with ask_user_question or by ending its turn on one (answered with the case's `clarification_reply`; with none scripted, ask_user_question is told the user did not answer) |
 | `tool_calls`, `duration_s`, `cost_usd` | Efficiency |
+| `judge_cost_usd` | What grading the trial cost |
 
 Outputs and feedback comments are redacted with `runner/redaction.py` before they reach
 LangSmith; the judge and the local run directory see them unredacted.

@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
   id-token: write
 
 concurrency:
@@ -57,7 +58,7 @@ jobs:
         run: python -m runner.seed_fixtures
 
       - name: Run
-        run: python -m runner run --skills-ref origin/platform --run runner/runs/nightly
+        run: python -m runner run --kind nightly --skills-ref origin/platform --run runner/runs/nightly
 
       # The repo is public: run directories hold devtest data, so only headline numbers are shown
       # and the artifact is encrypted. Redacted traces are in LangSmith.
@@ -84,3 +85,46 @@ jobs:
           path: evals/baseline.tar.gz.enc
           retention-days: 14
           if-no-files-found: ignore
+
+      # Last, so a regression fails the job only after the run is saved. Cases changed or removed
+      # since the previous night were reviewed in their PR, so they are accepted here; a runner or
+      # judge change makes the nights incomparable, which is a warning, not a regression.
+      - name: Compare with the previous night
+        if: always() && hashFiles('evals/runner/runs/nightly/summary.json') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVAL_ARTIFACT_KEY: ${{ secrets.EVAL_ARTIFACT_KEY }}
+          SLACK_WEBHOOK_URL: ${{ secrets.EVAL_SLACK_WEBHOOK_URL }}
+        run: |
+          prev=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow eval-nightly.yml \
+            --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+          if [ -z "$prev" ]; then echo "No earlier successful nightly to compare with." >> "$GITHUB_STEP_SUMMARY"; exit 0; fi
+          mkdir -p previous
+          # A run from before a key rotation cannot be opened; tonight's run becomes the next baseline.
+          if ! { gh run download "$prev" --repo "$GITHUB_REPOSITORY" --name ask-tfy-baseline --dir previous \
+              && openssl enc -d -aes-256-cbc -pbkdf2 -pass env:EVAL_ARTIFACT_KEY -in previous/baseline.tar.gz.enc \
+              | tar -xzf - -C previous; }; then
+            echo "::warning::Could not open the previous nightly (run $prev); not compared"
+            echo "Could not open the previous nightly (run $prev); not compared." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          accept=$(jq -rs '[.[] | (.all_case_hashes // .case_hashes) | keys[]] | unique | join(",")' \
+            previous/nightly/config.json runner/runs/nightly/config.json)
+          status=0
+          python -m runner gate --baseline previous/nightly --candidate runner/runs/nightly --accept "$accept" \
+            > nightly-gate.md 2>&1 || status=$?
+          sed "s|^## Ask TFY eval gate|## Compared with the previous night (run $prev)|" nightly-gate.md >> "$GITHUB_STEP_SUMMARY"
+          verdict=fail
+          if [ "$status" = 0 ]; then verdict=pass; elif grep -q "Not comparable" nightly-gate.md; then verdict=incomparable; fi
+          if [ -n "$SLACK_WEBHOOK_URL" ]; then
+            headline=$(sed -n '/^## Headline/,/^## Verdict/p' runner/runs/nightly/report.md | grep -E 'Runs fully correct|Mean score|Cost' | sed 's/\*\*//g')
+            text=$(printf 'Ask TFY nightly: %s vs the previous night\n%s\n%s' "$verdict" "$headline" \
+              "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID")
+            jq -n --arg text "$text" '{text: $text}' | curl -sf -X POST -H 'Content-Type: application/json' -d @- "$SLACK_WEBHOOK_URL" \
+              || echo "::warning::Slack post failed"
+          fi
+          case "$verdict" in
+            pass) ;;
+            incomparable) echo "::warning::Runner, judge or model changed since the previous night; not compared" ;;
+            *) echo "::error::Gate failed against the previous night (regression, or too many unmeasured trials); see the job summary"; exit 1 ;;
+          esac
