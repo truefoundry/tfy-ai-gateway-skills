@@ -1001,10 +1001,10 @@
       "expectations": [
         "Uses register_user, not a manifest or a raw API call",
         {
-   "text": "Gives the role as a tenant-role grant (create_grants on resourceType tenant), not by editing the user; when the invite was denied, saying the read-only-member tenant role would be granted after she is added is enough",
-   "critical": true
-  },
-  "Looks up the role id with list_roles; if it makes the grant, uses that id, not the name read-only-member, as roleId",
+          "text": "Gives the role as a tenant-role grant (create_grants on resourceType tenant), not by editing the user; when the invite was denied, saying the read-only-member tenant role would be granted after she is added is enough",
+          "critical": true
+        },
+        "Looks up the role id with list_roles; if it makes the grant, uses that id, not the name read-only-member, as roleId",
         "Does not claim a role can be set while inviting"
       ],
       "tags": {
@@ -1372,9 +1372,9 @@
       "files": [],
       "expectations": [
         {
-      "text": "Filters with userEmail EQUAL the session email on every query including totals; when the session is a service account with no email, asks whose usage first and then filters by the email given. An unfiltered check used only to explain an empty result is fine; a CSV or usage figures for anyone else delivered as the answer is a fail",
-      "critical": true
-    },
+          "text": "Filters with userEmail EQUAL the session email on every query including totals; when the session is a service account with no email, asks whose usage first and then filters by the email given. An unfiltered check used only to explain an empty result is fine; a CSV or usage figures for anyone else delivered as the answer is a fail",
+          "critical": true
+        },
         "Groups by providerAccountType and modelName",
         "Produces the CSV even when a row's provider or model is null, writing a blank or a clear placeholder such as (unresolved), without crashing",
         "If any row has a null provider or model, explains those rows from a second query grouped by errorDisplayLabel with isFailure EQUAL true (same userEmail filter and window); never names a likely cause without that query"
@@ -1440,6 +1440,233 @@
         "area": "traces",
         "kind": "diagnose",
         "regression": "Delta table not found dead-ends instead of listing destinations (Nov 5)"
+      }
+    },
+    {
+      "id": 80,
+      "prompt": "Saving a model permission on a virtual account fails with 403 \"You do not have permission to manage provider-account <id>\". The person doing it is not a tenant admin; they can already call the virtual model \"my-vm/chat\" and manage the virtual account itself. They are adding the model under Manage Permissions > Add Permission > Models. What is missing?",
+      "expected_output": "Names the missing role: provider-account-manager on the parent virtual-model account (or tenant admin); use access is not enough.",
+      "files": [],
+      "expectations": [
+        {
+          "text": "Says granting a model of the virtual-model account needs the provider-account-manager role on that parent account (or tenant admin)",
+          "critical": true
+        },
+        "Says use access alone (provider-integration-access on the model, or provider-account-access / User on the parent account) still gets the 403",
+        "Does not say making the user tenant admin is the only fix",
+        "Does not call the behaviour a bug"
+      ],
+      "tags": {
+        "area": "access",
+        "kind": "troubleshoot",
+        "source": "askbench R01, verified 2026-10-17"
+      }
+    },
+    {
+      "id": 81,
+      "prompt": "I call /chat/completions on the gateway with the user's token in Authorization and an agent's identity token in x-tfy-agent-authorization. When the agent has been granted the model I still get 403 \"User <me> is not authorized to access model my-vm/chat or model does not exist\", and when the agent has not been granted it, the call returns 200. Why does the agent token make no difference?",
+      "expected_output": "Explains the LLM gateway authorises only the Authorization bearer; x-tfy-agent-authorization does not change the outcome, so the agent token must be the bearer.",
+      "files": [],
+      "expectations": [
+        {
+          "text": "Says only the Authorization bearer is authorised on the LLM gateway; x-tfy-agent-authorization does not change whether the call is allowed",
+          "critical": true
+        },
+        {
+          "text": "Says to be allowed with the agent's grant, the agent's token must be sent as the Authorization bearer",
+          "critical": true
+        },
+        "Does not say x-tfy-agent-authorization restricts or is enforced on LLM gateway calls",
+        "Does not call the behaviour a bug"
+      ],
+      "tags": {
+        "area": "access",
+        "kind": "troubleshoot",
+        "source": "askbench R04, verified 2026-10-17"
+      }
+    },
+    {
+      "id": 82,
+      "prompt": "A virtual account owned by a team cannot see an MCP server that I granted to that team through a role binding: GET /api/svc/v1/mcp with the account's token returns 200 with an empty list. Is the owning team's access supposed to apply to the account, and what is the simplest way to declare the access once?",
+      "expected_output": "Explains a team-owned virtual account does not inherit the team's grants; give the account its own subject in a role binding with mcp-server-user, simplest as a second subject of the team's binding.",
+      "files": [],
+      "expectations": [
+        {
+          "text": "Says a virtual account owned by a team does not receive the team's grants",
+          "critical": true
+        },
+        {
+          "text": "Fix: give the virtual account itself a role binding subject (virtualaccount), in the team's binding or its own",
+          "critical": true
+        },
+        "Says the role is mcp-server-user on the mcp-server resource, declared once in that binding",
+        "Does not say team ownership should have granted access, or that the account must be made a team member"
+      ],
+      "tags": {
+        "area": "access",
+        "kind": "troubleshoot",
+        "source": "askbench R05, verified 2026-10-17"
+      }
+    },
+    {
+      "id": 83,
+      "prompt": "A per-user daily budget in enforce mode never blocks our coding agent, which calls the gateway with a virtual account token: spend is well over the limit and every call still returns 200. Why does the rule not fire for the agent, and what should the budget be keyed on?",
+      "expected_output": "Explains a per-user rule does not match calls made with a virtual account token; key the budget per virtual account.",
+      "files": [],
+      "expectations": [
+        {
+          "text": "Says a per-user budget rule does not apply to requests authenticated with a virtual account token",
+          "critical": true
+        },
+        {
+          "text": "Fix: a per-virtual-account budget rule that covers the agent's virtual account",
+          "critical": true
+        },
+        "Does not say the per-user rule applies and just needs time or a lower limit",
+        "Does not call the behaviour a bug"
+      ],
+      "tags": {
+        "area": "budgets",
+        "kind": "troubleshoot",
+        "source": "askbench R12, verified 2026-10-17"
+      }
+    },
+    {
+      "id": 84,
+      "prompt": "My priority virtual model has two targets. When the first provider answers HTTP 400 (it rejects a strict json_schema response_format), the client gets that 400 instead of the second target serving the request. Is there a setting to fail over on that, does it change what fails over today, and would those 400s mark the first target unhealthy?",
+      "expected_output": "Explains 400 is returned by default; add it to the target's fallback_status_codes, which replaces the default list, so keep the other codes.",
+      "files": [],
+      "expectations": [
+        {
+          "text": "Says a provider 400 is returned to the caller by default, and adding \"400\" to the target's fallback_status_codes makes the request fail over to the next target",
+          "critical": true
+        },
+        {
+          "text": "Says fallback_status_codes replaces the default list rather than adding to it, so the other codes to fail over on must be listed too",
+          "critical": true
+        },
+        "Says 400s that fail over do not mark the first target unhealthy; it keeps serving later requests",
+        "Does not say 400 already fails over by default"
+      ],
+      "tags": {
+        "area": "routing",
+        "kind": "troubleshoot",
+        "source": "askbench R15, verified 2026-10-17"
+      }
+    },
+    {
+      "id": 85,
+      "prompt": "Claude Code through the gateway uses a virtual model named like a Sonnet model that has a Haiku target as one route. Requests that land on the Haiku route fail with 400 \"adaptive thinking is not supported on this model\" and \"This model does not support the effort parameter.\"; the same requests to the Sonnet target are fine. Setting override_params temperature on the Haiku target changed nothing. How can I make the Haiku route work?",
+      "expected_output": "Explains the Haiku target rejects adaptive thinking and effort; override_params {thinking: null, output_config: null} on that target strips them.",
+      "files": [],
+      "expectations": [
+        {
+          "text": "Says the 400s are Anthropic's own validation: the Haiku model does not accept adaptive thinking or the effort parameter that Claude Code sends for a Sonnet-named model",
+          "critical": true
+        },
+        {
+          "text": "Fix: override_params {thinking: null, output_config: null} on the Haiku target, or name or split the virtual model so Claude Code sends Haiku-compatible requests",
+          "critical": true
+        },
+        "Says a temperature-only override cannot remove those fields; they must be set to null explicitly",
+        "Does not say override_params cannot remove fields the client chose"
+      ],
+      "tags": {
+        "area": "clients",
+        "kind": "troubleshoot",
+        "source": "askbench R17, verified 2026-10-17"
+      }
+    },
+    {
+      "id": 86,
+      "prompt": "Our chat UI uses one shared gateway key. It forwards the signed-in user in X-OpenWebUI-User-Email and X-OpenWebUI-User-Name headers and in the OpenAI user field. Requests return 200, but cost in the gateway metrics grouped by user shows only the app, never the people. How do we get per-person cost attribution and per-person limits?",
+      "expected_output": "Explains the UI headers and the user field are not used for attribution; send the person in X-TFY-METADATA and group metrics or key a metadata budget on it.",
+      "files": [],
+      "expectations": [
+        {
+          "text": "Says the X-OpenWebUI-User headers and the OpenAI user field are not used to group cost or apply limits",
+          "critical": true
+        },
+        {
+          "text": "Fix: send the person in the X-TFY-METADATA header (JSON, e.g. {\"owui_user\": \"bob\"}) and group metrics by that metadata key",
+          "critical": true
+        },
+        "Says per-person limits come from a budget keyed on that metadata key (applies_to type metadata)",
+        "Does not say those headers or the user field are picked up automatically"
+      ],
+      "tags": {
+        "area": "metrics",
+        "kind": "troubleshoot",
+        "source": "askbench R19, verified 2026-10-17"
+      }
+    },
+    {
+      "id": 87,
+      "prompt": "A chat completions request through the gateway to my-openai/gpt-x with a function tool fails with 400 \"Function tools with reasoning_effort are not supported for gpt-x in /v1/chat/completions\". I never set reasoning_effort, and the same code works against other models. Why does it fail, and what are my options to keep the tool and get a 200?",
+      "expected_output": "Explains the model reasons by default and the provider rejects function tools on plain Chat Completions; send x-tfy-openai-use-responses-api: true, or set a reasoning effort, to be served via Responses.",
+      "files": [],
+      "expectations": [
+        {
+          "text": "Says the model reasons by default and function tools with reasoning are rejected on plain Chat Completions; does not say the gateway adds reasoning_effort itself",
+          "critical": true
+        },
+        {
+          "text": "Fix: send the header x-tfy-openai-use-responses-api: true so the request goes through the Responses API",
+          "critical": true
+        },
+        "Says setting reasoning_effort to low, medium or high also routes it through Responses and succeeds",
+        "Does not tell the user to drop the function tools"
+      ],
+      "tags": {
+        "area": "models",
+        "kind": "troubleshoot",
+        "source": "askbench R21, verified 2026-10-17"
+      }
+    },
+    {
+      "id": 88,
+      "prompt": "A POST /v1/messages through the gateway to my-anthropic/claude-x with thinking {type: adaptive, display: \"updates\"} returns 400 \"anthropic error: thinking.adaptive.display: Input should be 'summarized', 'omitted'\". The client library documents the updates display. Is the gateway rejecting it, and how do I enable it?",
+      "expected_output": "Says the 400 is Anthropic's validation; the updates display needs the beta thinking-display-updates-2026-08-18 in anthropic-beta or x-tfy-anthropic-beta, which replaces rather than merges.",
+      "files": [],
+      "expectations": [
+        {
+          "text": "Says the 400 is Anthropic's own validation passed through, not a gateway rule, and that the updates display needs a beta",
+          "critical": true
+        },
+        {
+          "text": "Fix: send the beta thinking-display-updates-2026-08-18 in the anthropic-beta or x-tfy-anthropic-beta header",
+          "critical": true
+        },
+        "Says x-tfy-anthropic-beta replaces anthropic-beta rather than merging, so it must list every beta needed",
+        "Does not say the gateway cannot support this display value"
+      ],
+      "tags": {
+        "area": "models",
+        "kind": "troubleshoot",
+        "source": "askbench R22, verified 2026-10-17"
+      }
+    },
+    {
+      "id": 89,
+      "prompt": "My custom webhook guardrail (Enforce) takes 6 to 8 seconds on some inputs and those requests fail with HTTP 400 \"Input Guardrail checks failed ... Details: Guardrail API execution failed: Request timed out after 5000ms\". Adding timeout and timeout_ms of 10000 to the guardrail config was accepted but made no difference. How can I get these requests through?",
+      "expected_output": "Explains the custom guardrail timeout is about 5 s and not configurable (timeout keys are ignored); use enforce_but_ignore_on_error to fail open, or make the webhook answer within 5 s.",
+      "files": [],
+      "expectations": [
+        {
+          "text": "Says the custom guardrail call is limited to about 5 seconds and the limit is not configurable; the timeout and timeout_ms keys are ignored",
+          "critical": true
+        },
+        {
+          "text": "Gives the options: enforcing_strategy enforce_but_ignore_on_error so the request goes through after the timeout, or make the webhook respond within about 5 seconds",
+          "critical": true
+        },
+        "Does not say the guardrail timeout can be configured per guardrail",
+        "Does not call the behaviour a bug"
+      ],
+      "tags": {
+        "area": "guardrails",
+        "kind": "troubleshoot",
+        "source": "askbench R23, verified 2026-10-17"
       }
     }
   ]
