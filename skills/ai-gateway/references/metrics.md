@@ -24,7 +24,7 @@ rows = r["data"]["dataPoints"]
 
 - `filters` and `filterPredicate` are always lists of `{fieldName, operator, value}`. Batch independent queries with `asyncio.gather` (sandbox timeout 60s).
 - Build requests from this file; never call `get_tool_info` on this tool. A 400 names the wrong field.
-- Print the top 10–20 rows, sorted on what the question ranks by, plus an `other` row (count, sums) for the rest and the null-name row (failed before routing).
+- Print the top 10–20 rows, sorted on what the question ranks by, plus an `other` row (count, sums, max) for the rest and the null-name row (failed before routing). Say nothing else of unprinted rows.
 - **Totals.** Print headline totals (requests, cost, tokens, failures) from a `groupBy: []` query in the same program; grouped rows double count teams and virtual → real models. Quote only numbers the program printed, % and shares too; add a missing one to the program, never the reply.
 
 ### Datasources
@@ -79,7 +79,7 @@ Each point has `total`, each aggregation under its `alias` (default `<type><Colu
 
 Failures before routing leave group values null — models: `providerAccountType`/`modelName` (not found, forbidden, rate-limited); agents: `agentName`; load-balance: `targetModel` (key `model`) when every target failed. Explain with a second failure query — models/agents: `groupBy ["errorDisplayLabel"]` + `isFailure EQUAL true` (`errorType` is a filter only, never group-by); MCP tool failures: `toolErrorDisplayLabel` + `isToolCallFailure`. Run it; don't guess.
 
-Data-access rules filter every query; with no matching rule it returns nothing. An empty or small result can mean no access: say so and link `{controlPlaneUrl}/access-management?tab=data-access` ([data access](https://www.truefoundry.com/docs/ai-gateway/data-access)).
+Data-access rules filter every query; with no matching rule it returns nothing. An empty result is the answer, never a reason to drop the user's filters; it can mean no access: say so and link `{controlPlaneUrl}/access-management?tab=data-access` ([data access](https://www.truefoundry.com/docs/ai-gateway/data-access)).
 
 ### Recipes
 
@@ -94,7 +94,7 @@ Shown as `datasource` · `groupBy` · aggregations · filters.
 - **Provider prompt cache** — `realModelMetrics` · `sum cacheReadInputTokens`, `sum cacheCreationInputTokens`, `sum inputTokens`; print cached share = read / input.
 - **Gateway cache** — `cacheMetrics` · `["cacheType"]` (`exact-match`/`semantic`) · `avg cacheHitFlag` (hit %), `sum potentialCostSavings` ([how savings are computed](https://www.truefoundry.com/docs/ai-gateway/cost-savings#how-each-figure-is-calculated)). Group by `cacheLookupStatus` only to count `hit`/`miss`/`error`; it makes each row's hit % 0 or 100. No row for a type = no lookups, not 0%.
 - **MCP** — `mcpMetrics` · `["mcpServerName","toolName"]` · filter `method IN ["tools/call"]` · `p95 latencyMs`; failures = `count method` with `filterPredicate isToolCallFailure EQUAL true` (`isFailure` misses tool execution errors).
-- **Guardrails** — `guardrailMetrics` · `["guardrailName","guardrailResult"]` · `guardrailName NOT_EQUAL ""`. Per guardrail, print and report blocked (`flag`), flagged in audit mode (`audit_mode_flag`), mutated (`mutation`) and failed to run (`error`, `ignored_error`) separately, 0 when absent; say which you count as failed. Meanings: [guardrail result values](https://www.truefoundry.com/docs/ai-gateway/fetch-request-logs-span-attributes#guardrail-result-values). Not `guardrailResultCategory`: its `allowed` includes `error` and `ignored_error`. Per policy: `guardrailPolicyMetrics` · `["policyName"]`.
+- **Guardrails** — `guardrailMetrics` · `["guardrailName","guardrailResult"]` · `guardrailName NOT_EQUAL ""`. Per guardrail, print and report blocked (`flag`), flagged in audit mode (`audit_mode_flag`), mutated (`mutation`) and failed to run (`error`, `ignored_error`) separately, 0 when absent, even when asked only about failures; say which you count as failed. Meanings: [guardrail result values](https://www.truefoundry.com/docs/ai-gateway/fetch-request-logs-span-attributes#guardrail-result-values). Not `guardrailResultCategory`: its `allowed` includes `error` and `ignored_error`. Per policy: `guardrailPolicyMetrics` · `["policyName"]`.
 - **Rate-limit and budget blocks** — `configMetrics` · filter `configType EQUAL ratelimit` (or `budget`) · `["ratelimitRuleId","configResultCategory"]` (or `budgetRuleId`); rule in `ruleId`, outcome `allowed`/`blocked`. Who was blocked: add `userEmail` and `virtualaccount`.
 - **Load balancing** — `configMetrics` · filter `configType EQUAL loadbalance` · `["loadbalanceRuleId","requestedModel","targetModel"]` · `p95 loadbalanceTargetAttemptCount`.
 - **Agents** — `agentMetrics` · `["agentName"]` · `agentName NOT_IN [""]` · `count isFailure` with `filterPredicate isFailure EQUAL true`, `p50`/`p95 latencyMs`.
