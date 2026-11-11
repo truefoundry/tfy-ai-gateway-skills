@@ -1192,7 +1192,7 @@
     {
       "id": 65,
       "prompt": "Why did this trace fail - {{trace.provider_400.id}}",
-      "expected_output": "Queries every span of the trace on the default destination, in the window its trace ID encodes, without asking which destination first, and reports that the provider rejected the request with a 400 (tfy.error_type request-failure-400 on the Model span) because top_logprobs was 50 and the maximum is 20. Names the sender {{trace.provider_400.sender}} and says it went to eval-vm/chat at {{trace.provider_400.time}} UTC. Includes a trace link. Says the caller should send top_logprobs of 20 or less.",
+      "expected_output": "Queries every span of the trace on the default destination, in the window its trace ID encodes, without asking which destination first, and reports that the provider rejected the request with a 400 (tfy.error_type request-failure-400 on the Model span) because response_format had type json_schema but no json_schema: '{{trace.provider_400.error}}'. Names the sender {{trace.provider_400.sender}} and says it went to eval-vm/chat at {{trace.provider_400.time}} UTC. Includes a trace link. Says the caller should add a json_schema to response_format or use type json_object or text.",
       "files": [],
       "expectations": [
         "Queries the default destination without asking the user to pick one",
@@ -1284,11 +1284,11 @@
     {
       "id": 71,
       "prompt": "What did the request in trace {{trace.provider_400.id}} send?",
-      "expected_output": "Reads TfyGatewayInput of the head span only, and reports the request body: model eval-vm/chat, max_tokens 20, logprobs true, top_logprobs 50 and one user message 'Say hi'.",
+      "expected_output": "Reads TfyGatewayInput of the head span only, and reports the request body: model eval-vm/chat, max_tokens 20, response_format of type json_schema with no schema, and one user message 'Say hi'.",
       "files": [],
       "expectations": [
         "Selects TfyGatewayInput for this trace only, not SELECT *",
-        "Reports top_logprobs 50, max_tokens 20 and the message 'Say hi'"
+        "Reports response_format type json_schema, max_tokens 20 and the message 'Say hi'"
       ],
       "tags": {
         "area": "traces",

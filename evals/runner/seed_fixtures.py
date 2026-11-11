@@ -75,7 +75,7 @@ class Trace:
 NOT_FOUND = Trace("not_found", "eval-openai/o4-mini", 403, "tfy-model-not-found")
 TRACES = [
     NOT_FOUND,
-    Trace("provider_400", "eval-vm/chat", 400, "request-failure-400", body={"logprobs": True, "top_logprobs": 50}),
+    Trace("provider_400", "eval-vm/chat", 400, "request-failure-400", body={"response_format": {"type": "json_schema"}}),
     Trace("guardrail", "eval-vm/chat", 400, "tfy-input-guardrail", content=PII,
           headers={"X-TFY-GUARDRAILS": json.dumps({"input_guardrails": ["tfy-guardrail/pii"]})}),
     Trace("budget", "eval-vm/budget", 429, "tfy-budget-limit", attempts=3),
