@@ -23,7 +23,7 @@ TrueFoundry services expose HTTP(S) endpoints via the platform ingress. Most “
 
 - If the service or workspace enforces auth, unauthenticated curls fail with 401/403 — not a crash.
 - Notebooks/SSH often use **OAuth / platform login** (`notebook-ssh.md`) — browser access differs from raw curl.
-- CORS errors are browser-only; fix allowed origins in the service/ingress config per schema/docs, or call from server-side.
+- CORS is not configurable per service in the manifest; there is no allowed-origins field. Handle CORS in the application, or make the call server-side.
 
 ## Sticky sessions
 

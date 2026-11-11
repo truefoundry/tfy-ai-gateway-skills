@@ -1,0 +1,163 @@
+name: Ask TFY eval (PR gate)
+
+# Runs with devtest credentials, so only for PRs from this repo; fork PRs never get here. A change
+# to cases or reference files runs the affected cases on its own; one that needs every case or both
+# sides (SKILL.md, the runner, the harness) waits for a maintainer to add the `eval` label.
+on:
+  pull_request:
+    types: [opened, labeled, synchronize, reopened]
+    paths:
+      - "skills/**"
+      - "evals/**"
+      - ".github/workflows/eval-*.yml"
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: write
+  id-token: write
+
+# Adding any other label starts a run that skips the job; it must not cancel a gate in progress.
+concurrency:
+  group: ask-tfy-eval-pr-${{ github.event.pull_request.number }}-${{ github.event.action == 'labeled' && github.event.label.name != 'eval' && github.run_id || 'gate' }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    name: Gate against the nightly baseline
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (github.event.action != 'labeled' || github.event.label.name == 'eval')
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    defaults:
+      run:
+        working-directory: evals
+    env:
+      ASK_TFY_HOST: ${{ secrets.EVAL_ASK_TFY_HOST }}
+      ASK_TFY_TENANT: ${{ secrets.EVAL_ASK_TFY_TENANT }}
+      TFY_API_KEY: ${{ secrets.EVAL_TFY_API_KEY }}
+      TRUEFORGE_BASE_URL: ${{ secrets.EVAL_TRUEFORGE_BASE_URL }}
+      TRUEFORGE_JUDGE_MODEL: ${{ vars.EVAL_JUDGE_MODEL || 'tfy-ai-anthropic/claude-sonnet-5-5' }}
+      LANGSMITH_API_KEY: ${{ secrets.LANGSMITH_API_KEY }}
+      LANGSMITH_ENDPOINT: ${{ secrets.LANGSMITH_ENDPOINT }}
+      EVAL_FIXTURE_MANAGER: ${{ secrets.EVAL_FIXTURE_MANAGER }}
+      GH_TOKEN: ${{ github.token }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      PR_BODY: ${{ github.event.pull_request.body }}
+      LABELLED: ${{ contains(github.event.pull_request.labels.*.name, 'eval') }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Install
+        run: uv pip install --system -r requirements.txt
+
+      - name: Download the latest nightly baseline
+        env:
+          EVAL_ARTIFACT_KEY: ${{ secrets.EVAL_ARTIFACT_KEY }}
+        run: |
+          # Scheduled runs are recorded on the default branch (develop); each one tests platform.
+          run_id=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow eval-nightly.yml \
+            --status success --limit 1 --json databaseId --jq '.[0].databaseId')
+          if [ -z "$run_id" ]; then echo "::error::No successful nightly baseline yet; run eval-nightly first"; exit 1; fi
+          gh run download "$run_id" --repo "$GITHUB_REPOSITORY" --name ask-tfy-baseline --dir .
+          mkdir -p runner/runs
+          openssl enc -d -aes-256-cbc -pbkdf2 -pass env:EVAL_ARTIFACT_KEY -in baseline.tar.gz.enc | tar -xzf - -C runner/runs
+          mv runner/runs/nightly runner/runs/baseline
+
+      - name: Pick affected cases
+        id: affected
+        run: |
+          python -m runner affected --baseline runner/runs/baseline --skills-ref "$HEAD_SHA" | tee affected.json
+          mode=$(jq -r .mode affected.json)
+          if { [ "$mode" = all ] || [ "$mode" = ab ]; } && [ "$LABELLED" != true ]; then mode=needs-label; fi
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
+          echo "only=$(jq -r .only affected.json)" >> "$GITHUB_OUTPUT"
+          accept=$(printf '%s\n' "$PR_BODY" | sed -n 's/^Eval-Accept:[[:space:]]*//p' | head -1 | tr -d '[:space:]')
+          if [ -n "$accept" ] && ! printf '%s' "$accept" | grep -Eq '^s[0-9]+(,s[0-9]+)*$'; then
+            echo "::error::Eval-Accept must look like s12,s13"; exit 1
+          fi
+          echo "accept=$accept" >> "$GITHUB_OUTPUT"
+
+      - name: Nothing to run
+        if: steps.affected.outputs.mode == 'none'
+        run: |
+          printf '## Ask TFY eval gate: SKIPPED\n' > gate.md
+
+      - name: Needs the eval label
+        if: steps.affected.outputs.mode == 'needs-label'
+        run: |
+          printf '## Ask TFY eval gate: NOT RUN\n\nThis change runs every case or both sides (about $8-15, up to 2 hours). Add the `eval` label to run it.\n' > gate.md
+          exit 1
+
+      - name: Stale branch
+        if: steps.affected.outputs.mode == 'stale'
+        run: |
+          printf '## Ask TFY eval gate: NOT RUN\n' > gate.md
+          exit 1
+
+      - name: Join tailnet
+        if: contains(fromJSON('["cases", "all", "ab"]'), steps.affected.outputs.mode)
+        uses: tailscale/github-action@306e68a486fd2350f2bfc3b19fcd143891a4a2d8 # v4.1.2
+        with:
+          oauth-client-id: ${{ vars.TS_CI_PR_CLIENT_ID }}
+          audience: ${{ vars.TS_CI_PR_AUDIENCE }}
+          tags: tag:ci-internal
+          hostname: gh-${{ github.event.repository.name }}-${{ github.run_id }}
+
+      - name: Seed fixtures
+        if: contains(fromJSON('["cases", "all", "ab"]'), steps.affected.outputs.mode)
+        run: python -m runner.seed_fixtures
+
+      - name: Run affected cases and gate
+        if: contains(fromJSON('["cases", "all"]'), steps.affected.outputs.mode)
+        env:
+          ONLY: ${{ steps.affected.outputs.mode == 'cases' && steps.affected.outputs.only || '' }}
+          ACCEPT: ${{ steps.affected.outputs.accept }}
+        run: |
+          python -m runner run --kind "pr-$PR_NUMBER" --skills-ref "$HEAD_SHA" ${ONLY:+--only "$ONLY"} --run runner/runs/pr
+          python -m runner gate --baseline runner/runs/baseline --candidate runner/runs/pr ${ACCEPT:+--accept "$ACCEPT"} \
+            | tee gate.md
+
+      - name: Runner changed, run both sides
+        if: steps.affected.outputs.mode == 'ab'
+        env:
+          ACCEPT: ${{ steps.affected.outputs.accept }}
+        run: |
+          python -m runner ab --kind "pr-$PR_NUMBER" --baseline-ref origin/platform --skills-ref "$HEAD_SHA" ${ACCEPT:+--accept "$ACCEPT"} \
+            | tee ab.log
+          sed -n '/^## Ask TFY eval gate/,$p' ab.log > gate.md
+
+      - name: Comment on the PR
+        if: always()
+        run: |
+          [ -s gate.md ] || exit 0
+          [ -f affected.json ] && printf '\nAffected: %s\n' "$(jq -r .reason affected.json)" >> gate.md
+          cat gate.md >> "$GITHUB_STEP_SUMMARY"
+          gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file gate.md
+
+      - name: Encrypt the runs
+        if: always()
+        env:
+          EVAL_ARTIFACT_KEY: ${{ secrets.EVAL_ARTIFACT_KEY }}
+        run: |
+          [ -d runner/runs ] || exit 0
+          tar -czf - -C runner runs | openssl enc -aes-256-cbc -pbkdf2 -salt -pass env:EVAL_ARTIFACT_KEY -out runs.tar.gz.enc
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ask-tfy-pr-${{ github.event.pull_request.number }}
+          path: evals/runs.tar.gz.enc
+          retention-days: 7
+          if-no-files-found: ignore

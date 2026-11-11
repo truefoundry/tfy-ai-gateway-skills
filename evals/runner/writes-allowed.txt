@@ -1,0 +1,3 @@
+# Cases whose write tool calls the runner approves. Everything else is denied: on devtest a write
+# really creates or changes resources. Add a case only once it cleans up after itself, one id per
+# line, with a comment saying what it writes and how it is cleaned up.
