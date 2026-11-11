@@ -4,6 +4,14 @@ on:
   push:
     branches:
       - platform
+    paths:
+      - "skills/**"
+      - manifest.yaml
+      - .github/workflows/deploy-devtest.yml
+
+permissions:
+  contents: read
+  id-token: write
 
 jobs:
   deploy:
@@ -27,6 +35,14 @@ jobs:
         env:
           UV_SYSTEM_PYTHON: 1
         run: uv pip install --pre truefoundry
+
+      - name: Join tailnet
+        uses: tailscale/github-action@306e68a486fd2350f2bfc3b19fcd143891a4a2d8 # v4.1.2
+        with:
+          oauth-client-id: ${{ vars.TS_CI_APPLY_CLIENT_ID }}
+          audience: ${{ vars.TS_CI_APPLY_AUDIENCE }}
+          tags: tag:ci-internal
+          hostname: gh-${{ github.event.repository.name }}-${{ github.run_id }}
 
       - name: Apply manifest
         env:

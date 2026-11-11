@@ -1,136 +1,108 @@
 ---
 name: budget-limiting
-description: Budget policies enforce spending and token budgets with optional alerts and audit mode for Gateway usage.
+description: Legacy Budget Limiting V1 (`gateway-budget-config`) — reading V1 rules, changing or disabling them, and migrating to V2. New budgets go to `budget-limiting-v2.md`.
 ---
 
-> **V1 is deprecated.** Use **Budget Limiting V2** (`ai-gateway/references/budget-limiting-v2.md`) for all new budget work. This file covers V1 only for reading, disabling, and migrating existing `gateway-budget-config` rules.
+> **V1 is deprecated.** Use **Budget Limiting V2** (`budget-limiting-v2.md`) for all new budget work. This file covers V1 only for reading, disabling, and migrating existing `gateway-budget-config` rules.
 
-**Budget Config** defines **Budget Rules** that set limits using `when` matchers (subjects, models, metadata), `limit_to`, `unit`, optional `budget_applies_per`, optional `alerts`, and optional `audit_mode` (track overages without blocking).
+**Budget Config** is one document per tenant holding an ordered `rules[]`. Each rule sets a limit using `when` matchers (subjects, models, metadata), `limit_to`, `unit`, optional `budget_applies_per`, optional `alerts`, and optional `audit_mode` (track overages without blocking).
 
 ## Fetching existing budget configuration
 
-Use the `get_gateway_config` tool with `type: gateway-budget-config` to get the budget config manifest. The response is shaped like:
+Call `get_gateway_config` with `type: gateway-budget-config`. The response is shaped like:
 
 ```yaml
 id: ...
-tenantName: ...
 type: gateway-budget-config
 manifest:
-  name: budget
+  name: budget                    # optional, reference only
   type: gateway-budget-config
   rules:
     - id: ...
       unit: cost_per_day
       when:
-        models:
-          - openai/gpt-4o-mini
-        subjects:
-          - user:john@example.com
+        models: [openai/gpt-4o-mini]
+        subjects: [user:john@example.com]
       limit_to: 0.000001
       audit_mode: false
-      budget_applies_per:
-        - model
+      budget_applies_per: [model]
       alerts:
         thresholds: [50, 75, 90, 100]
         notification_target:
           - type: slack-bot
             channels: ["#notification-test"]
             notification_channel: truefoundry:slack:test-bot:notification-channel:tfy-slack-bot
-    - # more rules
 createdBySubject: { ... }
-createdAt: ...
 updatedAt: ...
 ```
 
+**Usage:** no tool reads V1 usage; say so and never estimate it. `get_budget_usage` reads V2 budgets only (`budget-limiting-v2.md`).
+
 ## Resolving budget scope
 
-A budget rule has two dimensions — resolve each independently:
-
-**1. Target — who does the rule apply to? (`when` field)**
+**1. Target (`when`)**
 
 | User mentions | `when` field |
 |---|---|
 | a user / email | `subjects: [user:email]` |
 | a team | `subjects: [team:name]` |
 | a VA / virtual account | `subjects: [virtualaccount:name]` |
-| a metadata term (tenant, app, feature, etc.) | `metadata: { key: value }` |
+| a metadata term (tenant, app, feature…) | `metadata: { key: value }` |
 
-If the term does not match user, team, or VA — it is a metadata key. **Do not ask the user for the key name.** Read `ai-gateway/references/observability.md` and query `gateway_model_metrics` to discover metadata keys from live data, scoped to whatever the user specified.
+A term that isn't a user, team or VA is a metadata key. Don't ask the user for the key name: discover it from live data (the metadata keys query in `observability.md`).
 
-**2. Bucketing — how is the budget counted? (`budget_applies_per` field)**
+**2. Bucketing (`budget_applies_per`)** — omitted means all matching requests share one budget pool (two users in `subjects` share one combined budget). Only one value per rule: `user`, `model`, `virtualaccount`, or `metadata.<key>`.
 
-By default, all matching requests share a **single budget pool** (e.g., two users in `subjects` share one combined budget). Use `budget_applies_per` to create **separate budgets per entity** instead. Only one value per rule.
-
-| Value | Effect |
-|---|---|
-| *(omitted)* | all matched subjects/models share one budget pool |
-| `user` | separate budget per user |
-| `model` | separate budget per model |
-| `virtualaccount` | separate budget per VA |
-| `metadata.<key>` | separate budget per unique metadata value |
-
-If the bucketing term does not match user, model, or VA — it is a metadata key. **Do not ask the user for the key name.** Discover it from live data as described above.
-
-A user query can specify both dimensions. Example: "per tenant budget for tfy-ai-features VA" → target is `subjects: [virtualaccount:tfy-ai-features]`, bucketing is `budget_applies_per: [metadata.<tenant-key>]`.
+Example: "per tenant budget for tfy-ai-features VA" → `subjects: [virtualaccount:tfy-ai-features]`, `budget_applies_per: [metadata.<tenant-key>]`.
 
 ## Rule ordering
 
 Rules are evaluated top to bottom. The **first matching rule** controls allow/block, but cost is tracked against **all matching rules**. Place higher-priority rules (overrides, exceptions) above general defaults.
 
-## Creating/Updating Budget Rules (Write Flow)
+## Changing V1 rules (write flow)
 
-> **Note**: For complex rules, use `search_docs` for "gateway budget rules" to understand how `budget_applies_per` interacts with `when` matchers, alert thresholds, and audit mode behavior.
+Read `write-rules.md` in the same batch. This is a legacy singleton: the whole `rules[]` is replaced on every apply.
 
-> **CRITICAL**: The manifest **MUST** have a top-level `name` field. This field is NOT in the JSON schema, but `apply_manifest` requires it. Without it you will get: `"Manifest does not have a name field"`. Get the `name` from the existing config.
+1. In one batch: `get_manifest_json_schema` with type `gateway-budget-config`, and `get_gateway_config` with `type: gateway-budget-config`.
+2. **Always merge into the full `rules[]` from a `get_gateway_config` result that is still in the conversation. If it isn't, call `get_gateway_config` again right before building. Never rebuild `rules[]` from memory or a summary** — a missing rule is deleted.
+3. Position the rule: review existing rules for overlapping scope and insert the new rule above any broader rule it should override (see Rule ordering).
+4. Build the manifest as JSON. Top-level `name` is optional for this type and used only for reference. Keep the existing config's `name` if it has one; if there is no existing config, use `budget`.
+5. `validate_manifest`, wait for `valid: true`, then `apply_manifest` (separate batches). `validate_manifest` checks the schema only; the one-value `budget_applies_per` and one-`notification_target` limits are enforced by `apply_manifest`, so check them yourself first.
 
-### Phase 1: Get Schema and Existing Config
-
-1. Call `get_manifest_json_schema` with type `gateway-budget-config`.
-2. Call `get_gateway_config` with `type: gateway-budget-config` to fetch the existing config. New rules must be merged with existing ones — never replace. Note the `name` field from the existing config — you will need it.
-
-### Phase 2: Position the Rule
-
-Call `search_docs` for "budget limiting rule ordering" to understand how rule order affects allow/block and cost tracking. Review existing rules for overlapping scope before deciding where to insert the new rule.
-
-### Phase 3: Build and Apply
-
-Build the manifest as JSON (include `name` from existing config) → pass to `validate_manifest` → fix if needed → pass to `apply_manifest`.
-
-### Manifest Structure
+### Manifest structure
 
 ```yaml
-name: <config-name>
+name: <existing-name-if-any>
 type: gateway-budget-config
 rules:
   - id: <unique-rule-id>
-    unit: <cost_per_day|cost_per_week|cost_per_month>
-    when:
-      subjects:
-        - <user:email or team:name or virtualaccount:name>
-      models:
-        - <account-name/model-name>
-      metadata:
-        <key>: <value>
-    limit_to: <budget-limit-in-usd>
+    unit: <cost_per_day|cost_per_week|cost_per_month|cost_per_quarter|tokens_per_day|tokens_per_month>
+    when:                       # required in V1; when: {} matches all traffic
+      subjects: [<user:email | team:name | virtualaccount:name>]
+      models: [<account-name/model-name>]
+      metadata: { <key>: <value> }
+    limit_to: <budget-limit-in-usd-or-tokens>
     audit_mode: <true|false>
-    budget_applies_per:
-      - <user|model|virtualaccount|metadata.key>
+    budget_applies_per: [<user|model|virtualaccount|metadata.key>]   # max 1
     alerts:
-      thresholds:
-        - <percentage-value>
-      notification_target:
-        - type: slack-bot
-          channels:
-            - <channel-name>
+      thresholds: [<percentage>]          # 0-100, default [75, 90, 95, 100]
+      notification_target:                # at most ONE entry in V1
+        - type: slack-bot                 # email | slack-webhook | slack-bot | pagerduty | ms-teams-webhook
+          channels: [<channel-name>]
           notification_channel: <notification-channel-fqn>
 ```
 
-### Checklist
+Token units are enforced but have no V2 equivalent.
 
-- [ ] Did I call `get_manifest_json_schema` with type `gateway-budget-config`?
-- [ ] Did I fetch the existing config and merge rules (not replace)?
-- [ ] Did I check existing rules for overlapping scope and position the new rule correctly (not just append at the end)?
-- [ ] Did I include the `name` field in the manifest?
-- [ ] Did I call `validate_manifest` before applying?
+## Disabling V1 rules
 
-For more info: `search_docs` with "gateway budget rules", "budget limits", "spend limits".
+V1 rules have no disable flag. To stop one rule: fetch with `get_gateway_config` → remove that rule from `rules[]` (here removal is intended; keep every other rule unchanged) → `validate_manifest` → `apply_manifest`. To keep tracking without blocking, set `audit_mode: true` instead. Only when every rule has been migrated, delete the whole config with `delete_manifest` and manifest `{type: gateway-budget-config}`. This removes all V1 rules, so confirm with the user first.
+
+## Checklist
+
+- [ ] Is this V1 work (reading, changing, disabling or migrating existing rules)? Otherwise use `budget-limiting-v2.md`.
+- [ ] Merged into the full `rules[]` from a current `get_gateway_config` result?
+- [ ] Positioned the rule against overlapping rules, not just appended?
+- [ ] Kept the existing `name`, if any?
+- [ ] At most one `budget_applies_per` value and one `notification_target`?
+- [ ] `validate_manifest` returned `valid: true` before `apply_manifest`?

@@ -3,7 +3,7 @@ name: builds
 description: Read build logs and work out why a build failed or produced an unexpected image. Read this when a deploy from source did not come up, when the user asks what happened during a build, or when a running workload is not the code the user expects.
 ---
 
-A build runs before any workload exists, so there is no pod, no container and no runtime log. Every `*_k8s_*` tool returns empty for a build problem, and empty reads as a healthy quiet service. Start here instead.
+A build runs before any workload exists, so there is no pod, no container and no runtime log. Every runtime tool (`get_application_state`, `get_logs`, events) returns empty for a build problem, and empty reads as a healthy quiet service. Start here instead.
 
 ## Contents
 - Getting from an application to its build
@@ -35,15 +35,15 @@ Read these fields before fetching any log — most build questions are answered 
 | `logsStartTs` | The timestamp the log window opens at. Required, see below |
 | `componentName` | Which component of the application this build belongs to |
 
-Do NOT infer the build outcome from the deployment's status. A deployment can report `DEPLOY_SUCCESS` — meaning the rollout was accepted — while its build failed. `status` on the build record is the authority.
+Deployment status `BUILDING` / `BUILD_FAILED` is the quick signal; the build record's `status` is the authority. `DEPLOY_SUCCESS` only means the rollout was accepted — it says nothing about runtime health.
 
 ## Reading the log
 
-`get_build_logs` takes `pipelineRunName` in the path, and `startTs`, `endTs`, `limit`, `direction` and `numLogsToIgnore` as query parameters.
+`get_build_logs` takes `pipelineRunName` in the path and these query params: `startTs` (= `logsStartTs`), `endTs` (defaults to startTs + 2 h — pass a later value for longer builds), `limit` (default 10000), `direction` (`asc`/`desc`), `numLogsToIgnore`, `filterQuery` (JSON, e.g. `{"matchString":"error","type":"substring","operator":"equal"}`). Timestamps are nanoseconds since the epoch.
 
 **Pass `logsStartTs` from the build record as `startTs`.** The log query is time-windowed, and without a start timestamp the window does not cover the build — you get an empty result, which looks like a build that printed nothing rather than a query that looked in the wrong place. This is the single most common way a build investigation dead-ends.
 
-Read the end of the log first. A build reports its cause on the last lines; everything before is dependency resolution and layer caching. Use `direction` to fetch from the end rather than paging through the whole thing.
+Read the end of the log first. A build reports its cause on the last lines; everything before is dependency resolution and layer caching. Read the tail with `direction=desc limit=200` rather than paging through the whole thing.
 
 The log is the build tool's own output — a Dockerfile step that failed, a dependency that would not resolve, a base image that could not be pulled. Read it as you would any build log; nothing about it is TrueFoundry-specific.
 
@@ -52,6 +52,8 @@ The log is the build tool's own output — a Dockerfile step that failed, a depe
 Two different situations, and they need different answers.
 
 **The build ran and succeeded, but the code is old.** Builds are deduplicated: when the platform judges the same source has already been built, it reuses the existing image and points the deployment at that earlier build. The logs are real but describe the previous build. Compare the build's `createdAt` against when the user made their change — if the build predates it, their change was never built. Say so plainly: a reused image is the one case where a deployment succeeds and still runs the old code.
+
+Look for transition `REUSING_EXISTING_BUILD` (message "Reusing previously built image for …") in the deployment's status history from `get_deployment` — that confirms reuse directly. For git sources, reuse means `ref` did not change: have the user push and deploy the new commit SHA.
 
 **The build is still going.** `status: STARTED` with no `imageUri` means it has not finished. Do not report a failure — the workload will not exist yet, and pod tools returning empty is expected. Check again rather than diagnosing.
 
@@ -69,4 +71,4 @@ Two different situations, and they need different answers.
 - [ ] If the code looked stale, did I compare the build's `createdAt` against the user's change and tell them if it was never built?
 - [ ] After a successful build, did I continue to runtime instead of reporting the deploy complete?
 
-For more info: `search_docs` with "build logs", "troubleshoot a build failure".
+For more info: `search_docs` with "image and build", "customize build workflow", "docker build secrets".
