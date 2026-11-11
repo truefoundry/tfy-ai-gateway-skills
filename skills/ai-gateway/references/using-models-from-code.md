@@ -1,6 +1,6 @@
 ---
 name: using-models-from-code
-description: Call AI Gateway models from code or a third-party tool — OpenAI-compatible base URL, API key and model ID, native provider SDKs, code snippets. Not for creating provider accounts (that is models.md).
+description: Call AI Gateway models from code or a third-party tool — OpenAI-compatible base URL, API key and model ID, native provider SDKs, code snippets, which token a call is authorised with. Not for creating provider accounts (that is models.md).
 ---
 
 The AI Gateway exposes an **OpenAI-compatible endpoint** for all configured models. It can also **proxy requests for native provider SDKs** (Google Gen AI, Anthropic, boto3/Bedrock etc). In addition, the Anthropic `/messages` endpoint works for Claude models on Anthropic, Claude Platform on AWS, AWS Bedrock, Google Vertex, Azure AI Foundry and Databricks, and for virtual models whose `model_types` include `chat`.
@@ -18,6 +18,10 @@ Any tool, library, or framework that supports OpenAI-compatible APIs can integra
 All three values are available in the **Code Snippets** tab of the Playground, or you can generate them with `generate_multi_lang_code_snippets` (`model` required as `accountName/modelName`; optional `inference_type` must be one of the model's `model_types`). For chat models it returns only OpenAI-compatible snippets. For Google Gen AI, Anthropic, boto3 or `langchain_aws`, use the Native SDK Support docs page. You will find instructions to integrate for most of the popular tools/libraries/frameworks in the docs. If none exists, use OpenAI compatibility; it works wherever the tool lets you set the base URL.
 
 Docs: https://www.truefoundry.com/docs/ai-gateway/making-llm-requests-via-gateway
+
+## Which token is authorised
+
+On model calls only the `Authorization` bearer is checked: its subject (user, virtual account or agent) must have access to the model, and a 403 "User X is not authorized to access model … or model does not exist" names that subject. `x-tfy-agent-authorization` plays no part in this check (a call with an invalid one still succeeds), so it neither adds nor restricts access. To call with an agent's access, send the agent's token as the bearer.
 
 ## Native Provider SDK Support
 
