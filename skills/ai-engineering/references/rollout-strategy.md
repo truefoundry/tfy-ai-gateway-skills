@@ -46,6 +46,8 @@ Recommended reading for users: https://www.truefoundry.com/docs/rollout-strategy
 
 **Symptom (production):** replica bounds changed (e.g. min/max from 1–2 to 2–3), a new ReplicaSet appeared, the existing pod went down, and traffic blipped until the new pod loaded.
 
+If no application is named, still answer steps 3 and 4 from the defaults (why 0% surge causes this, mitigations), then ask for the application to check steps 1 and 2.
+
 1. Read `rollout_strategy` from the live manifest. If it is absent, the defaults above apply; absence does not mean there is no strategy.
 2. Find out whether the pod template changed. In one parallel batch: `get_pod_template_hash_map`, `get_application_state` (pod `version` vs `activeVersion`) and `list_application_events`. To compare the two versions' manifests, use `list_application_deployments`. A replica-only edit normally scales; a new pod-template hash means something else changed too (or the `replicas: 1` exception above applies).
 3. If the template did change and the strategy has 0% surge, say clearly that this is expected under that strategy, not a platform bug. For **single-replica GPU model servers**, the downtime equals schedule + image pull + **model download/load** (minutes to hours without cache).

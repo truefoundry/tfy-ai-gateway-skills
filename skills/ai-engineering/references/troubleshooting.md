@@ -9,7 +9,7 @@ Read `tools.md` for parameter-level detail of any tool named below, or when the 
 
 ## Phase 1: Identify the application
 
-Call `list_applications` filtered by the name. **A name is not an identifier — the same name can exist in several workspaces.** If more than one comes back, do NOT pick one: show the user the matches with their workspaces and ask which they mean. Diagnosing the wrong one produces a thorough, confident answer about an application they were not asking about, and nothing in that answer reveals the mistake.
+Call `list_applications` with `applicationName` (exact; `nameSearchQuery` is substring). **A name is not an identifier — the same name can exist in several workspaces.** If more than one comes back, do NOT pick one: show the user the matches with their workspaces and ask which they mean. Diagnosing the wrong one gives a confident answer about the wrong app, and nothing in it reveals the mistake.
 
 Once you have the right application, record the fields below. If they are no longer in the conversation later, look them up again (`get_application`, `get_application_state`).
 
@@ -28,7 +28,7 @@ What is available by type:
 | `helm` | `list_application_events` (subchart pods: lifecycle only) | `get_logs` **with a pod filter** | See Helm applications; also `get_application_argocd_resources` |
 | `notebook`, `rstudio`, `ssh-server` | `list_application_events` | `get_logs` | See Notebooks below; authoring/access: `notebook-ssh.md` |
 
-If many apps fail the same way at once, jump to `failure-modes/cluster-capacity.md` before a deep single-app dive.
+If many apps fail the same way at once, read `failure-modes/cluster-capacity.md` first.
 
 ## Phase 2: Read the application state and route
 
@@ -43,13 +43,13 @@ Branch on what you see, then **open the matching file** (paths under `ai-enginee
 | State | Next file / action |
 |---|---|
 | Response is `null` | No status from the agent. `get_deployment` → build failed / no image: `builds.md`; otherwise `failure-modes/rollout-argocd.md` (status not publishing) |
-| No pods at all | `get_deployment` → build failed / missing image: `builds.md`; deploy stuck: `failure-modes/rollout-argocd.md` |
+| No pods at all | Paused (`metadata.paused`) or scaled to zero (`auto_shutdown`, `replicas: 0`)? Say so; no logs. Else `get_deployment` → build failed / no image: `builds.md`; stuck: `failure-modes/rollout-argocd.md` |
 | `node: null`, condition `reason: Unschedulable` | `failure-modes/pending-scheduling.md` (the condition `message` is the scheduler's reason) |
 | `Pending`, node set, container waiting in `ContainerCreating` | Events: `FailedMount` / PVC → `failure-modes/volumes-storage.md`; image pull → `failure-modes/image-pull.md` |
 | Container `reason: ImagePullBackOff` / `ErrImagePull` | `failure-modes/image-pull.md` |
 | Container `reason: CreateContainerConfigError` / `CreateContainerError` | Missing Secret/ConfigMap key or bad env reference; the container never started, so no logs. Check manifest `env` and secret FQNs (`secrets.md`) and the event message |
 | `lastState.reason: OOMKilled`, exit code 137, or suspected memory | `failure-modes/crashloop-oom-probes.md`. An OOM-looping container shows `reason: CrashLoopBackOff`; the OOM is in `lastState` |
-| `reason: CrashLoopBackOff` / high `restarts` | `failure-modes/crashloop-oom-probes.md` |
+| `reason: CrashLoopBackOff`, or `restarts` > 0 (even `Pending`, node set) | `failure-modes/crashloop-oom-probes.md` |
 | Init container (empty `image`, listed after the main ones) waiting or failed; pod stuck initializing | `failure-modes/crashloop-oom-probes.md` → Init container failures |
 | Pod `status: Terminating` | Being deleted (rollout or scale-down), not a crash |
 | Events mention `FailedMount` / PVC (any status) | `failure-modes/volumes-storage.md` |
@@ -59,7 +59,7 @@ Branch on what you see, then **open the matching file** (paths under `ai-enginee
 
 **A `Pending` pod is not a failed pod in Kubernetes terms, but it is a failed deploy for the user.** Nothing may report failure and the deployment may still say `DEPLOY_SUCCESS`.
 
-**No pods means look before the runtime.** If no image was produced there are no pods: `get_application_state` lists none and `get_logs` returns empty.
+**No pods means look before the runtime:** `get_application_state` lists none and `get_logs` returns empty.
 
 A `list_alerts` alert is an early signal; corroborate it with state, logs or metrics.
 
@@ -80,7 +80,7 @@ Call `get_logs` with `applicationId`, `podName` (from `get_application_state`), 
 
 Logs need a pod filter: `get_logs` on a Helm app without `podName`, `podNames` or `podNamesRegex` returns 400.
 
-1. Get real pod names from `get_application_state`. If it lists none, use `get_application_argocd_resources`, which also shows sync/health. If neither lists a pod, there are no logs: say so.
+1. Get real pod names from `get_application_state`. Else `get_application_argocd_resources` (also shows sync/health). If neither lists a `Pod` (a StatefulSet is not one), there are no logs: say so, and don't call `get_logs`.
 2. `get_logs` with `applicationId`, that `podName` (or `podNamesRegex="^<release>-.*"`), `direction: "desc"`, `limit` ~200.
 
 `list_application_events` keeps live events only for objects named like the release, so subchart pods get lifecycle events only. For their full events give the user `kubectl get events -n <namespace> --field-selector involvedObject.name=<pod>`.
@@ -93,7 +93,7 @@ StatefulSet  my-cache-master
 pod          my-cache-master-0        # <set>-<ordinal>
 ```
 
-`my-cache-0` does not exist, and `get_logs` for it returns an empty list rather than an error. Deployment-backed pods carry a generated ReplicaSet hash (`my-api-7d4b9c8f2a-x4kqp`) and are equally unpredictable. Use only pod names a tool listed, never one built from a StatefulSet.
+`my-cache-0` does not exist; `get_logs` for it returns an empty list, not an error. Deployment pods carry a ReplicaSet hash. Use only pod names a tool listed, in tool calls and `kubectl` commands; with none listed, give `kubectl get pods -n <ns> -l app.kubernetes.io/instance=<release>` and `<pod>` in follow-ups.
 
 ## Notebooks / SSH / RStudio
 
@@ -108,15 +108,15 @@ An empty list means either "nothing happened" or "I could not see it". Before re
 - Are Prometheus/log backends missing on the cluster? (`failure-modes/cluster-capacity.md`)
 - StatefulSet-backed apps (common for some model services) can show **empty** `list_application_events` while pods CrashLoop. Read container `reason` / `lastState` from `get_application_state` and the logs (`model-debug.md`).
 
-State what you could not see rather than reporting health. "No events in the window" and "nothing is wrong" are different claims.
+State what you could not see rather than reporting health: "no events" and "nothing is wrong" are different claims.
 
 **`DEPLOY_SUCCESS` means the rollout was accepted, not that the workload is healthy.** Confirm with `get_application_state` before telling a user their deployment worked.
 
 ## How to answer
 
-- Lead with one root cause, then the evidence (pod name, event reason, log line, metric); add secondary issues only if they block the fix.
-- Propose a concrete fix (manifest field change, registry fix, wait for node, sync, regenerated model specs) — not a generic Kubernetes tutorial.
-- When the cause sits where no tool can see (nodes, NodeClaims, PVCs, system namespaces), give the user the exact `kubectl` command to confirm it.
+- Lead with one root cause, then the evidence (pod, event reason, log line, metric); add other issues only if they block the fix.
+- Propose a concrete fix (manifest field, registry fix, sync, regenerated specs), not a K8s tutorial.
+- When the cause sits where no tool can see (nodes, NodeClaims, PVCs, system namespaces), give the exact `kubectl` command to confirm it.
 - For write fixes, use `validate_manifest` → `apply_manifest` (or `sync_application` / `redeploy_application` / regenerated specs from `get_model_deployment_specs`) with approval. Do not run `tfy apply` in the terminal.
 - For a model server, read `model-debug.md` and research recipes/GitHub issues before inventing engine flags.
 - If you still cannot tell, follow `references/support-tickets.md`.
@@ -127,11 +127,11 @@ State what you could not see rather than reporting health. "No events in the win
 - [ ] Did I start from `get_application_state` and open the matching failure-mode file?
 - [ ] Did I read container `reason` and `lastState`, and use `node` to tell an unscheduled `Pending` pod from an unready one?
 - [ ] For a crashlooping container, did I read the previous attempt's logs (window ending at `lastState.finishedAt`), or say why I could not?
-- [ ] For `helm`, did I pass `get_logs` a listed pod name or regex, never a constructed one?
+- [ ] For `helm`, did I use only listed pod names, and skip `get_logs` with no pods?
 - [ ] For OOM or slowness, did I look at metrics / applied limits, not only logs?
 - [ ] Did I avoid calling exit 137 "OOM" without corroboration?
 - [ ] If a call returned empty, did I check whether that tool could have seen the answer at all?
-- [ ] If the deployment says `DEPLOY_SUCCESS`, did I confirm the pods are actually Running without a bad `reason`?
-- [ ] Does my answer cite the specific pod, event, log line, or metric behind each claim — and name what I could not see?
+- [ ] If the deployment says `DEPLOY_SUCCESS`, did I confirm the pods are Running without a bad `reason`?
+- [ ] Does my answer cite the pod, event, log line or metric behind each claim, and name what I could not see?
 
 For more info: `search_docs` with "monitor your service", "debug a deployment".

@@ -10,11 +10,11 @@ description: Read for questions about who can access what — identity types, PA
 - **Users** — people who log in. Each user can create Personal Access Tokens (PATs). See `users.md`.
 - **Teams** — groups of users; access granted to a team applies to every member. See `teams.md`.
 - **Virtual accounts** — non-human identities for applications, with their own token (VAT). See `virtual-accounts.md`.
-- **Identity Providers** — TrueFoundry validates JWTs from your IdP (Okta, Azure AD, any OIDC provider) and resolves them to an existing user, team or virtual account; they never create one. Configure under Settings > Security & Access > Identity Providers. Docs: https://www.truefoundry.com/docs/platform/identity-providers
+- **Identity Providers** — validates JWTs from your IdP (Okta, Azure AD, any OIDC) and resolves them to an existing user, team or virtual account; they never create one. Docs: https://www.truefoundry.com/docs/platform/identity-providers
 
 ## Authentication
 
-The Gateway takes TrueFoundry API keys, not provider keys (OpenAI, Anthropic, etc.), as a Bearer token: `Authorization: Bearer <truefoundry-api-key>`, or `OPENAI_BASE_URL="https://<gateway-host>"` and `OPENAI_API_KEY="<truefoundry-api-key>"` for the OpenAI SDK.
+The Gateway takes TrueFoundry API keys, not provider keys, as a Bearer token: `Authorization: Bearer <truefoundry-api-key>`, or `OPENAI_BASE_URL="https://<gateway-host>"` and `OPENAI_API_KEY="<truefoundry-api-key>"` for the OpenAI SDK.
 
 | Token type | Tied to | Best for |
 |---|---|---|
@@ -25,23 +25,23 @@ Recommend virtual accounts for production, CI/CD and shared apps: a PAT stops wo
 
 ## How access works
 
-Every piece of access is a **grant**: a subject (user, team, virtual account or agent) holds a role on a resource. A tenant role is a grant on the tenant itself. `list_grants` rows show where each grant came from in `source`: `AUTH_API` (the UI, the grant tools or a manifest) or `ROLE_BINDING` (the binding named in `roleBindingName`).
+Every piece of access is a **grant**: a subject (user, team, virtual account or agent) holds a role on a resource. A tenant role is a grant on the tenant itself. `list_grants` rows show `source`: `AUTH_API` (UI, grant tools or a manifest) or `ROLE_BINDING` (binding in `roleBindingName`).
 
 | Need | Use |
 |---|---|
-| Broad platform capability for a person or group | A tenant role or custom role, granted on the tenant (see "Tenant roles") |
-| Access to one specific resource (a provider account, MCP server, workspace) | The grant tools (see "Access to one resource") |
-| Access kept as code (in Git, applied with other manifests) | A `role-binding` (see "Role bindings") |
-| Several people need the same access | Grant it to a team; future members inherit it |
-| An application needs access | A virtual account, given access with the grant tools (see `virtual-accounts.md`) |
+| Broad platform capability for a person or group | Tenant or custom role on the tenant (see "Tenant roles") |
+| Access to one resource (provider account, MCP server, workspace) | Grant tools (see "Access to one resource") |
+| Access as code (Git, applied with other manifests) | A `role-binding` (see "Role bindings") |
+| Several people need the same access | Grant to a team; future members inherit it |
+| An application needs access | A virtual account + grant tools (`virtual-accounts.md`) |
 
 Tenant admins can use every model without a grant.
 
 ## Access to one resource
 
-Use the grant tools. Each adds or removes one grant and leaves every other grant alone. They apply the same checks as the **Access Control** page: the caller needs manage on the resource (or the Assign Role permission on the tenant); otherwise they return 403, so tell the user a manager of the resource must do it.
+Use the grant tools. Each adds or removes one grant and leaves every other grant alone. `create_grants` needs manage on the resource or Assign Role on the tenant; on 403, tell the user a manager of the resource or a tenant admin must grant it.
 
-Never write access through `collaborators`, `authorized_subjects` or a VA's `permissions` in a manifest: that list replaces every grant made by a manifest or on the Access Control page, and the fetched copy can be stale, so access granted since is silently revoked (`write-rules.md` → Access).
+Never write access through `collaborators`, `authorized_subjects` or a virtual account's `permissions` in a manifest: that list replaces every grant made by a manifest or on the Access Control page, and a stale fetch silently revokes access granted since (`write-rules.md` → Access).
 
 **Ids.** `subjectId` is an internal id, never an email or name:
 - user: `list_users` with `query=<email>` → `id`
@@ -52,11 +52,13 @@ Identify the resource by its `fqn` (as `resourceFqn`) or `id` (as `resourceId`) 
 
 **Who has access:** `list_grants` with `resourceType` and `resourceId`. Each row has `subjectType`, `subjectSlug` (email or name), `roleId`, `roleName` and `source`. What one subject holds: `list_grants` with `subjectType` and `subjectId` (a user's rows include grants inherited from their teams). It returns 100 rows by default; pass `limit` and `offset` for more.
 
+A 403 from `list_grants` means you lack manage on that resource (or, by subject, on that subject), or the id is wrong. When the id came from a list tool, it is the permission — not that `create_grants` will fail (Assign Role on the tenant allows granting without manage). Say which refusal it was, offer `create_grants` (approval applies), and only if that also 403s tell the user a manager of the resource or a tenant admin must grant it.
+
 **Grant:** `create_grants` with `{"grants": [{"resourceType", "resourceFqn" or "resourceId", "subjectType", "subjectId", "roleId"}]}` — up to 100 grants, all or nothing; an existing grant is left as is. `subjectType` is `user`, `team`, `virtualaccount` or `agent`.
 
 All model provider accounts is one wildcard grant: `resourceType` `provider-account`, `resourceFqn` `model-provider-accounts:*` (do not list accounts), `roleId` `provider-account-access` (`provider-account-manager` to manage them). It needs tenant-admin or Assign Role and accepts only `virtualaccount` or `agent`; for a user or team, say so and offer grants on named accounts. Bare `*` is rejected.
 
-**Revoke:** `revoke_grant` with one grant's `resourceType`, `resourceId` or `resourceFqn`, `subjectType`, `subjectId` and `roleId`, copied from its `list_grants` row. Only `AUTH_API` grants can be revoked: a `ROLE_BINDING` grant returns 404, so change or delete its binding instead. A grant a user inherits from a team is revoked on the team. To change a role, create the new grant first, then revoke the old one.
+**Revoke:** `revoke_grant` with one grant's `resourceType`, `resourceId` or `resourceFqn`, `subjectType`, `subjectId` and `roleId`, from its `list_grants` row. Only `AUTH_API` grants can be revoked: a `ROLE_BINDING` grant returns 404 — change or delete its binding instead. A grant inherited from a team is revoked on the team. To change a role, create the new grant first, then revoke the old one.
 
 Role IDs per resource are platform constants:
 
@@ -87,7 +89,7 @@ A subject can hold several tenant roles; their permissions add up.
 
 **Change or remove:** grant the new role first, then `revoke_grant` the old one with its `list_grants` row. The last `tenant-admin` grant and a user's `member` role cannot be revoked (422).
 
-**Who holds which tenant role:** `list_grants` with `resourceType: tenant` and `resourceId: <tenantName>`.
+**Who holds which tenant role:** `list_grants` with `resourceType: tenant`, `resourceId: <tenantName>` and a `roleId` filter, paging until a page is short. Name every holder by `subjectType` — users, teams, virtual accounts and agents; leave none out.
 
 In the UI: `{controlPlaneUrl}/access-management?tab=users` (or `tab=teams`, `tab=service-accounts`) → the row's menu → **Manage Permissions** → **Organisation Roles** → **Add Roles**.
 
@@ -95,9 +97,9 @@ In the UI: `{controlPlaneUrl}/access-management?tab=users` (or `tab=teams`, `tab
 
 A `role-binding` manifest grants roles as code. Use one only when the user asks for access as code (to keep in Git, or to apply with their other manifests).
 
-- **Read:** `list_role_bindings` (filter by `name` or `id`). To turn the access a resource or subject has now into binding manifests, `get_role_binding_manifests` with `resourceType` and `resourceId`, or `subjectType` and `subjectId`. It covers `AUTH_API` grants only, returns one manifest per role (per subject, when called for a subject), and adds a random suffix to each name, so generating twice gives different names.
-- **Write:** `apply_manifest` creates or updates (by `name`); `delete_manifest` with type `role-binding` and the name deletes it. Only tenant admins can apply or delete one; others get 403. Follow `write-rules.md`, with the schema from `get_manifest_json_schema` (type `role-binding`).
-- Applying a binding takes over the matching `AUTH_API` grants. Deleting the binding later removes that access entirely.
+- **Read:** `list_role_bindings` (filter by `name` or `id`). To export current access as bindings, `get_role_binding_manifests` with `resourceType`+`resourceId` or `subjectType`+`subjectId`. Covers `AUTH_API` only; one manifest per role (per subject when called for a subject).
+- **Write:** `apply_manifest` creates or updates (by `name`); `delete_manifest` with type `role-binding` and the name deletes it. Tenant admins only (else 403). Follow `write-rules.md`; schema from `get_manifest_json_schema` (type `role-binding`).
+- Applying a binding takes over matching `AUTH_API` grants. Deleting it later removes that access.
 
 ```yaml
 type: role-binding
@@ -115,21 +117,21 @@ A binding is either one subject with many permissions or many subjects with one 
 
 ## Custom roles
 
-Custom roles are tenant-wide and need the Pro or Enterprise plan.
+Custom roles are tenant-wide and need Pro or Enterprise.
 
-**Reading.** `list_roles` (pass `roleName=<name>` for one). Custom roles list their permissions in `manifest.permissions` (e.g. `["cluster:ReadCluster", "settings:ListSettings"]`) — that is the format to use. Never copy `permissionSetsV2[].permissions` (e.g. `READ_CLUSTER`); it is an internal format and fails validation.
+**Reading.** `list_roles` (pass `roleName=<name>` for one). Custom roles list permissions in `manifest.permissions` (e.g. `["cluster:ReadCluster", "settings:ListSettings"]`) — use that format. Never copy `permissionSetsV2[].permissions` (e.g. `READ_CLUSTER`); it is internal and fails validation.
 
 ### Creating or updating
 
-1. In one parallel batch: `get_manifest_json_schema` with type `role` (reuse it if still in the conversation), `list_roles` with `roleName=<name>`, and `get_actions_for_resource_type` with `resourceType: tenant`. Each permission key is `<scope>:<name>` from its result (e.g. scope `provider-account`, name `CreateProviderAccount`).
-   - **Applying a role under an existing name replaces its whole permission list for everyone who holds it.** If `list_roles` returns a role, show it and ask whether to update it or pick another name. Never apply `member`, `team-member` or `team-manager` unless the user explicitly wants to change that default for everyone.
-2. Ask the user what the role should allow, and map each action to a key from step 1.
+1. In one batch: `get_manifest_json_schema` with type `role` (reuse if still in the conversation), `list_roles` with `roleName=<name>`, and `get_actions_for_resource_type` with `resourceType: tenant`. Each permission key is `<scope>:<name>` from its result (e.g. scope `provider-account`, name `CreateProviderAccount`).
+   - **Applying under an existing name replaces the whole permission list for everyone who holds it.** If `list_roles` returns a role, show it and ask whether to update or pick another name. Never apply `member`, `team-member` or `team-manager` unless the user wants to change that default for everyone.
+2. Ask what the role should allow; map each action to a key from step 1.
 3. Build the manifest, then `validate_manifest` → `apply_manifest` per `write-rules.md`. Then give the role to subjects as in "Tenant roles".
 
 Rules:
 - `resourceType: tenant`. Other values are rejected.
-- You can only put permissions you hold yourself into a role; the apply fails otherwise.
-- At least one permission, with no duplicates.
+- You can only put permissions you hold yourself into a role; else apply fails.
+- At least one permission, no duplicates.
 - `name`: 3-35 chars, lowercase letters, digits and hyphens; starts with a letter, ends with a letter or digit. Built-in names (`tenant-admin`, `admin`, `read-only-member`) are reserved.
 
 ```yaml

@@ -11,12 +11,12 @@ Call `list_provider_accounts` with `includeModelProviders: true` and `includeCus
 
 ## "Do you support model X / provider Y?"
 
-Answer from `list_providers`, the platform catalogue, never from memory. For one provider, pass `providerType` (its `type`, below). To list all providers, pass `includeModelProviders: true` and the other `include*` flags `false` (very large). If saved to a file, extract only what you need with one `jq`.
+Answer from `list_providers`, the platform catalogue, never from memory or docs. For one provider, pass `providerType` (its `type`, below). To list all providers, pass `includeModelProviders: true` and the other `include*` flags `false` (very large). If saved to a file, extract with one `jq`.
 
 - Shape: `data[]` is one entry per provider, with `type` (e.g. `provider-account/openai`) and `label`. Providers have no `name` field; filter on `type`.
-- Models: `data[i].integrations[0].metadata` is an object keyed by `model_id`. Each value has `model`, `mode`, optional `supportedModes`, `status` (`active`, `deprecated`, `preview`, `retired`) and `costs[]`.
+- Models: `data[i].integrations[0].metadata` is an object keyed by `model_id`. Each value has `model`, `mode`, optional `supportedModes`, `status` (`active`, `deprecated`, `preview`, `retired`) and `costs[]`. Quote `status`/`mode` as given; missing = unknown, not `active`/`chat`.
 - Providers: list `type` and `label`. `provider-account/virtual-model` has no catalogue.
-- If `metadata` is empty or missing, recheck the type; if still empty, say the catalogue has no models for that provider. Never invent models.
+- If `metadata` is empty or missing, recheck the type; if still empty, say the catalogue has no models for that provider.
 
 ## Create or update a provider account
 
@@ -36,7 +36,7 @@ These are independent; issue them together:
 
 - `list_provider_accounts` (flags as in "List the tenant's models", plus `attributes: ["id","name","provider"]`; no name filter). It is usually saved to a file: match `name` and `provider` with one `jq`. To update, fetch that account with `get_provider_account`.
 - `get_manifest_json_schema` for the account type.
-- `list_providers` from the sandbox with `providerType` (the account type), saved to a file. Reuse a saved file from this conversation if it still exists.
+- `list_providers` from the sandbox with `providerType` (the account type), saved to a file. Reuse a saved file if it still exists.
 
 If matching accounts exist, ask whether to update one or create a new one with a different name.
 
@@ -56,7 +56,7 @@ From the schema, extract with one `jq`:
 Turn the user's answer into an exact selection with one `jq` over the saved `list_providers` file:
 
 - **"All"** or **modes** ("all chat and embedding models"): nothing to resolve; the program selects them.
-- **Named models:** match each name to a catalogue key (`model_id`): an exact key first, else keys containing the name, ignoring case. One match: use it. Several: ask the user to pick (show at most 10). None: the model is not in the catalogue. Ask for its exact `model_id` and model types, and add it without `cost` (public cost exists only for catalogue models; any other gets a 400).
+- **Named models:** match each name to a catalogue key (`model_id`): an exact key first, else keys containing the name, ignoring case. One match: use it. Several: ask the user to pick (show at most 10). None: the model is not in the catalogue. Ask for its model types, even when its name suggests them, and add it without `cost` (only catalogue models have public cost).
 
 ### Step 4 — build the manifest in the sandbox with one program
 
@@ -67,21 +67,20 @@ Write one program that reads the saved `list_providers` file and writes the comp
 **Program**, in this order:
 
 1. **Catalogue:** the `data[]` entry whose `type` is the provider type; models are `integrations[0].metadata`, keyed by `model_id`.
-2. **Select:** for "all", every model whose `status` is not `retired`; for modes, the same, kept only if `model_types` (next step) include a chosen mode; for names, the keys from Step 3, plus any non-catalogue model with the user's `model_id` and types (without types from the user, leave it out and say so).
+2. **Select:** for "all", every model whose `status` is not `retired` and, on accounts with `region`, that has a `costs` entry whose `region` is the chosen region or `*`; for modes, the same, kept only if `model_types` (next step) include a chosen mode; for names, the keys from Step 3, plus any non-catalogue model with the user's `model_id` and types (without types from the user, leave it out and say so). On accounts with `region`, a named model with no entry for it or `*`: tell the user, and add it without `cost` only if they confirm. Print how many each rule dropped.
 3. **`model_types`:** `mode` plus every value in `supportedModes`, de-duplicated, keeping only `chat`, `completion`, `embedding`, `realtime`, `rerank`, `audio_transcription`, `audio_translation`, `text_to_speech`, `moderation`, `image`, `responses`, `ocr`, `video`, `decision`. Drop `unknown` and `unsupported`; if nothing is left, skip the model. Never default to `[chat]`: the gateway rejects calls whose type is not in `model_types` (for example `/embeddings` on a `[chat]` model).
-4. **Region filter** (accounts with `region`): for "all" and modes, keep only models with a `costs` entry whose `region` is the chosen region or `*`. A named model without one is not priced there: tell the user, and add it without `cost` only if they confirm.
-5. **Name:** `model_id` with every `/` and `:` replaced by `-` (`openai/tts-1:v2` → `openai-tts-1-v2`). For `realtime`, `text_to_speech`, `audio_transcription` and `audio_translation` models this exact name is required and `apply_manifest` rejects any other (the audio check is skipped on `aws-bedrock` and `aws-bedrock-mantle`; the realtime check applies everywhere). The name must match `^[a-zA-Z](?:[a-zA-Z0-9\-._]{0,62}[a-zA-Z0-9])$`; for other models you may replace remaining invalid characters with `-`. Skip names that still fail, and duplicates.
-6. **Cost** — decide for each integration. A wrong `public_cost` makes `apply_manifest` return a 400 listing every bad model.
+4. **Name:** `model_id` with every `/` and `:` replaced by `-` (`openai/tts-1:v2` → `openai-tts-1-v2`). For `realtime`, `text_to_speech`, `audio_transcription` and `audio_translation` models this exact name is required and `apply_manifest` rejects any other (the audio check is skipped on `aws-bedrock` and `aws-bedrock-mantle`; the realtime check applies everywhere). The name must match `^[a-zA-Z](?:[a-zA-Z0-9\-._]{0,62}[a-zA-Z0-9])$`; for other models you may replace remaining invalid characters with `-`. Skip names that still fail, and duplicates.
+5. **Cost** — decide for each integration. A wrong `public_cost` makes `apply_manifest` return a 400 listing every bad model.
    - No `cost` if the integration type is `custom-endpoint` or `virtual` (no `cost` field), or the model is not in the catalogue.
    - Otherwise pick the cost entry: the one whose `region` is the target (Bedrock, Bedrock Mantle, Vertex: the chosen `region`; Azure OpenAI and Microsoft Foundry: `deployment_type` `global`, `datazone_us` or `datazone_eu`, with `standard` meaning `*`), else the `region: "*"` entry. Providers without a region: the `*` entry.
    - Add `cost: {metric: public_cost}` only if that entry exists and has a key besides `region` (`input_cost_per_token`, `input_cost_per_character`, `input_cost_per_second`, `tiered_pricing`, …). Otherwise omit `cost`.
    - Never copy price values. If the user gives their own pricing, use the matching private metric from the schema instead of `public_cost`.
-7. **Integration:** `{name, type, model_id, model_types}`, plus `cost` from step 6, plus any field the schema requires (Azure OpenAI: `api_version`). For Azure OpenAI and Microsoft Foundry, `model_id` is the user's deployment name, so ask for the deployments rather than taking "all"; set `deployment_type`, and `foundation_model` to the catalogue key (pricing is looked up by `foundation_model`, else `model_id`).
-8. **Update:** start from the current manifest, keeping its masked `auth_data` as is (apply keeps the stored key); delete `collaborators` and each integration's `authorized_subjects` (`write-rules.md` → Access); append only names not already there. **`integrations` replaces the whole list: a dropped integration is deleted.**
-9. **Write** the manifest (template below) to a file. Print only a summary: count by model type, how many have `cost`, and each skipped model with why.
+6. **Integration:** `{name, type, model_id, model_types}`, plus `cost` from step 5, plus any field the schema requires (Azure OpenAI: `api_version`). For Azure OpenAI and Microsoft Foundry, `model_id` is the user's deployment name, so ask for the deployments rather than taking "all"; set `deployment_type`, and `foundation_model` to the catalogue key (pricing is looked up by `foundation_model`, else `model_id`).
+7. **Update:** start from the current manifest, keeping its masked `auth_data` as is (apply keeps the stored key); delete `collaborators` and each integration's `authorized_subjects` (`write-rules.md` → Access); append only names not already there. **`integrations` replaces the whole list: a dropped integration is deleted.**
+8. **Write** the manifest (template below) to a file. Print only a summary: count by model type, how many have `cost`, and each skipped model with why.
 ### Step 5 — validate in the sandbox, apply once
 
-Call `validate_manifest` from the sandbox with the file's JSON as `{"manifest": …}`; on errors, fix the program's rule, rebuild the file and validate again. Once it returns `valid: true`, print the minified file in parts of at most 20,000 characters (one `exec` each, one batch), then call `apply_manifest` once, directly (never from the sandbox), with the joined parts unchanged. One call holds the whole manifest: never split it across applies, since `integrations` replaces the account's list. If the result is saved to a file, take errors and the account `id` with one `jq`. `validate_manifest` checks only the schema; pricing, naming and credential checks run at apply, so program steps 5 and 6 must be right first. If apply fails, fix the program's rule (not entries) and rebuild.
+Call `validate_manifest` from the sandbox with the file's JSON as `{"manifest": …}`; on errors, fix the program's rule, rebuild the file and validate again. Once it returns `valid: true`, print the minified file in parts of at most 20,000 characters (one `exec` each, one batch), then call `apply_manifest` once, directly (never from the sandbox), with the joined parts unchanged. One call holds the whole manifest: never split it across applies, since `integrations` replaces the account's list. If the result is saved to a file, take errors and the account `id` with one `jq`. `validate_manifest` checks only the schema; pricing, naming and credential checks run at apply, so program steps 4 and 5 must be right first. If apply fails, fix the program's rule (not entries) and rebuild.
 
 After a create, grant access (`write-rules.md` → Access). Then show the UI link from `write-rules.md`.
 

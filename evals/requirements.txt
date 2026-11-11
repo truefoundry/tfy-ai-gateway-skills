@@ -1,0 +1,4 @@
+# Until a PyPI release has create_turn_events and the paused turn state without action_required_on_events.
+trueforge_sdk @ git+https://github.com/truefoundry/harness@1998de5ed4f5183d4e7035fbfdf9d163958a31d8#subdirectory=python/trueforge_sdk
+langsmith>=0.3
+httpx>=0.27

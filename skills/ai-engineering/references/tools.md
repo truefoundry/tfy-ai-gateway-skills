@@ -11,15 +11,15 @@ Debug calls need `applicationId`, `workspaceId`/`namespace`, `clusterId`, someti
 
 | Need | Tool | Notes |
 |---|---|---|
-| Application by name | `list_applications` | Always filter. Same name can exist in many workspaces — ask if ambiguous |
+| Application by name | `list_applications` | Filter `applicationName` (exact; `nameSearchQuery` is substring), plus `workspaceFqn` if known. No `attributes`. A name can exist in many workspaces: ask if ambiguous |
 | Application details | `get_application` | Gives `id`, `type`, `workspaceId`, `workspaceFqn`, `lastDeployment` (with its `id` and manifest), `activeVersion` / `lastVersion`, `metadata.paused`. For the active deployment's id, match `activeVersion` in `list_application_deployments` |
 | Workspace → cluster + namespace | `list_workspaces` | Only if `get_application_state` is `null`. Filter `fqn=<workspaceFqn>`, pass `attributes=["id","name","fqn","clusterId"]`. **Namespace = workspace `name`** |
-| Deployment history | `list_application_deployments` | Past versions, status progression |
+| Deployment history | `list_application_deployments` | Past versions, status |
 | One deployment + builds | `get_deployment` | Application `id` + deployment `id`. Status machine, `deploymentBuilds` (was an image produced?) |
 | FQN → id | `get_id_from_fqn` | User pasted an FQN |
 | Secret FQN | `list_secret_groups` | Groups with their secrets, never values (`secrets.md`) |
 
-Never construct FQNs, pod names, or image URIs. List, then take values from the response.
+Never construct FQNs, pod names, or image URIs: list, then take values from the response.
 
 ## Model catalogue
 
@@ -38,7 +38,7 @@ Use these instead of hand-writing vLLM/SGLang services (`model-deploy.md`; NIM a
 | `get_applied_k8s_manifest` | What was actually applied to the cluster: resources/requests, probes, nodeSelector, tolerations, env shape (secrets redacted) | application `id`. Helm apps return 400 unless they use `kustomize` |
 | `get_application_argocd_resources` | Per-resource Argo CD sync status and health; **Helm apps only** (400 otherwise) | application `id` |
 | `get_pod_template_hash_map` | pod-template-hash → deployment version. `get_application_state` already gives each pod's `version`; use this only for pods it doesn't list | application `id`, `podTemplateHashes` (the middle segment of `<app>-<hash>-<id>`) |
-| `generate_deployment_endpoint` | **Suggests** a `host` / `path` for a port you are about to expose (service / async-service only) while building a manifest (`deploy-common.md`). A deployed app's URL is in its manifest's `ports` (`deployment-links.md`) | `applicationType`, `workspaceId`, `applicationName`, optional `port` / `preferWildcard` / `baseDomain` |
+| `generate_deployment_endpoint` | **Suggests** a `host` / `path` for a port you are about to expose (service / async-service only; `deploy-common.md`). A deployed app's URL is in its manifest's `ports` (`deployment-links.md`) | `applicationType`, `workspaceId`, `applicationName`, optional `port` (string: `"8000"`) / `preferWildcard` / `baseDomain` |
 
 **`get_application_state` fields.** `null` = no status from tfy-agent for this app. Pods are under `components[].pods[]`, newest first; Helm pods are included when they belong to a Deployment, StatefulSet, DaemonSet or Job in the release.
 - Pod: `name`, `status`, `node`, `message`, `conditions`, `restarts`, `version`, `podTemplateHash`. `status` is `Running` only when the pod is Ready; a started but unready pod (crashlooping, failing readiness) also shows `Pending`, so tell them apart by `node` (`null` = never scheduled) and container reasons. `node` has `name`, `type` (instance type), `capacityType` and `status` (`ready`, `memoryPressure`, `diskPressure`, `pidPressure`); taints are not included.
@@ -49,7 +49,7 @@ Use these instead of hand-writing vLLM/SGLang services (`model-deploy.md`; NIM a
 
 ## Logs, events, metrics, alerts
 
-Time units differ: logs (incl. autoscaler) take nanosecond-epoch strings, metrics milliseconds, events ISO-8601 UTC.
+Time units differ: logs (incl. autoscaler) take nanosecond-epoch strings, metrics millisecond-epoch strings, events ISO-8601 UTC.
 
 | Tool | Layer | Retention | Use for |
 |---|---|---|---|
@@ -61,7 +61,7 @@ Time units differ: logs (incl. autoscaler) take nanosecond-epoch strings, metric
 | `list_alerts` | Autopilot alerts | Persisted | Pre-classified issues (OOM, crashloop…) for an app or cluster. Autopilot only; if not listed, skip it |
 | `get_cluster_autoscaler_logs` | Provisioning logs: **Azure** cluster-autoscaler or **GCP** NAP | Persisted | Path param = cluster `id`. Default is the oldest 100 lines of the last hour: pass `direction: "desc"` and widen with `startTs`. Optional `filterQuery` is a JSON string. **AWS returns 501**; no cloud integration returns 400 "does not have a cloud integration" — both expected, move on |
 
-**`get_logs`.** Pass `applicationId` (from `list_applications` / `get_application`); never pass only `applicationFqn` — the query is then not filtered by application and returns logs from every app in the workspace.
+**`get_logs`.** Pass `applicationId` (from `list_applications` / `get_application`); never only `applicationFqn`, which returns logs from every app in the workspace.
 - Default `limit` is 5000 and default order is oldest first, so a capped read returns the earliest lines. For recent errors pass `direction: "desc"` (`asc`/`desc` only), `limit` 100–300 and a `startTs`.
 - Narrow with one of `podName` / `podNames` / `podNamesRegex` (two → 400), plus `containerName`, `deploymentId`, `jobRunName`, `searchString` or `searchFilters`. **Helm apps require one of the three pod filters** (400 "only supports pod level logs" otherwise).
 - Containers named `init` or `wait` are always excluded.
@@ -71,7 +71,7 @@ Time units differ: logs (incl. autoscaler) take nanosecond-epoch strings, metric
 
 There are no raw Kubernetes read tools. Out of reach: node lists and taints, Karpenter NodeClaims / NodePools, PVC objects, Argo Rollout and KEDA objects of non-Helm apps, live events of pods outside the app's naming pattern, and anything in system namespaces (`kube-system`, `argocd`, `istio-system`), including controller logs. TrueFoundry addons such as tfy-agent are Helm applications: with read access to their workspace, `get_application_state` and `get_logs` work on their `applicationId` from `list_cluster_addons`.
 
-When the answer is behind that line, say what you checked, say what you could not see, and give the user the exact `kubectl` command to run (e.g. `kubectl get nodeclaims`, `kubectl describe pvc <name> -n <workspace>`). Never present a guess as something you read.
+When the answer is behind that line, say what you checked and could not see, and give the exact `kubectl` command (e.g. `kubectl get nodeclaims`, `kubectl describe pvc <name> -n <workspace>`). Never present a guess as something you read.
 
 ## Cluster and workspace
 
@@ -101,5 +101,5 @@ Real tool calls (not from sandbox); each goes through user approval.
 ## Bounds and empty results
 
 - Always pass time windows and `limit` on log calls, and a time window on event/metric calls. A result over ~24,000 characters is saved to a sandbox file: extract only the fields you need with one `jq`/program.
-- Issue independent reads in one message (they run in parallel).
+- Issue independent reads in one message (parallel).
 - Empty ≠ healthy. See `troubleshooting.md` → Interpreting an empty result.

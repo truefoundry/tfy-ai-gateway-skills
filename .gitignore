@@ -210,6 +210,10 @@ __marimo__/
 skills/ai-gateway/scripts/mcp_client.py
 skills/ai-gateway/scripts/generate_fake_example.py
 
+# Eval runs and hand-grading sheets hold agent answers from devtest
+evals/runner/runs/
+evals/runner/handgrade/
+
 # Skill creator (local tool, not for commit)
 .skill-creator/
 skill-creator/
