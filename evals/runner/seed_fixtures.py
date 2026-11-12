@@ -98,28 +98,39 @@ def main() -> None:
     seed_grants(api)
     seed_carol(api, tenant)
 
+    # A trace that cannot be produced costs only the cases that name it: the runner skips those.
+    unavailable: dict[str, str] = {}
+    sent: dict[str, str] = {}
     # The model-not-found request needs no access, and its trace names the subject the token acts as.
-    sent = {NOT_FOUND.name: send(gateway, NOT_FOUND)}
-    sender = wait_for(api, sent)[NOT_FOUND.name]["subject"]
+    try:
+        sent[NOT_FOUND.name] = send(gateway, NOT_FOUND)
+    except SystemExit as exc:
+        unavailable[f"trace.{NOT_FOUND.name}"] = str(exc)
+    first = wait_for(api, sent)[NOT_FOUND.name] if sent else None
     for manifest in provider_accounts(manager):
         apply(api, manifest)
-        grant_access(api, find_account(api, manifest["name"]), *sender)
+        if first:
+            grant_access(api, find_account(api, manifest["name"]), *first["subject"])
     for manifest in LIMITS:
         apply(api, manifest)
     apply(api, docs_proxy(manager))
-    # The gateway loads applied config asynchronously; earlier requests may route by the old one.
-    time.sleep(GATEWAY_SYNC_S)
 
-    # A trace that cannot be produced costs only the cases that name it: the runner skips those.
-    unavailable: dict[str, str] = {}
-    for trace in TRACES:
-        if trace is NOT_FOUND:
-            continue
-        try:
-            sent[trace.name] = send(gateway, trace)
-        except SystemExit as exc:
-            unavailable[f"trace.{trace.name}"] = str(exc)
-    found = wait_for(api, sent, strict=False)
+    if first:
+        # The gateway loads applied config asynchronously; earlier requests may route by the old one.
+        time.sleep(GATEWAY_SYNC_S)
+        for trace in TRACES:
+            if trace is NOT_FOUND:
+                continue
+            try:
+                sent[trace.name] = send(gateway, trace)
+            except SystemExit as exc:
+                unavailable[f"trace.{trace.name}"] = str(exc)
+        found = wait_for(api, sent)
+    else:
+        # Without the sender the eval token cannot be granted the eval models, so no other trace can be made.
+        found = {}
+        reason = unavailable.get(f"trace.{NOT_FOUND.name}") or f"trace {sent.get(NOT_FOUND.name)} never became queryable"
+        unavailable |= {f"trace.{trace.name}": f"{NOT_FOUND.name} failed: {reason}" for trace in TRACES}
     unavailable |= {f"trace.{name}": f"trace {sent[name]} was not queryable with span error "
                     f"{TRACE_BY_NAME[name].error_type} after the wait" for name, info in found.items() if not info}
     # The agent reads traces through SQL, which lags the spans API by minutes.
@@ -231,10 +242,9 @@ def send(gateway: httpx.Client, trace: Trace) -> str:
         time.sleep(20)
 
 
-def wait_for(api: httpx.Client, sent: dict[str, str], timeout: float = 600,
-             strict: bool = True) -> dict[str, dict | None]:
+def wait_for(api: httpx.Client, sent: dict[str, str], timeout: float = 600) -> dict[str, dict | None]:
     """Each trace once queryable: id, time, sender and the error of the span that shows the failure.
-    Past the timeout, strict exits; otherwise a trace still missing maps to None."""
+    A trace still missing past the timeout maps to None."""
     start = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
     deadline = time.monotonic() + timeout
     while True:
@@ -246,10 +256,7 @@ def wait_for(api: httpx.Client, sent: dict[str, str], timeout: float = 600,
         if all(found.values()):
             return found
         if time.monotonic() > deadline:
-            if not strict:
-                return found
-            raise SystemExit(f"traces not queryable or not failing as intended after {timeout:.0f}s: "
-                             + ", ".join(f"{name} {sent[name]}" for name, info in found.items() if not info))
+            return found
         time.sleep(15)
 
 
