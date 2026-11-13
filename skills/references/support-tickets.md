@@ -1,17 +1,32 @@
 ---
 name: support-tickets
-description: Escalate unresolved TrueFoundry issues to the support team via Pylon. Use when the agent cannot answer a TrueFoundry question, tools return unexpected errors, or the user asks to create a support ticket.
+description: Escalate unresolved TrueFoundry issues to the support team via Pylon. Use when the agent cannot answer a TrueFoundry question, tools return unexpected errors, the user asks to create a support ticket, or the user makes a feature request.
 ---
 
 ## Trigger → Decide path
 
 | User says | Path |
 |---|---|
+| A feature request — "raise a feature request", "can you add X", "we need X", even with "raise a ticket" | → **Check the roadmap first** (below) |
 | "Create a ticket" / "raise a ticket" | → **Direct create** |
 | "Connect me to TrueFoundry" / "talk to someone" | → **Explain and confirm**: explain the escalation is via a support ticket, proceed only if user confirms. |
 | *(agent cannot answer or operation fails)* | → **Offer first**: present ticket offer as a separate paragraph. Proceed only if user accepts. |
 
 Do not suggest other contact channels (website, Discord, email). The ticket is the only escalation path.
+
+## Check the roadmap first
+
+Before creating or offering a ticket for a feature request:
+
+1. Call `list_roadmap_items` with `search` on two or three key words of the feature (`audit SIEM`, `agent budget`). If nothing matches, try one other wording.
+2. Then, by what you found:
+   - **`planned` or `in_progress`**: tell the user it is already on the roadmap: its title, status and target date ("targeted for", not a promise; a passed target date means it has not shipped yet). **Do not create a ticket**, and do not offer one.
+   - **`completed`**: it has shipped. Find the release with `get_changelog` and `search`, and say they may need to upgrade to it. No ticket.
+   - **Only `cancelled`, or no match**: say it isn't on the public roadmap, then follow the path as usual (direct create when they asked for a ticket, otherwise offer one).
+   - **Unsure whether an item covers what they asked**: show it and ask whether it does before deciding.
+3. If the user still asks for a ticket after hearing it is on the roadmap, create it and name the roadmap item in the body.
+
+If `list_roadmap_items` fails, say so and continue with the path as usual.
 
 ## Create flow
 

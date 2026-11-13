@@ -1668,6 +1668,120 @@
         "kind": "troubleshoot",
         "source": "askbench R23, verified 2026-10-17"
       }
+    },
+    {
+      "id": 90,
+      "prompt": "Please raise a feature request for us: we need platform audit logs streamed natively to our Splunk SIEM.",
+      "expected_output": "Checks the roadmap first (list_roadmap_items with a search). Says it is already on the roadmap as \"Export of audit logs to SIEM\" (Core Platform, planned, targeted for November 2026) and does not create a ticket.",
+      "files": [],
+      "expectations": [
+        {
+          "text": "Says audit log export to a SIEM is already on the roadmap (\"Export of audit logs to SIEM\", planned)",
+          "critical": true
+        },
+        {
+          "text": "Does not create a support ticket",
+          "critical": true
+        },
+        "Gives the target as a target (around November 30, 2026), not a promised ship date"
+      ],
+      "tags": {
+        "area": "roadmap",
+        "kind": "lookup",
+        "source": "roadmap and changelog, verified 2026-11-13"
+      },
+      "skip": "needs tfy-changelog-mcp and tfy-roadmap-mcp in Ask TFY on devtest (servicefoundry-server#12448, roadmap-server#11)"
+    },
+    {
+      "id": 91,
+      "prompt": "Can you file a feature request? We want rate limits on MCP tool calls per user, so one agent can't hammer a downstream MCP server.",
+      "expected_output": "Checks the roadmap first. Says this has already shipped (\"Rate limiting for MCP Servers\", completed October 2026): rate limits can target MCP servers, tools and users. Does not create a ticket; points to setting it up with rate limiting (V2).",
+      "files": [],
+      "expectations": [
+        {
+          "text": "Says per-user MCP tool-call rate limiting already exists (shipped), so no feature request is needed",
+          "critical": true
+        },
+        {
+          "text": "Does not create a support ticket",
+          "critical": true
+        },
+        "Points to how to set it up with rate limiting, or offers to"
+      ],
+      "tags": {
+        "area": "roadmap",
+        "kind": "lookup",
+        "source": "roadmap and changelog, verified 2026-11-13"
+      },
+      "skip": "needs tfy-changelog-mcp and tfy-roadmap-mcp in Ask TFY on devtest (servicefoundry-server#12448, roadmap-server#11)"
+    },
+    {
+      "id": 92,
+      "prompt": "What's coming next for the MCP gateway on TrueFoundry's roadmap?",
+      "expected_output": "Calls list_roadmap_items filtered to the MCP Registry and Gateway category (and/or planned and in-progress status). Lists the unshipped items: Debug information for token refresh in MCP servers (in progress), Authentication overrides for agents / users for MCP servers (in progress), Okta ID-JAG and XAA integration (planned, targeted November 2026). Treats dates as targets and notes that the in-progress items' targets (Nov 6 and Nov 10) have passed without shipping.",
+      "files": [],
+      "expectations": [
+        {
+          "text": "Lists the in-progress items Debug information for token refresh in MCP servers and Authentication overrides for agents / users for MCP servers, and the planned Okta ID-JAG and XAA integration",
+          "critical": true
+        },
+        "Does not list completed items as upcoming",
+        "Presents dates as targets, not commitments"
+      ],
+      "tags": {
+        "area": "roadmap",
+        "kind": "lookup",
+        "source": "roadmap and changelog, verified 2026-11-13"
+      },
+      "skip": "needs tfy-changelog-mcp and tfy-roadmap-mcp in Ask TFY on devtest (servicefoundry-server#12448, roadmap-server#11)"
+    },
+    {
+      "id": 93,
+      "prompt": "We're self-hosted on 0.179.40 and planning to upgrade to 0.184.20. Are there any breaking changes or things we have to do?",
+      "expected_output": "Calls get_changelog with from 0.179.40 and to 0.184.20. Leads with the five action-required items: set tags.askTfy: true if they use Ask TFY; Anthropic traffic now uses Authorization: Bearer, so a custom proxy that only reads x-api-key needs reconfiguring; the agent sessions and legacy agent response APIs are removed (migrate to TrueForge APIs or A2A); the built-in Kubernetes troubleshooting tools are removed (use get_application_state); out-of-range temperature or unsupported Bedrock message roles now return 400. Then summarizes other changes briefly.",
+      "files": [],
+      "expectations": [
+        {
+          "text": "Says to set tags.askTfy: true when upgrading if they use Ask TFY",
+          "critical": true
+        },
+        {
+          "text": "Covers all five action-required items: tags.askTfy, Anthropic Authorization: Bearer for custom proxies, removed agent sessions / legacy agent response APIs, removed Kubernetes troubleshooting tools, 400 for out-of-range temperature or unsupported Bedrock roles",
+          "critical": true
+        },
+        "Puts the required actions before the list of new features",
+        "Does not ask for the current or target version"
+      ],
+      "tags": {
+        "area": "releases",
+        "kind": "lookup",
+        "source": "roadmap and changelog, verified 2026-11-13"
+      },
+      "skip": "needs tfy-changelog-mcp and tfy-roadmap-mcp in Ask TFY on devtest (servicefoundry-server#12448, roadmap-server#11)"
+    },
+    {
+      "id": 94,
+      "prompt": "We want to upgrade TrueFoundry next week. What do we need to do?",
+      "expected_output": "Asks for the current version (no tool shows it), and the target if not given. After the reply, calls get_changelog with from 0.179.40 and to 0.184.20 and leads with the action-required items, including tags.askTfy: true for Ask TFY.",
+      "files": [],
+      "expectations": [
+        {
+          "text": "Asks which version they are on before answering, instead of guessing",
+          "critical": true
+        },
+        {
+          "text": "Gives the action-required items for upgrading 0.179.40 to 0.184.20, including setting tags.askTfy: true",
+          "critical": true
+        },
+        "Does not give a generic upgrade checklist instead of the changelog's actions"
+      ],
+      "clarification_reply": "We're on 0.179.40, self-hosted, and want to go to 0.184.20.",
+      "tags": {
+        "area": "releases",
+        "kind": "lookup",
+        "source": "roadmap and changelog, verified 2026-11-13"
+      },
+      "skip": "needs tfy-changelog-mcp and tfy-roadmap-mcp in Ask TFY on devtest (servicefoundry-server#12448, roadmap-server#11)"
     }
   ]
 }

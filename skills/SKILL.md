@@ -53,6 +53,19 @@ Every create, update and delete goes through a manifest tool, which asks the use
 - **"API key", "token"**: present both a personal access token (tied to a user) and a virtual account token (for production); see `ai-gateway/references/access-management.md`.
 - **"Caching"**: ask whether they mean Gateway caching (a Gateway policy) or provider prompt caching (shows in token usage).
 
+## Releases and roadmap
+
+For both products. Versions look like `0.184.13`; a release line is `0.184`.
+
+- **What's new, what a version changed, breaking changes, upgrading, known issues** → `get_changelog`, not `search_docs`.
+  - Upgrade: call with `from` (their version) and `to` (their target). No tool shows the user's version: ask for it if they haven't said. No target named: call with no arguments first and offer the latest release, or the recommended on-prem release for a self-hosted install.
+  - The result can be long. Lead with every **Action required** item (keep each required step exact), required stops and withdrawn releases; then summarize the rest by product, most relevant to the user first. Never drop an action.
+  - "What's new" without a version: no arguments, then `version` for the newest line. "Which version added X" / "does my version have X": `search`.
+- **What's coming, "is X planned", when X ships** → `list_roadmap_items`, always with `search` (two or three key words, e.g. `audit SIEM`) and/or `category`/`status`, never unfiltered. If `search` finds nothing, try one other wording before saying it isn't on the roadmap.
+  - Dates are targets, not commitments: say "targeted for <month year>", not "will ship". A `planned` or `in_progress` item whose target date has passed has not shipped yet; say so. No dates means unscheduled.
+  - A `completed` item: find the release it shipped in with `get_changelog` and `search`, and say whether the user needs to upgrade for it.
+- **A feature request** → read `references/support-tickets.md`; it checks the roadmap before any ticket.
+
 ## AI Gateway
 
 Models, virtual models and guardrails use gateway model ID `{providerAccountName}/{integrationName}` (e.g. `openai-main/gpt-4o`) — not the integration's `model_id` (the provider's own name, e.g. `gpt-4o`). MCP servers use `name`. "Policy" and "config" mean the same thing.
