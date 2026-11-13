@@ -20,7 +20,7 @@ import httpx
 from tfy_eval import agent as agent_mod
 
 from . import asktfy
-from .affected import affected
+from .affected import RUNNER_TOOLING, affected
 from .cli import _kind
 from .handgrade import _tool_line
 from .asktfy import AGENT, DeadlineStream, PinMismatch, PinnedAskTfy, SfyTransport, check_pinned, sfy_raw_path
@@ -29,7 +29,7 @@ from .cases import (
     skip_unseeded, unavailable_fixtures,
 )
 from .experiment import (
-    Experiment, Settings, answer_key_reads, example_id, is_write, sandbox_failure, unapproved_writes,
+    Experiment, Settings, answer_key_reads, example_id, git_version, is_write, sandbox_failure, unapproved_writes,
 )
 from .gate import GateError, compare, fisher_less, holm, sign_flip_p
 from .seed_fixtures import TRACES, wait_for_sql
@@ -403,7 +403,8 @@ with tempfile.TemporaryDirectory() as tmp:
     repo.mkdir()
     git(repo, "init", "-q", "-b", "platform")
     files = {"skills/SKILL.md": "s", "skills/ai-gateway/references/metrics.md": "m",
-             "skills/ai-gateway/references/users.md": "u", "evals/evals.json": evals("cost?", "users?", "hi")}
+             "skills/ai-gateway/references/users.md": "u", "evals/evals.json": evals("cost?", "users?", "hi"),
+             "evals/runner/experiment.py": "e0"}
     base_sha = commit(repo, files, "base")
     nightly = baseline_run(root, base_sha, repo, {
         "s1": "cat /opt/tf/skills/x/ai-gateway/references/metrics.md", "s2": "cat references/users.md", "s3": "ls"})
@@ -416,8 +417,14 @@ with tempfile.TemporaryDirectory() as tmp:
     case_sha = commit(repo, {"evals/evals.json": evals("cost?", "users?", "hello")}, "case")
     check("an edited case is run too", affected(repo, nightly, case_sha).cases == ["s1", "s3"])
     check("SKILL.md runs every case", affected(repo, nightly, commit(repo, {"skills/SKILL.md": "s2"}, "skill")).mode == "all")
+    runner_dir = repo / "evals/runner"
+    before = git_version(runner_dir, RUNNER_TOOLING)
+    tooling_sha = commit(repo, {"evals/runner/seed_fixtures.py": "s", "evals/runner/gate.py": "g"}, "tooling")
+    check("a seeder or gate change keeps the runner version", git_version(runner_dir, RUNNER_TOOLING) == before)
+    check("a seeder or gate change needs no A/B", affected(repo, nightly, tooling_sha).mode != "ab")
     check("a runner change needs a full A/B", affected(repo, nightly, commit(
-        repo, {"evals/runner/gate.py": "g"}, "runner")).mode == "ab")
+        repo, {"evals/runner/experiment.py": "e"}, "runner")).mode == "ab")
+    check("a runner change changes the runner version", git_version(runner_dir, RUNNER_TOOLING) != before)
 
     git(repo, "checkout", "-q", "platform")
     moved_sha = commit(repo, {"skills/ai-gateway/references/users.md": "u2"}, "platform moved on")
