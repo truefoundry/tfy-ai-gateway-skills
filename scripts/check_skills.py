@@ -34,9 +34,9 @@ GONE = {404, 410}
 TOOL_VERBS = ("list|get|create|update|delete|apply|validate|query|register|revoke|generate|search|cancel|"
               "pause|resume|sync|redeploy|check|add|remove|activate|deactivate|reset|resend")
 TOOL_NAME = re.compile(rf"`((?:{TOOL_VERBS})_[a-z0-9_]+)`")
-# Tools from the docs server, the Ask TFY harness, and Pylon - not in the platform snapshot.
+# Tools from the docs, changelog and roadmap servers, the Ask TFY harness, and Pylon - not in the platform snapshot.
 OTHER_TOOLS = {"search_docs", "get_page_layout", "get_section_content", "get_current_datetime", "get_tool_info",
-               "create_issue"}
+               "create_issue", "get_changelog", "list_roadmap_items"}
 
 
 def sizes() -> tuple[list[str], list[str]]:

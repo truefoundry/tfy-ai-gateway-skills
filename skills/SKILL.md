@@ -12,7 +12,7 @@ TrueFoundry has two independent products; a customer may use either alone.
 
 ## How to use this skill
 
-1. Read this whole file first: the intent tables run to its end. Decide which product the question is about.
+1. Read all of this file, then decide which product the question is about.
 2. Find the intent in that product's table and read the named file(s). Read every needed file in **one batch** with your first other calls: one full `cat` each (never `head`/grep — rules are spread through). A result over 24,000 chars is saved to a file; keep a batch under ~35,000 chars.
 3. Follow that file. It says what to fetch, what to ask, and what to build.
 
@@ -22,14 +22,15 @@ Read an entity's file before any write or data query — it holds rules tool err
 
 - **Live state over memory.** The platform outpaces your training data. Fetch state with tools before answering; if the docs don't confirm something, say so. Dates too: call `get_current_datetime` before building a time range.
 - **Docs.** `search_docs` finds pages; `get_page_layout` shows headings; `get_section_content` returns a page or `#section`. Fetch only URLs/anchors from those tools or this skill. Search before saying a topic is uncovered. Link the doc and summarize only what the question needs; don't volunteer best practices.
-- **Session context** (identity, tenant, `controlPlaneUrl`, `tracesTable`, `controlPlaneVersion`): from "Session context" in your instructions, else call `get_session_context` once and reuse it.
+- **Session context** (identity, tenant, `controlPlaneUrl`, `tracesTable`): from "Session context" in your instructions, else call `get_session_context` once and reuse it.
 - **Real URLs only.** Never show a placeholder like `{controlPlaneUrl}` or say you lack the URL: get it as above. `controlPlaneUrl` builds UI links. Gateway base URL (API calls, SDK `baseURL`, MCP endpoints): `manifest.url` from `list_gateway_installations`, of the `isDefault` one if `manifest.enabled`, else an enabled one, unless the user names another.
 - **Tool arguments.** Send only parameters in the tool's input schema. `list_provider_accounts` has no name filter: list, then match `name` yourself. `list_mcp_servers`: filter per `mcp-servers.md`; `attributes` has no `manifest`. Never send a `null`, empty or guessed ID, or repeat a call whose result you have. If a few rounds haven't settled it, answer with what you found and what is unknown.
 - **Sandbox scripts.** Never name a sandbox file after a stdlib module (`csv.py`, `json.py`) — it shadows the import. Any field in tool data can be null: read `r.get(k) or ""` / `or 0`, never `r[k]`.
 - **Long lists.** Over ~30 items: write the full list to a sandbox file and attach it in a `sandbox_artifacts` block; the reply gives totals, by type if the items have one. Never a few examples instead.
 - **Tool errors.** If a platform tool fails, tell the user the error and what it blocks. Never work around it via env vars, process files, the MCP client, raw HTTP, or other credentials.
 - **FQNs.** Never construct one. Tenant FQN is `tenantName`; otherwise list the entity and use its `fqn`. Grant wildcard `model-provider-accounts:*` is a fixed string.
-- **Can't answer** → read `references/support-tickets.md` and follow it, instead of suggesting the user contact someone.
+- **Can't answer** → follow `references/support-tickets.md`, never tell the user to contact someone.
+- **Releases, upgrades, roadmap, feature requests** → `references/releases.md`.
 
 ## Writes
 
@@ -52,20 +53,6 @@ Every create, update and delete goes through a manifest tool, which asks the use
 - **"Application", "app", "use case"** in a Gateway context means a virtual account (occasionally an `x-tfy-metadata` key).
 - **"API key", "token"**: present both a personal access token (tied to a user) and a virtual account token (for production); see `ai-gateway/references/access-management.md`.
 - **"Caching"**: ask whether they mean Gateway caching (a Gateway policy) or provider prompt caching (shows in token usage).
-
-## Releases and roadmap
-
-For both products. Versions look like `0.184.13`; a release line is `0.184`.
-
-- **What's new, what a version changed, breaking changes, upgrading, known issues** → `get_changelog`, not `search_docs`.
-  - Upgrade: call with `from` (their version) and `to` (their target). Their version is `controlPlaneVersion` in the session context unless they name another; say which you used. Ask only if neither gives one. No target named: call with no arguments first and offer the latest release, or the recommended on-prem release for a self-hosted install.
-  - "Does my version have X", "is this fixed in my version": compare against `controlPlaneVersion`.
-  - The result can be long. Lead with every **Action required** item (keep each required step exact), required stops and withdrawn releases; then summarize the rest by product, most relevant to the user first. Never drop an action.
-  - "What's new" without a version: no arguments, then `version` for the newest line. "Which version added X": `search`.
-- **What's coming, "is X planned", when X ships** → `list_roadmap_items`, always with `search` (two or three key words, e.g. `audit SIEM`) and/or `category`/`status`, never unfiltered. If `search` finds nothing, try one other wording before saying it isn't on the roadmap.
-  - Dates are targets, not commitments: say "targeted for <month year>", not "will ship". A `planned` or `in_progress` item whose target date has passed has not shipped yet; say so. No dates means unscheduled.
-  - A `completed` item: find the release it shipped in with `get_changelog` and `search`, and say whether the user needs to upgrade for it.
-- **A feature request** → read `references/support-tickets.md`; it checks the roadmap before any ticket.
 
 ## AI Gateway
 
@@ -95,7 +82,7 @@ Other platform topics: integrations with cloud accounts → https://www.truefoun
 
 ## AI Engineering
 
-Files are under `ai-engineering/references/`. Read the file for what you are about to do before you do it: it says what to check first.
+Files are under `ai-engineering/references/`. Read the file before acting: it says what to check first.
 
 | The user wants to… | Read |
 | --- | --- |

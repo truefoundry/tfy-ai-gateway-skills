@@ -21,7 +21,7 @@ Before creating or offering a ticket for a feature request:
 1. Call `list_roadmap_items` with `search` on two or three key words of the feature (`audit SIEM`, `agent budget`). If nothing matches, try one other wording.
 2. Then, by what you found:
    - **`planned` or `in_progress`**: tell the user it is already on the roadmap: its title, status and target date ("targeted for", not a promise; a passed target date means it has not shipped yet). **Do not create a ticket**, and do not offer one.
-   - **`completed`**: it has shipped. Find the release with `get_changelog` and `search`, and say they may need to upgrade to it. No ticket.
+   - **`completed`**: it has shipped. Find its release with `get_changelog` and `search`, compare it with their version (`references/releases.md`), and say whether they have it now or get it by upgrading. Explain how to use it if a reference file or the docs cover it. No ticket.
    - **Only `cancelled`, or no match**: say it isn't on the public roadmap, then follow the path as usual (direct create when they asked for a ticket, otherwise offer one).
    - **Unsure whether an item covers what they asked**: show it and ask whether it does before deciding.
 3. If the user still asks for a ticket after hearing it is on the roadmap, create it and name the roadmap item in the body.
