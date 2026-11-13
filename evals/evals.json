@@ -1761,27 +1761,26 @@
     },
     {
       "id": 94,
-      "prompt": "We want to upgrade TrueFoundry next week. What do we need to do?",
-      "expected_output": "Asks for the current version (no tool shows it), and the target if not given. After the reply, calls get_changelog with from 0.179.40 and to 0.184.20 and leads with the action-required items, including tags.askTfy: true for Ask TFY.",
+      "prompt": "We want to upgrade TrueFoundry to the latest release next week. What do we need to do?",
+      "expected_output": "Takes the current version from controlPlaneVersion in the session context (says which version it used) instead of asking, gets the latest release from get_changelog, then calls get_changelog with from = that version and to = the latest release, and leads with the action-required items before other changes.",
       "files": [],
       "expectations": [
         {
-          "text": "Asks which version they are on before answering, instead of guessing",
+          "text": "Uses the control plane version from the session context as the current version and names it, instead of asking the user",
           "critical": true
         },
         {
-          "text": "Gives the action-required items for upgrading 0.179.40 to 0.184.20, including setting tags.askTfy: true",
+          "text": "Lists the action-required items from the changelog for that upgrade before other changes",
           "critical": true
         },
         "Does not give a generic upgrade checklist instead of the changelog's actions"
       ],
-      "clarification_reply": "We're on 0.179.40, self-hosted, and want to go to 0.184.20.",
       "tags": {
         "area": "releases",
         "kind": "lookup",
         "source": "roadmap and changelog, verified 2026-11-13"
       },
-      "skip": "needs tfy-changelog-mcp and tfy-roadmap-mcp in Ask TFY on devtest (servicefoundry-server#12448, roadmap-server#11)"
+      "skip": "needs tfy-changelog-mcp and tfy-roadmap-mcp in Ask TFY on devtest (servicefoundry-server#12448, roadmap-server#11), and controlPlaneVersion in the session context (servicefoundry-server#12450)"
     }
   ]
 }
