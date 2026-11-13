@@ -24,6 +24,15 @@ from .cases import _git, case_hash, load_cases
 SKILLS = "skills/"
 CASES_FILE = "evals/evals.json"
 CODE_DIRS = ("evals/runner/", "evals/tfy_eval/")
+# Runner files that neither produce nor grade an answer: changing one keeps runs comparable.
+RUNNER_TOOLING = frozenset({
+    "README.md", ".env.example", "affected.py", "gate.py", "handgrade.py", "seed_fixtures.py", "selftest.py",
+})
+
+
+def is_code(path: str) -> bool:
+    return path.startswith(CODE_DIRS) and not (
+        path.startswith("evals/runner/") and PurePosixPath(path).name in RUNNER_TOOLING)
 
 
 @dataclass
@@ -58,12 +67,12 @@ def affected(repo: Path, baseline_dir: Path, head: str) -> Affected:
     config = json.loads((baseline_dir / "config.json").read_text())
     base = config["skills_sha"]
 
-    if any(path.startswith((SKILLS, *CODE_DIRS)) or path == CASES_FILE for path in _changed(repo, head, base)):
+    if any(path.startswith(SKILLS) or is_code(path) or path == CASES_FILE for path in _changed(repo, head, base)):
         return Affected("stale", reason=f"the baseline commit {base[:12]} has skills, case or runner changes "
                                         "this branch lacks; merge platform")
 
     changed = _changed(repo, base, head)
-    code = [path for path in changed if path.startswith(CODE_DIRS)]
+    code = [path for path in changed if is_code(path)]
     if code:
         return Affected("ab", reason=f"runner or harness changed: {', '.join(code)}")
 

@@ -14,6 +14,7 @@ A trial ends one of three ways:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import subprocess
@@ -34,6 +35,7 @@ from tfy_eval import report as report_mod
 from tfy_eval.dataset import Question
 
 from . import redaction
+from .affected import RUNNER_TOOLING
 from .asktfy import AGENT, PinnedAskTfy, probe
 from .cases import case_hash, fill, is_regression
 
@@ -138,13 +140,18 @@ def answer_key_reads(run: agent_mod.AgentRun) -> int:
     return reads
 
 
-def git_version(directory: Path) -> str:
-    """The committed tree of one directory: unchanged by commits that touch only skills or cases."""
+def git_version(directory: Path, ignore: frozenset[str] = frozenset()) -> str:
+    """The committed files of one directory, except `ignore`: unchanged by commits that touch only skills,
+    cases or ignored files."""
     def git(*args: str) -> str:
         return subprocess.run(["git", "-C", str(directory), *args], check=True, capture_output=True, text=True).stdout.strip()
 
-    dirty = git("status", "--porcelain", "--", ".")
-    return git("rev-parse", "HEAD:./") + ("-dirty" if dirty else "")
+    dirty = [line for line in git("status", "--porcelain", "--", ".").splitlines() if Path(line[3:]).name not in ignore]
+    suffix = "-dirty" if dirty else ""
+    if not ignore:
+        return git("rev-parse", "HEAD:./") + suffix
+    entries = [line for line in git("ls-tree", "HEAD", "--", ".").splitlines() if line.split("\t")[1] not in ignore]
+    return hashlib.sha1("\n".join(entries).encode()).hexdigest() + suffix
 
 
 def harness_version() -> str:
@@ -152,7 +159,7 @@ def harness_version() -> str:
 
 
 def runner_version() -> str:
-    return git_version(RUNNER_DIR)
+    return git_version(RUNNER_DIR, RUNNER_TOOLING)
 
 
 def example_id(dataset_name: str, case: Question) -> uuid.UUID:
