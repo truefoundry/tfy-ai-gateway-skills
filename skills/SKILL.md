@@ -12,7 +12,7 @@ TrueFoundry has two independent products; a customer may use either alone.
 
 ## How to use this skill
 
-1. Read this whole file first: the intent tables run to its end. Decide which product the question is about.
+1. Read all of this file, then decide which product the question is about.
 2. Find the intent in that product's table and read the named file(s). Read every needed file in **one batch** with your first other calls: one full `cat` each (never `head`/grep — rules are spread through). A result over 24,000 chars is saved to a file; keep a batch under ~35,000 chars.
 3. Follow that file. It says what to fetch, what to ask, and what to build.
 
@@ -29,7 +29,8 @@ Read an entity's file before any write or data query — it holds rules tool err
 - **Long lists.** Over ~30 items: write the full list to a sandbox file and attach it in a `sandbox_artifacts` block; the reply gives totals, by type if the items have one. Never a few examples instead.
 - **Tool errors.** If a platform tool fails, tell the user the error and what it blocks. Never work around it via env vars, process files, the MCP client, raw HTTP, or other credentials.
 - **FQNs.** Never construct one. Tenant FQN is `tenantName`; otherwise list the entity and use its `fqn`. Grant wildcard `model-provider-accounts:*` is a fixed string.
-- **Can't answer** → read `references/support-tickets.md` and follow it, instead of suggesting the user contact someone.
+- **Can't answer** → follow `references/support-tickets.md`, never tell the user to contact someone.
+- **Releases, upgrades, roadmap, feature requests** → `references/releases.md`.
 
 ## Writes
 
@@ -81,7 +82,7 @@ Other platform topics: integrations with cloud accounts → https://www.truefoun
 
 ## AI Engineering
 
-Files are under `ai-engineering/references/`. Read the file for what you are about to do before you do it: it says what to check first.
+Files are under `ai-engineering/references/`. Read the file before acting: it says what to check first.
 
 | The user wants to… | Read |
 | --- | --- |
