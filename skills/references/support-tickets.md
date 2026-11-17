@@ -16,7 +16,7 @@ Do not suggest other contact channels (website, Discord, email). The ticket is t
 ## Create flow
 
 1. Take `email` from the session context. If it is absent (non-user session), ask the user for a contact email.
-2. Call `get_pylon_account_id` on **`tfy-platform-mcp`** (not `tfy-pylon-mcp`, despite the name) through the harness `call_tool`, as it isn't in your tool list; it takes no arguments. Use `pylonAccountId` from the response as `account_id`. Only `create_issue` is on `tfy-pylon-mcp`, and it is in your tool list.
+2. Call `get_pylon_account_id` (a `tfy-platform-mcp` tool, not `tfy-pylon-mcp`); use `pylonAccountId` from the response as `account_id`.
 3. Write the title and body from the conversation; do not ask the user to re-explain. If key details (error text, entity names) are no longer in the conversation, ask the user for just those.
 4. Pick a priority using the severity guide below and confirm it with the user via `ask_user_question` (Yes / No); if rejected, let them pick from the options. If you are a sub-agent and `ask_user_question` is not available, stop and return the question to the main agent.
 
