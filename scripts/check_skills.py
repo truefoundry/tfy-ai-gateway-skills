@@ -36,8 +36,8 @@ TOOL_VERBS = ("list|get|create|update|delete|apply|validate|query|register|revok
 TOOL_NAME = re.compile(rf"`((?:{TOOL_VERBS})_[a-z0-9_]+)`")
 # Tools from the docs, changelog and roadmap servers, the Ask TFY harness, and Pylon - not in the platform snapshot.
 OTHER_TOOLS = {"search_docs", "get_page_layout", "get_section_content", "get_current_datetime", "get_tool_info",
-               "create_issue", "list_releases", "get_release", "diff_releases", "get_recommendation",
-               "get_patch_health", "list_roadmap_items"}
+               "create_issue", "list_releases", "get_release", "get_diff", "get_recommendation",
+               "list_roadmap_items"}
 
 
 def sizes() -> tuple[list[str], list[str]]:
