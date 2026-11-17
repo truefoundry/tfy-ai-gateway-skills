@@ -11,34 +11,45 @@ A release is `0.183`; a patch (what is installed) is `0.183.20`.
 
 ## Changelog tools
 
+Every answer is JSON under `data`.
+
 | The user asks | Call |
 |---|---|
-| What changes if I upgrade, any breaking changes | `diff_releases` with `from_control_plane_version` and `to_control_plane_version`, or the two gateway versions |
-| Which version to upgrade to, is my version supported | `get_recommendation` with `current_control_plane_version` (or `current_gateway_version`) |
-| Known issues in my version, should I upgrade now | `get_patch_health` with their version |
-| What's new, what's in a release | `list_releases` (`only_monthly_stable: false` for every release, not only monthly Stable), then `get_release` with a release like `0.183` |
-| Is X in my version, which version added X | `diff_releases` from their version to the newest patch: if X is there, they get it by upgrading (`first_released_in` names a patch that has it; a backport can bring it to an older release too); if not, they have it |
+| What changes if I upgrade, any breaking changes | `get_diff` with `fromControlPlaneVersion` and `toControlPlaneVersion`, or `fromGatewayVersion` and `toGatewayVersion` |
+| Which version to run, is my version supported, known issues in my version, should I upgrade now | `get_recommendation` with `controlPlaneVersion` or `gatewayVersion`; with neither, both recommended versions |
+| What's new, what's in a release | `list_releases` (`monthlyStable: false` for every release, not only monthly Stable), then `get_release` with a release like `0.184` |
+| Is X in my version, which version added X | `get_diff` from their version to the newest patch (`latestControlPlaneVersion` of the first release from `list_releases` with `monthlyStable: false`): if X is there, they get it by upgrading (its `controlPlaneVersion` names a patch that has it; a backport can bring it to an older release too); if not, they have it |
 
-- No upgrade target named: use the recommended patch from `get_recommendation`, unless they ask for the newest.
-- `PATCH_NOT_FOUND` or `RELEASE_NOT_FOUND`: say the release notes don't cover that version yet. Never guess its contents.
+- No upgrade target named: use `recommendedControlPlaneVersion` (or `recommendedGatewayVersion`) from `get_recommendation`, unless they ask for the newest.
+- `VERSION_NOT_FOUND` or `RELEASE_NOT_FOUND`: say the release notes don't cover that version. Never guess its contents.
+
+## Is my version OK
+
+`get_recommendation` with their version returns `current`: its `status`, `knownIssues` (each with `title`, `severity`, `workaround` and where it is fixed) and, when they should move, `upgrade`. No `upgrade` means no need to upgrade. By `upgrade.reason`:
+
+- `CRITICAL_ISSUE`, `WITHDRAWN`, `UNSUPPORTED`: upgrade now, to `upgrade.toControlPlaneVersion`, through each of `requiredStopControlPlaneVersions` in order. `isAheadOfMonthlyStable` means the target is past the monthly Stable; say so.
+- `ENDING_SOON`: upgrade before the next monthly Stable.
+- `NEWER_RECOMMENDED`: upgrade at a regular upgrade.
+
+Give each known issue's workaround.
 
 ## Upgrade answers
 
 Lead with, in this order:
 
-1. Every change with an `upgrade_step`: quote the step.
-2. `required_stops` (patches to install on the way, in order) and `withdrawn_patches`.
-3. `lost_changes` (in their version but not in the target) and `known_issues.still_open`.
+1. Every `breakingChange`, and every `upgradeStep` (quote the step).
+2. `requiredStopControlPlaneVersions` (install each on the way, in order) and `withdrawnControlPlaneVersions`.
+3. `lostChanges` (in their version but not in the target) and `knownIssues.open`.
 
-Then summarize the rest briefly by product, most relevant to the user first. Never drop a step.
+Then summarize the rest briefly by product, most relevant to the user first. Never drop a breaking change or a step.
 
-An upgrade across releases is often over 100,000 characters, and `get_release` over 24,000: the result is saved to a file. Extract from it; never skim it or call the tool again:
+A `get_diff` across releases is often over 100,000 characters and saved to a file. Extract from it; never skim it or call the tool again:
 
 ```bash
-jq -c '{steps: [.changes_by_release[].changes_by_product[].changes[] | select(.upgrade_step) | {upgrade_step, description}] | unique, required_stops, withdrawn_patches, lost_changes: [.lost_changes[]? | .description], still_open: .known_issues.still_open}' <file>
+jq -c '.data | {breaking: [.changes[] | .breakingChange // empty] | unique, steps: [.changes[] | select(.upgradeStep) | {upgradeStep, description}] | unique, requiredStops: .requiredStopControlPlaneVersions, withdrawn: .withdrawnControlPlaneVersions, lost: [.lostChanges[]? | .description], openIssues: [.knownIssues.open[]? | {title, severity, workaround}]}' <file>
 ```
 
-For the rest, print only the user's products: `jq -r '.changes_by_release[].changes_by_product[] | select(.product == "LLM Gateway") | .changes[].description' <file>`. A saved `get_release` result has the same changes under `.patches[].changes_by_product[]`.
+For the rest, print only the user's products: `jq -r '.data.changes[] | select(.products | index("LLM Gateway")) | .description' <file>`. A saved `get_release` has its changes under `.data.patches[].changes[]`.
 
 ## Roadmap: `list_roadmap_items`
 
