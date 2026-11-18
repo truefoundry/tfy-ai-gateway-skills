@@ -18,7 +18,7 @@ jobs:
     name: Upload (Prod)
     runs-on:
       group: large-runner-group
-      labels: ubuntu-24-4-core
+      labels: "gh-large-linux-2c."
     steps:
       - name: Checkout
         uses: actions/checkout@v4

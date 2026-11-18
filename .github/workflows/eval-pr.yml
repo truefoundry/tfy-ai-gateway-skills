@@ -30,7 +30,7 @@ jobs:
       (github.event.action != 'labeled' || github.event.label.name == 'eval')
     runs-on:
       group: large-runner-group
-      labels: ubuntu-24-4-core
+      labels: "gh-large-linux-2c."
     timeout-minutes: 330
     defaults:
       run:
