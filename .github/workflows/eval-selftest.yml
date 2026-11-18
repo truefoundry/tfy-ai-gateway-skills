@@ -12,7 +12,9 @@ permissions:
 jobs:
   selftest:
     name: Runner and harness selftests
-    runs-on: ubuntu-latest
+    runs-on:
+      group: large-runner-group
+      labels: ubuntu-24-4-core
     defaults:
       run:
         working-directory: evals

@@ -15,7 +15,9 @@ permissions:
 jobs:
   check:
     name: Size cap and links
-    runs-on: ubuntu-latest
+    runs-on:
+      group: large-runner-group
+      labels: ubuntu-24-4-core
     steps:
       - uses: actions/checkout@v4
 
